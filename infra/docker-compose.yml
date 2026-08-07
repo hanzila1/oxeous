@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  # ── Granite LLM (Ollama) ──────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: oxeous-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── FastAPI Backend ───────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: oxeous-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GRANITE_DEPLOYMENT=${GRANITE_DEPLOYMENT:-ollama}
+      - GRANITE_MODEL=${GRANITE_MODEL:-granite3-8b}
+      - GRANITE_OLLAMA_URL=http://ollama:11434
+      - NASA_EARTHDATA_TOKEN=${NASA_EARTHDATA_TOKEN:-}
+      - NASA_EARTHDATA_USERNAME=${NASA_EARTHDATA_USERNAME:-}
+      - NASA_EARTHDATA_PASSWORD=${NASA_EARTHDATA_PASSWORD:-}
+      - CORS_ORIGINS=http://localhost:3000
+      - TILE_CACHE_DIR=/tmp/oxeous_tiles
+      - LOG_LEVEL=INFO
+    volumes:
+      - tile_cache:/tmp/oxeous_tiles
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────
+  frontend:
+    image: node:20-alpine
+    container_name: oxeous-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - ./packages:/packages
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  tile_cache:
+  frontend_node_modules:
