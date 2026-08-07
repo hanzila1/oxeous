@@ -1,19 +1,35 @@
-# Oxeous — Ask the Earth. See the evidence.
+<p align="center">
+  <img src="docs/hero-banner.png" alt="Oxeous — Satellite intelligence for deforestation due diligence" width="100%" />
+</p>
 
-> **A map-first conversational Earth observation platform with built-in EUDR compliance**
-> powered by **IBM Granite** · **IBM–NASA Prithvi-EO 2.0** · **NASA GIBS / STAC** · **Hansen GFC** · **ESA WorldCover**
+<p align="center">
+  <img src="docs/oxeous-logo-transparent.png" alt="Oxeous Logo" width="180" />
+</p>
 
-> 🌿 **New:** EUDR Due Diligence platform — verify commodity plots are deforestation-free per EU Regulation 2023/1115
+<h3 align="center">Ask the Earth. See the evidence.</h3>
 
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-000000)](https://nextjs.org)
-[![MapLibre GL JS](https://img.shields.io/badge/Map-MapLibre%20GL%20JS%204-3b82f6)](https://maplibre.org)
+<p align="center">
+  A map-first conversational Earth observation platform with built-in EUDR compliance<br/>
+  powered by <b>IBM Granite</b> · <b>IBM–NASA Prithvi-EO 2.0</b> · <b>NASA GIBS / STAC</b> · <b>Hansen GFC</b> · <b>ESA WorldCover</b>
+</p>
+
+<p align="center">
+  <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+  <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Frontend-Next.js%2014-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" /></a>
+  <a href="https://maplibre.org"><img src="https://img.shields.io/badge/Map-MapLibre%20GL%20JS-3b82f6?style=for-the-badge&logo=maplibre&logoColor=white" alt="MapLibre" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/AI-IBM%20Granite-052FAD?style=for-the-badge&logo=ibm&logoColor=white" alt="IBM Granite" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" /></a>
+</p>
+
+<p align="center">
+  🌿 <b>EUDR Due Diligence</b> — verify commodity plots are deforestation-free per EU Regulation 2023/1115
+</p>
 
 ---
 
-## What is Oxeous?
+## 🌍 What is Oxeous?
 
-Oxeous is a spatial dashboard controlled by conversation. You type a natural-language question about any location on Earth — Oxeous uses IBM Granite to extract intent, fetches real satellite data from NASA, renders a georeferenced map layer, and explains the results in plain language.
+Oxeous is a **spatial intelligence dashboard controlled by conversation**. Type a natural-language question about any location on Earth — Oxeous uses IBM Granite to extract intent, fetches real satellite data from NASA, renders a georeferenced map layer, and explains the results in plain language.
 
 ```
 User types → Granite extracts intent → Analysis tool fetches real satellite data
@@ -22,7 +38,7 @@ User types → Granite extracts intent → Analysis tool fetches real satellite 
 
 ---
 
-## Quick Start
+## ⚡ Quick Start
 
 ### Prerequisites
 
@@ -68,7 +84,7 @@ docker compose -f infra/docker-compose.yml up
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 Browser (MapLibre GL JS + React)
@@ -83,7 +99,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full diagram.
 
 ---
 
-## EUDR Compliance Module
+## 📋 EUDR Compliance Module
 
 Oxeous includes a full **EU Deforestation Regulation (EUDR) due diligence** capability:
 
@@ -109,7 +125,7 @@ Oxeous includes a full **EU Deforestation Regulation (EUDR) due diligence** capa
 
 ---
 
-## General Earth Observation Capabilities (MVP)
+## 🛰️ Earth Observation Capabilities
 
 | Capability | Data Source | Response Time |
 |-----------|-------------|--------------|
@@ -121,7 +137,7 @@ Oxeous includes a full **EU Deforestation Regulation (EUDR) due diligence** capa
 
 ---
 
-## Example Prompts
+## 💬 Example Prompts
 
 ```
 Show vegetation moisture decline around Lahore this month
@@ -133,7 +149,7 @@ Run AI change detection analysis on agricultural areas near Islamabad
 
 ---
 
-## Repository Structure
+## 📂 Repository Structure
 
 ```
 oxeous/
@@ -147,7 +163,7 @@ oxeous/
 
 ---
 
-## Environment Variables
+## 🔐 Environment Variables
 
 See [`.env.example`](.env.example) for a full list. Minimum required to run locally without NASA data:
 
@@ -163,7 +179,7 @@ NASA_EARTHDATA_TOKEN=your_token_here
 
 ---
 
-## Running Tests
+## 🧪 Running Tests
 
 ```bash
 cd backend
@@ -173,7 +189,7 @@ pytest tests/integration/ -v               # requires FastAPI test client
 
 ---
 
-## Phase 0 Validation Experiments
+## 🔬 Phase 0 Validation Experiments
 
 Before full development, run the three validation experiments:
 
@@ -187,7 +203,7 @@ Each writes a `RESULT.md` with pass/fail outcome.
 
 ---
 
-## IBM Technology
+## 🧠 IBM Technology
 
 | Technology | Role |
 |-----------|------|
@@ -197,10 +213,13 @@ Each writes a `RESULT.md` with pass/fail outcome.
 
 ---
 
-## License
+## 📄 License
 
 MIT — See `LICENSE` for details.
 
 ---
 
-*Built with IBM Bob. Powered by IBM Granite and IBM–NASA Prithvi.*
+<p align="center">
+  <img src="docs/oxeous-logo-transparent.png" alt="Oxeous" width="100" /><br/>
+  <sub>Built with IBM watsonx. Powered by IBM Granite and IBM–NASA Prithvi.</sub>
+</p>
