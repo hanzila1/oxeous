@@ -18,6 +18,28 @@ router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
 
 
+def _prompt_is_non_geospatial(prompt: str) -> bool:
+    text = prompt.strip().lower()
+    if not text:
+        return True
+
+    greeting_phrases = (
+        "hi", "hello", "hey", "good morning", "good evening", "good afternoon",
+        "thanks", "thank you", "who are you", "what is this", "what can you do",
+    )
+    if text in greeting_phrases or text.startswith(greeting_phrases):
+        return True
+
+    geospatial_terms = (
+        "forest", "deforestation", "water", "aoi", "plot", "geojson", "satellite",
+        "land", "vegetation", "crop", "soil", "moisture", "risk", "compliance",
+        "eudr", "due diligence", "cover", "analysis", "map", "boundary", "area",
+        "change", "disturbance", "protected", "legality", "surface", "change detection",
+        "imagery", "image", "true color", "rgb", "sentinel", "landsat",
+    )
+    return not any(term in text for term in geospatial_terms)
+
+
 @router.post("/chat", response_model=AnalysisResponse)
 async def chat(body: ChatRequest, request: Request) -> AnalysisResponse:
     request_id = tracing.new_request_id()
@@ -25,6 +47,11 @@ async def chat(body: ChatRequest, request: Request) -> AnalysisResponse:
     granite: GraniteClient = request.app.state.granite
 
     logger.info("Chat request %s: %s", request_id, body.prompt[:80])
+    if _prompt_is_non_geospatial(body.prompt):
+        raise HTTPException(
+            status_code=400,
+            detail="Please ask about a specific AOI, plot, or geospatial question. Upload GeoJSON or use the current map area to run due diligence.",
+        )
 
     # ── 1. Granite intent extraction ─────────────────────────────────────────
     tool_definitions = ToolRegistry.get_definitions()

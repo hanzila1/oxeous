@@ -79,9 +79,16 @@ class EUDRPlotUploadRequest(BaseModel):
 class DeforestationFinding(BaseModel):
     plot_id: str
     has_deforestation: bool
+    forest_cover_2000_pct: float = 0.0
+    pre_cutoff_loss_pct: float = 0.0
     forest_cover_2020_pct: float = 0.0
     forest_loss_pct: float = 0.0
     forest_loss_ha: float = 0.0
+    natural_forest_pct: float = 0.0
+    dominant_forest_type: str = ""
+    dominant_loss_driver: str = ""
+    commodity_confirmed: bool = False
+    commodity_coverage_pct: float = 0.0
     loss_years: list[int] = Field(default_factory=list)
     confidence: str = "medium"           # high | medium | low
     data_sources: list[str] = Field(default_factory=list)
@@ -140,6 +147,18 @@ class EUDRAnalysisRequest(BaseModel):
     generate_dds: bool = False
 
 
+class GEEMapLayer(BaseModel):
+    """A real GEE-derived XYZ tile layer for frontend rendering."""
+    id: str
+    label: str
+    tile_url: str                        # MapLibre-compatible XYZ tile URL from GEE
+    visible: bool = False
+    opacity: float = 0.75
+    legend: Optional[dict[str, Any]] = None
+    dataset: str = ""                    # GEE asset path (provenance)
+    layer_type: str = ""                 # e.g. hansen_loss, forest_typology
+
+
 class EUDRAnalysisResponse(BaseModel):
     request_id: str
     plot: EUDRPlot
@@ -149,3 +168,6 @@ class EUDRAnalysisResponse(BaseModel):
     deforestation_geojson: Optional[dict[str, Any]] = None
     explanation: str
     follow_up_suggestions: list[str] = Field(default_factory=list)
+    # Real GEE satellite map layers — rendered as raster overlays in MapLibre
+    map_layers: list[GEEMapLayer] = Field(default_factory=list)
+

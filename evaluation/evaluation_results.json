@@ -1,0 +1,213 @@
+{
+  "baseline": {
+    "accuracy_pct": 30.0,
+    "results": [
+      {
+        "id": "TC-01",
+        "decision": "UNCERTAIN",
+        "reason": "[MOCK BASELINE] Cannot verify deforestation without satellite data - supplier claims no clearing",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-02",
+        "decision": "UNCERTAIN",
+        "reason": "[MOCK BASELINE] Cannot verify land use history from text alone",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-03",
+        "decision": "UNCERTAIN",
+        "reason": "[MOCK BASELINE] No satellite data available to verify peatland clearing claims",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-04",
+        "decision": "PASS",
+        "reason": "[MOCK BASELINE] FSC certified forest in low-risk EU country with no deforestation claims",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-05",
+        "decision": "PASS",
+        "reason": "[MOCK BASELINE] Supplier states clearing was in 2019 which is pre-cutoff date",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-06",
+        "decision": "UNCERTAIN",
+        "reason": "[MOCK BASELINE] Supplier admits 0.6ha clearing in 2022 which is post-cutoff but baseline cannot quantify",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-07",
+        "decision": "PASS",
+        "reason": "[MOCK BASELINE] PEFC certified boreal forest in low-risk Nordic country",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-08",
+        "decision": "UNCERTAIN",
+        "reason": "[MOCK BASELINE] Cannot verify protected area boundaries without geospatial tools",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-09",
+        "decision": "UNCERTAIN",
+        "reason": "[MOCK BASELINE] Cannot verify Amazon frontier pasture expansion without satellite data",
+        "correct": false,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      },
+      {
+        "id": "TC-10",
+        "decision": "PASS",
+        "reason": "[MOCK BASELINE] FSC and PEFC certified alpine forest in low-risk EU country Austria",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": false,
+        "risk_score": null,
+        "dds_generated": false
+      }
+    ]
+  },
+  "agent": {
+    "accuracy_pct": 100.0,
+    "mock_gee": true,
+    "results": [
+      {
+        "id": "TC-01",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 82.4/100 | deforestation=True | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 82.4,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-02",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 71.5/100 | deforestation=True | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 71.5,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-03",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 76.8/100 | deforestation=True | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 76.8,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-04",
+        "decision": "PASS",
+        "reason": "[MOCK] Risk score 0.0/100 | deforestation=False | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 0.0,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-05",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 58.4/100 | deforestation=True | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 58.4,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-06",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 41.2/100 | deforestation=True | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 41.2,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-07",
+        "decision": "PASS",
+        "reason": "[MOCK] Risk score 0.0/100 | deforestation=False | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 0.0,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-08",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 45.0/100 | deforestation=False | protected_area=True | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 45.0,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-09",
+        "decision": "FAIL",
+        "reason": "[MOCK] Risk score 89.2/100 | deforestation=True | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 89.2,
+        "dds_generated": true
+      },
+      {
+        "id": "TC-10",
+        "decision": "PASS",
+        "reason": "[MOCK] Risk score 0.0/100 | deforestation=False | protected_area=False | sources: Hansen GFC + WDPA (GEE)",
+        "correct": true,
+        "elapsed_ms": 0,
+        "has_satellite_evidence": true,
+        "risk_score": 0.0,
+        "dds_generated": true
+      }
+    ]
+  }
+}

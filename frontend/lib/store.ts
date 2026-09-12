@@ -18,6 +18,14 @@ export interface ActiveLayer {
   opacity: number;
   legend?: AnalysisResponse["legend"];
   analysisType: string;
+  layer_type?: string;
+}
+
+export interface AgentLogEntry {
+  id: string;
+  label: string;
+  detail: string;
+  status: "done" | "active" | "pending";
 }
 
 interface ChatMessage {
@@ -25,12 +33,22 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   analysisResult?: AnalysisResponse;
+  eudrResult?: EUDRAnalysisResponse;
+  agentLogs?: AgentLogEntry[];
   isLoading?: boolean;
   error?: string;
 }
 
+export type RightPanelType = "chat" | "layers" | null;
+
 interface OxeousState {
-  // Navigation & Side Panel Drawer (Exclusive)
+  // Navigation & Panels (Simultaneous EUDR + Right Panel)
+  eudrPanelOpen: boolean;
+  setEudrPanelOpen: (open: boolean) => void;
+  rightPanel: RightPanelType;
+  setRightPanel: (panel: RightPanelType) => void;
+
+  // Legacy activePanel compatibility
   activePanel: SidePanelType;
   setActivePanel: (panel: SidePanelType) => void;
 
@@ -41,6 +59,10 @@ interface OxeousState {
   // Map GeoJSON Vector Plot Layer
   activeGeoJSON: object | null;
   setActiveGeoJSON: (geojson: object | null) => void;
+
+  // AOI drawing state
+  drawingAOI: boolean;
+  setDrawingAOI: (v: boolean) => void;
 
   // Map Raster Layers
   layers: ActiveLayer[];
@@ -67,9 +89,24 @@ interface OxeousState {
 }
 
 export const useStore = create<OxeousState>((set) => ({
-  activePanel: "eudr",
+  eudrPanelOpen: false,
+  setEudrPanelOpen: (open) => set({ eudrPanelOpen: open }),
+
+  rightPanel: "chat",
+  setRightPanel: (panel) => set({ rightPanel: panel }),
+
+  activePanel: "chat",
   setActivePanel: (panel) =>
-    set((s) => ({ activePanel: s.activePanel === panel ? null : panel })),
+    set((s) => {
+      if (panel === "eudr") {
+        return { eudrPanelOpen: !s.eudrPanelOpen, activePanel: !s.eudrPanelOpen ? "eudr" : null };
+      }
+      if (panel === "chat" || panel === "layers") {
+        const nextRight = s.rightPanel === panel ? null : panel;
+        return { rightPanel: nextRight, activePanel: nextRight };
+      }
+      return { eudrPanelOpen: false, rightPanel: null, activePanel: null };
+    }),
 
   viewport: {
     center: [-55.5, -12.5],
@@ -82,68 +119,12 @@ export const useStore = create<OxeousState>((set) => ({
   activeGeoJSON: null,
   setActiveGeoJSON: (geojson) => set({ activeGeoJSON: geojson }),
 
-  layers: [
-    // ── LAYER 1: Hansen GFC Forest Loss Year (2001–2023) ─────────────────────
-    // This IS the EUDR deforestation data. Red pixels = forest cleared after
-    // the cutoff year. Dark red = recent (post-2020). Source: Hansen/UMD/Google.
-    // Tiles confirmed working from Google Cloud Storage.
-    {
-      id: "hansen-gfc-loss-year",
-      label: "Hansen GFC · Forest Loss Year (2001–2023)",
-      type: "raster",
-      tileUrl: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.11/loss_year/{z}/{x}/{y}.png",
-      visible: true,
-      opacity: 0.85,
-      legend: {
-        title: "Hansen GFC Forest Loss Year",
-        colormap: "YlOrRd",
-        min: 2001,
-        max: 2023,
-        units: "Year",
-        steps: 5,
-      },
-      analysisType: "land_disturbance",
-    },
-    // ── LAYER 2: Hansen GFC Forest Gain (2000–2020) ──────────────────────────
-    // Green pixels = where forest grew back. Shows net change context.
-    // Note: gain layer shows as uniform colour — still useful for context.
-    {
-      id: "hansen-gfc-loss-year-v1.6",
-      label: "Hansen GFC v1.6 · Historical Loss (2001–2020)",
-      type: "raster",
-      tileUrl: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.6/loss_year/{z}/{x}/{y}.png",
-      visible: false,
-      opacity: 0.60,
-      legend: {
-        title: "Historical Forest Loss (2001–2020)",
-        colormap: "YlOrRd",
-        min: 2001,
-        max: 2020,
-        units: "Year",
-        steps: 5,
-      },
-      analysisType: "vegetation_health_comparison",
-    },
-    // ── LAYER 3: GFW Primary Forest 2001 Baseline ────────────────────────────
-    // Shows where intact primary forest was in 2001. Confirms EUDR baseline.
-    {
-      id: "gfw-primary-forest",
-      label: "GFW · Primary Forest Baseline 2001",
-      type: "raster",
-      tileUrl: "https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/default/{z}/{x}/{y}.png",
-      visible: false,
-      opacity: 0.65,
-      legend: {
-        title: "Primary Forest Cover 2001",
-        colormap: "RdYlGn",
-        min: 0,
-        max: 1,
-        units: "",
-        steps: 2,
-      },
-      analysisType: "vegetation_health_comparison",
-    },
-  ],
+  drawingAOI: false,
+  setDrawingAOI: (v) => set({ drawingAOI: v }),
+
+  // Start with NO pre-loaded layers — clean satellite basemap only.
+  // GEE layers are added dynamically after each EUDR assessment completes.
+  layers: [],
   addLayer: (layer) =>
     set((s) => ({
       layers: [

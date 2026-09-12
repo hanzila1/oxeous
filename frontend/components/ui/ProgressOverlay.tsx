@@ -63,8 +63,8 @@ export default function ProgressOverlay() {
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-prithvi-purple flex-shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-text">Prithvi AI Analysis</p>
-              <p className="text-[10px] text-muted">IBM–NASA Prithvi-EO 2.0 · Change Detection</p>
+              <p className="text-xs font-semibold text-text">Spatial AI Analysis</p>
+              <p className="text-[10px] text-muted">Gemini + GEE + NASA workflow</p>
             </div>
           </div>
           {(isComplete || isFailed) && (

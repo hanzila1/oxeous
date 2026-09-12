@@ -25,6 +25,16 @@ function getRiskBarColor(score: number): string {
   return "#A64B45";
 }
 
+function formatTypology(val?: string | null): string {
+  if (!val) return "Unknown";
+  return val.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+function formatArea(ha?: number | null): string {
+  if (ha == null) return "Area from bounds";
+  return `${ha.toLocaleString("en-US", { maximumFractionDigits: 1 })} ha`;
+}
+
 export default function ComplianceResultCard({ result }: { result: EUDRAnalysisResponse }) {
   const [expanded, setExpanded] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -54,7 +64,7 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
           <div className="min-w-0">
             <p className="font-semibold text-[#1D2227] truncate capitalize">{plot.commodity.replace(/_/g, " ")} — {plot.country_name}</p>
             <p className="text-[10px] text-[#747F88] mt-0.5 font-mono">
-              {plot.area_ha != null ? `${plot.area_ha.toFixed(1)} ha` : "Area from bounds"} · EU 2023/1115
+              {formatArea(plot.area_ha)} · EU 2023/1115
             </p>
           </div>
         </div>
@@ -85,19 +95,23 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
           {/* Deforestation finding */}
           <div className="px-3.5 py-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#747F88] uppercase tracking-wider font-medium">Forest Loss Check (Post Dec 2020)</span>
+              <span className="text-[10px] text-[#747F88] uppercase tracking-wider font-medium">Satellite Timeline & Findings</span>
               <span className={cn(
                 "text-[10px] font-bold px-1.5 py-0.5 rounded border font-mono",
                 def.has_deforestation ? "text-[#A64B45] bg-[rgba(166,75,69,0.08)] border-[rgba(166,75,69,0.25)]" : "text-[#315F50] bg-[rgba(49,95,80,0.08)] border-[rgba(49,95,80,0.25)]",
               )}>
-                {def.has_deforestation ? "⚠ LOSS DETECTED" : "✓ COMPLIANT"}
+                {def.has_deforestation ? "⚠ POST-2020 LOSS" : "✓ ZERO POST-2020 LOSS"}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Stat label="Forest cover (2020)" value={`${(def.forest_cover_2020_pct ?? 0).toFixed(1)}%`} />
-              <Stat label="Post-2020 loss" value={`${(def.forest_loss_ha ?? 0).toFixed(2)} ha`} warn={def.forest_loss_ha > 0} />
-              <Stat label="Loss years" value={def.loss_years?.length ? def.loss_years.join(", ") : "None"} warn={(def.loss_years?.length ?? 0) > 0} />
-              <Stat label="Confidence" value={(def.confidence ?? "high").toUpperCase()} />
+              <Stat label="Year 2000 Baseline" value={`${(def.forest_cover_2000_pct ?? 0).toFixed(1)}% cover`} />
+              <Stat label="Pre-Cutoff Loss (00-20)" value={`${(def.pre_cutoff_loss_pct ?? 0).toFixed(1)}% cleared`} warn={(def.pre_cutoff_loss_pct ?? 0) > 20} />
+              <Stat label="Cutoff Forest (Dec 2020)" value={`${(def.forest_cover_2020_pct ?? 0).toFixed(1)}% standing`} />
+              <Stat label="Post-2020 Loss (21-25)" value={`${(def.forest_loss_pct ?? 0).toFixed(2)}% (${(def.forest_loss_ha ?? 0).toFixed(1)} ha)`} warn={def.forest_loss_ha > 0} />
+              <Stat label="Natural Forest (10m)" value={`${(def.natural_forest_pct ?? 0).toFixed(1)}% baseline`} />
+              <Stat label="Forest Typology" value={formatTypology(def.dominant_forest_type)} />
+              <Stat label="Primary Loss Driver" value={def.dominant_loss_driver || "None"} warn={def.dominant_loss_driver?.toLowerCase().includes("agriculture")} />
+              <Stat label="Commodity Verification" value={def.commodity_confirmed ? `Confirmed (${(def.commodity_coverage_pct ?? 0).toFixed(0)}%)` : "Unconfirmed"} />
             </div>
             {def.ndvi_before !== null && def.ndvi_after !== null && (
               <div className="flex items-center justify-between text-[10px] bg-[#F4F5F6] border border-[#E3E7EA] rounded px-2.5 py-1.5 font-mono">
@@ -122,6 +136,12 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
               <Stat label="Protected area overlap" value={leg.overlaps_protected_area ? "OVERLAP ⚠" : "CLEAR ✓"} warn={leg.overlaps_protected_area} />
               <Stat label="Country risk tier" value={leg.country_risk_level.toUpperCase()} warn={leg.country_risk_level === "high"} />
             </div>
+            {leg.overlaps_protected_area && leg.protected_area_names.length > 0 && (
+              <div className="p-2 rounded bg-[rgba(166,75,69,0.06)] border border-[rgba(166,75,69,0.25)] text-[11px] text-[#A64B45] font-mono">
+                <span className="font-semibold">Intersecting Reserves: </span>
+                {leg.protected_area_names.join(", ")}
+              </div>
+            )}
             {leg.issues.map((issue, i) => (
               <div key={i} className="flex items-start gap-1.5 text-[11px] text-[#C58A3A] bg-[rgba(197,138,58,0.06)] border border-[rgba(197,138,58,0.2)] rounded px-2.5 py-1.5">
                 <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" /> {issue}
@@ -172,7 +192,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
   return (
     <div className="bg-[#F4F5F6] border border-[#E3E7EA] rounded-lg px-2.5 py-2">
       <p className="text-[9px] text-[#AAB3BB] uppercase tracking-wider font-medium leading-tight">{label}</p>
-      <p className={cn("text-[11px] font-bold mt-1 font-mono", warn ? "text-[#A64B45]" : "text-[#1D2227]")}>{value}</p>
+      <p className={cn("text-[11px] font-bold mt-1 font-mono break-words leading-tight", warn ? "text-[#A64B45]" : "text-[#1D2227]")}>{value}</p>
     </div>
   );
 }
