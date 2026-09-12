@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Upload, FileJson, AlertCircle, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useStore } from "@/lib/store";
 import type { EUDRCommodity } from "@oxeous/shared-types";
 
 interface Props {
@@ -21,11 +22,9 @@ const COMMODITIES: { value: EUDRCommodity; label: string; emoji: string }[] = [
 ];
 
 export default function PlotUploader({ onPlotReady, disabled }: Props) {
+  const { activeGeoJSON: geometry, setActiveGeoJSON: setGeometry, drawingAOI } = useStore();
   const [dragging, setDragging] = useState(false);
   const [commodity, setCommodity] = useState<EUDRCommodity>("cocoa");
-  const [countryCode, setCountryCode] = useState("GH");
-  const [countryName, setCountryName] = useState("Ghana");
-  const [geometry, setGeometry] = useState<object | null>(null);
   const [filename, setFilename] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -66,7 +65,7 @@ export default function PlotUploader({ onPlotReady, disabled }: Props) {
 
   function handleSubmit() {
     if (!geometry) return;
-    onPlotReady(geometry, commodity, countryCode, countryName);
+    onPlotReady(geometry, commodity, "", "");
   }
 
   return (
@@ -89,31 +88,6 @@ export default function PlotUploader({ onPlotReady, disabled }: Props) {
               <span>{c.emoji}</span> {c.label}
             </button>
           ))}
-        </div>
-      </div>
-
-      {/* Country input */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted uppercase tracking-wider font-medium">Country code</p>
-          <input
-            type="text"
-            maxLength={2}
-            value={countryCode}
-            onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
-            placeholder="BR"
-            className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-sm text-text outline-none focus:border-steel/60 font-mono uppercase"
-          />
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted uppercase tracking-wider font-medium">Country name</p>
-          <input
-            type="text"
-            value={countryName}
-            onChange={(e) => setCountryName(e.target.value)}
-            placeholder="Brazil"
-            className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-sm text-text outline-none focus:border-steel/60"
-          />
         </div>
       </div>
 
@@ -140,7 +114,7 @@ export default function PlotUploader({ onPlotReady, disabled }: Props) {
             <CheckCircle2 className="w-4 h-4 text-verified flex-shrink-0" />
             <div className="text-left">
               <p className="text-xs text-verified font-medium">Geometry loaded</p>
-              <p className="text-[10px] text-muted">{filename}</p>
+              <p className="text-[10px] text-muted">{filename || "Drawn on map"}</p>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); setGeometry(null); setFilename(null); }}
@@ -153,7 +127,7 @@ export default function PlotUploader({ onPlotReady, disabled }: Props) {
           <div className="space-y-1">
             <FileJson className="w-6 h-6 text-muted mx-auto" />
             <p className="text-xs text-text">Drop GeoJSON plot file here</p>
-            <p className="text-[10px] text-muted">or click to browse · Polygon / MultiPolygon / Point</p>
+            <p className="text-[10px] text-muted">or click to browse · Polygon / MultiPolygon / Point · passed to the agent for EUDR analysis</p>
           </div>
         )}
       </div>

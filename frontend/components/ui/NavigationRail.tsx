@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Globe2, ShieldCheck, Layers, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore, type SidePanelType } from "@/lib/store";
@@ -8,38 +7,52 @@ import { useStore, type SidePanelType } from "@/lib/store";
 const NAV_ITEMS: { id: SidePanelType; icon: typeof Globe2; label: string; desc: string }[] = [
   { id: null,     icon: Globe2,        label: "Map",     desc: "Satellite view" },
   { id: "eudr",   icon: ShieldCheck,   label: "EUDR",    desc: "Compliance" },
-  { id: "chat",   icon: MessageSquare, label: "Copilot", desc: "AI analysis" },
+  { id: "chat",   icon: MessageSquare, label: "Agent",   desc: "Spatial AI" },
   { id: "layers", icon: Layers,        label: "Layers",  desc: "Raster layers" },
 ];
 
 export default function NavigationRail() {
-  const { activePanel, setActivePanel } = useStore();
+  const { eudrPanelOpen, setEudrPanelOpen, rightPanel, setRightPanel } = useStore();
+
+  const handleNav = (id: SidePanelType) => {
+    if (id === "eudr") {
+      setEudrPanelOpen(!eudrPanelOpen);
+    } else if (id === "chat") {
+      setRightPanel(rightPanel === "chat" ? null : "chat");
+    } else if (id === "layers") {
+      setRightPanel(rightPanel === "layers" ? null : "layers");
+    } else if (id === null) {
+      // Map view toggle
+      if (eudrPanelOpen || rightPanel) {
+        setEudrPanelOpen(false);
+        setRightPanel(null);
+      } else {
+        setEudrPanelOpen(true);
+        setRightPanel("chat");
+      }
+    }
+  };
 
   return (
     <nav
       className="flex flex-col items-center flex-shrink-0 h-full bg-[#F4F5F6] border-r border-[#C8CFD5] z-20"
       style={{ width: 56 }}
     >
-      {/* ── Logo ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-center w-full py-2.5 border-b border-[#C8CFD5]">
-        <Image
-          src="/oxeous-logo.png"
-          alt="Oxeous"
-          width={36}
-          height={36}
-          priority
-          className="block"
-        />
-      </div>
-
       {/* ── Nav buttons ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col items-center gap-0.5 pt-2 flex-1 w-full px-1">
+      <div className="flex flex-col items-center gap-1 pt-3 flex-1 w-full px-1">
         {NAV_ITEMS.map(({ id, icon: Icon, label, desc }) => {
-          const active = activePanel === id && id !== null;
+          const active =
+            id === "eudr"
+              ? eudrPanelOpen
+              : id === "chat"
+              ? rightPanel === "chat"
+              : id === "layers"
+              ? rightPanel === "layers"
+              : !eudrPanelOpen && !rightPanel;
           return (
             <button
               key={label}
-              onClick={() => setActivePanel(id)}
+              onClick={() => handleNav(id)}
               title={`${label} — ${desc}`}
               aria-label={label}
               className={cn(

@@ -48,7 +48,17 @@ def create_app() -> FastAPI:
     async def startup() -> None:
         granite = GraniteClient()
         app.state.granite = granite
-        logger.info("Oxeous API v%s started (granite=%s)", settings.version, settings.granite_deployment)
+        logger.info(
+            "Oxeous API v%s started | LLM=%s | model=%s",
+            settings.version,
+            settings.granite_deployment,
+            settings.gemini_model if settings.granite_deployment == "gemini" else settings.granite_model,
+        )
+        if settings.granite_deployment == "gemini" and not settings.gemini_api_key:
+            logger.warning(
+                "GEMINI_API_KEY not set — Gemini explanations will use fallback text. "
+                "Set GEMINI_API_KEY in .env to enable LLM-generated explanations."
+            )
 
     @app.on_event("shutdown")
     async def shutdown() -> None:

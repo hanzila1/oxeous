@@ -25,6 +25,8 @@ dist/
 build/
 .next/
 out/
+*.zip
+*.tsbuildinfo
 
 # Logs
 *.log
@@ -37,3 +39,4 @@ npm-debug.log*
 
 # Misc
 .gemini/
+docs/challenge/

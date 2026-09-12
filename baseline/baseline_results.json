@@ -1,0 +1,19 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "mode": "single_prompt_no_tools",
+  "accuracy_pct": 0.0,
+  "correct": 0,
+  "total": 1,
+  "results": [
+    {
+      "id": "TC-01",
+      "name": "Amazon soya \u2014 deforestation in 2022 (should FAIL)",
+      "expected": "FAIL",
+      "decision": "UNCERTAIN",
+      "reason": "The provided coordinates require satellite imagery analysis against the 2020 forest reference map to verify the supplier's claim of no deforestation.",
+      "confidence": "HIGH",
+      "correct": false,
+      "raw": "DECISION: UNCERTAIN\nREASON: The provided coordinates require satellite imagery analysis against the 2020 forest reference map to verify the supplier's claim of no deforestation.\nCONFIDENCE: HIGH"
+    }
+  ]
+}

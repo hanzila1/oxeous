@@ -10,6 +10,7 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
     "esri-satellite": {
       type: "raster",
       tiles: [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       ],
       tileSize: 256,
@@ -33,13 +34,19 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       id: "esri-satellite",
       type: "raster",
       source: "esri-satellite",
-      paint: { "raster-opacity": 1 },
+      paint: {
+        "raster-opacity": 1,
+        "raster-fade-duration": 0,
+      },
     },
     {
       id: "carto-labels",
       type: "raster",
       source: "carto-labels",
-      paint: { "raster-opacity": 0.85 },
+      paint: {
+        "raster-opacity": 0.85,
+        "raster-fade-duration": 0,
+      },
     },
   ],
 };
@@ -51,6 +58,9 @@ export const DEFAULT_MAP_OPTIONS: Partial<MapOptions> = {
   maxZoom: 18,
   pitchWithRotate: false,
   attributionControl: false,
+  fadeDuration: 0,
+  maxTileCacheSize: 500,
+  refreshExpiredTiles: false,
 };
 
 export function snapBbox(

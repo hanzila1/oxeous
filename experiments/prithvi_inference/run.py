@@ -98,18 +98,22 @@ def main():
     overall = result_tt if result_tt["status"] == "PASS" else (result_hf or result_tt)
     print(f"\nFinal status: {overall['status']}")
 
+    tt_lines = "\n".join(f"  {k}: {v}" for k, v in result_tt.items())
+    hf_lines = "\n".join(f"  {k}: {v}" for k, v in (result_hf or {}).items()) if result_hf else "  Not attempted"
+    conclusion = "TerraTorch + Prithvi work. Proceed with Phase 6." if overall["status"] == "PASS" else "Use HuggingFace transformers fallback path. Pin exact TerraTorch version if available."
+
     result_text = f"""# Experiment C — Prithvi/TerraTorch Smoke Test
 
 ## Result: {overall["status"]}
 
 ### TerraTorch attempt
-{"\n".join(f"  {k}: {v}" for k, v in result_tt.items())}
+{tt_lines}
 
 ### HuggingFace fallback
-{"\n".join(f"  {k}: {v}" for k, v in (result_hf or {}).items()) if result_hf else "  Not attempted"}
+{hf_lines}
 
 ## Conclusion
-{"TerraTorch + Prithvi work. Proceed with Phase 6." if overall["status"] == "PASS" else "Use HuggingFace transformers fallback path. Pin exact TerraTorch version if available."}
+{conclusion}
 """
     Path("RESULT.md").write_text(result_text)
     print("\nResult written to RESULT.md")

@@ -40,9 +40,16 @@ export interface EUDRPlot {
 export interface DeforestationFinding {
   plot_id: string;
   has_deforestation: boolean;    // true = deforestation detected AFTER Dec 31 2020
+  forest_cover_2000_pct?: number; // % tree cover in year 2000 baseline
+  pre_cutoff_loss_pct?: number;  // % lost 2000-2020
   forest_cover_2020_pct: number; // % of plot covered by forest at cutoff date
-  forest_loss_pct: number;       // % lost after cutoff
+  forest_loss_pct: number;       // % lost after cutoff (2021-2025)
   forest_loss_ha: number;
+  natural_forest_pct?: number;   // Nature Trace 10m Sentinel-2 baseline
+  dominant_forest_type?: string; // e.g. PrimaryForest, TreeCropsAndAgroforestry
+  dominant_loss_driver?: string; // e.g. Permanent agriculture
+  commodity_confirmed?: boolean; // commodity map presence verified
+  commodity_coverage_pct?: number;
   loss_years: number[];          // e.g. [2021, 2022]
   confidence: "high" | "medium" | "low";
   data_sources: string[];
@@ -103,6 +110,17 @@ export interface EUDRAnalysisRequest {
   generate_dds: boolean;
 }
 
+export interface GEEMapLayer {
+  id: string;
+  label: string;
+  tile_url: string;
+  visible: boolean;
+  opacity: number;
+  legend?: unknown;
+  dataset?: string;
+  layer_type?: string;
+}
+
 export interface EUDRAnalysisResponse {
   request_id: string;
   plot: EUDRPlot;
@@ -112,6 +130,7 @@ export interface EUDRAnalysisResponse {
   deforestation_geojson?: unknown; // GeoJSON of detected loss patches
   explanation: string;
   follow_up_suggestions: string[];
+  map_layers?: GEEMapLayer[];     // Real GEE map tile layers
 }
 
 // ─── Forest Baseline Data ─────────────────────────────────────────────────────

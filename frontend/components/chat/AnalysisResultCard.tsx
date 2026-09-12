@@ -59,7 +59,7 @@ export default function AnalysisResultCard({ result }: Props) {
               {result.analysis_type.replace(/_/g, " ")}
             </p>
             {isPrithvi && (
-              <p className="text-[10px] font-medium text-verified">IBM–NASA Prithvi-EO 2.0</p>
+              <p className="text-[10px] font-medium text-verified">Gemini + GEE + NASA evidence</p>
             )}
           </div>
         </div>
@@ -87,7 +87,10 @@ export default function AnalysisResultCard({ result }: Props) {
         <div className="divide-y divide-border">
           {/* Statistics */}
           {Object.keys(result.statistics).length > 0 && (
-            <StatisticsSection stats={result.statistics} analysisType={result.analysis_type} />
+            <>
+              <StatisticsSection stats={result.statistics} analysisType={result.analysis_type} />
+              <EvidenceHighlightsSection stats={result.statistics} />
+            </>
           )}
 
           {/* Legend */}
@@ -153,6 +156,26 @@ function StatItem({ label, value, analysisType }: { label: string; value: number
         )}>
           {formatted}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function EvidenceHighlightsSection({ stats }: { stats: Record<string, number | string> }) {
+  const entries = Object.entries(stats).slice(0, 4);
+
+  return (
+    <div className="px-3 py-2.5 space-y-1.5">
+      <p className="text-[10px] text-muted uppercase tracking-wider font-medium flex items-center gap-1">
+        <Activity className="w-3 h-3" /> Evidence highlights
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {entries.map(([key, value]) => (
+          <div key={key} className="rounded-lg border border-border bg-bg-2 px-2 py-1.5">
+            <div className="text-[9px] uppercase tracking-wider text-muted">{formatStatLabel(key)}</div>
+            <div className="mt-0.5 text-[11px] font-semibold text-text">{formatStatValue(key, value, "")}</div>
+          </div>
+        ))}
       </div>
     </div>
   );

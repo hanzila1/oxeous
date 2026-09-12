@@ -1,10 +1,16 @@
 {
   "name": "oxeous",
   "private": true,
-  "workspaces": ["packages/*", "frontend"],
+  "workspaces": [
+    "packages/*",
+    "frontend"
+  ],
   "scripts": {
     "dev:frontend": "npm run dev --workspace=frontend",
     "build:frontend": "npm run build --workspace=frontend",
     "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
   }
 }

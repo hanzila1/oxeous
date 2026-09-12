@@ -11,13 +11,20 @@ _DEFAULT_TILE_CACHE_DIR = os.path.join(tempfile.gettempdir(), "oxeous_tiles")
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # Granite / IBM
-    granite_deployment: str = "ollama"           # "ollama" | "watsonx"
-    granite_model: str = "granite3-8b"
+    # LLM deployment: "gemini" (primary) | "ollama" | "watsonx"
+    granite_deployment: str = "gemini"
+    granite_model: str = "gemini-3.6-flash"
     granite_ollama_url: str = "http://localhost:11434"
     watsonx_api_key: str = ""
     watsonx_project_id: str = ""
     watsonx_url: str = "https://us-south.ml.cloud.ibm.com"
+
+    # Google Earth Engine
+    gee_project: str = "ee-hanzilabinyounasai"
+
+    # Google Gemini (primary LLM — get free key at aistudio.google.com)
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.6-flash"
 
     # NASA
     nasa_earthdata_username: str = ""

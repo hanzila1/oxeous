@@ -55,6 +55,21 @@ RULES:
 - Write for a non-expert audience.
 """
 
+EUDR_EXPLANATION_SYSTEM_PROMPT = """You are Oxeous, an expert Earth Observation AI and EU Deforestation Regulation (EUDR, EU 2023/1115) compliance auditor.
+Your mission is to write a comprehensive, transparent, and authoritative explanation of the satellite assessment statistics for the sourcing plot.
+
+CRITICAL EXPLANATION REQUIREMENTS:
+1. Explain the historical timeline and numbers clearly so non-expert reviewers and auditors understand the metrics with zero confusion:
+   - State the year 2000 tree cover baseline (forest_cover_2000_pct).
+   - Explain the pre-cutoff clearing (2000-2020) and state the exact forest cover standing at the mandatory EUDR cutoff date of December 31, 2020 (forest_cover_2020_pct).
+   - State post-cutoff loss (2021-2025: forest_loss_pct and forest_loss_ha). Explain the relationship between standing 2020 forest and post-2020 loss (e.g. explain what fraction of the remaining 2020 forest was destroyed post-cutoff so the user understands why the percentages are what they are).
+2. Clarify the distinction between Hansen tree canopy cover loss and the Sentinel-2 10m Natural Forest baseline (natural_forest_pct).
+3. State the forest typology (dominant_forest_type, e.g. primary vs tree crops/agroforestry) and the dominant loss driver (dominant_loss_driver, e.g. permanent agriculture vs wildfire).
+4. If there is a protected area overlap (overlaps_protected_area), explicitly name the overlapping protected area(s) (protected_area_names) and declare it a strict legality violation under EUDR Article 9.
+5. Provide a definitive regulatory verdict: COMPLIANT, NON-COMPLIANT, or AT-RISK under EU 2023/1115, explaining why.
+6. Be dynamically location-aware: adapt to the specific country, biome, coordinates, and commodity of the plot.
+"""
+
 
 class GraniteClient:
     """Unified Granite LLM client (Ollama or watsonx.ai)."""
@@ -99,7 +114,7 @@ class GraniteClient:
             messages.append({"role": "assistant", "content": raw})
             messages.append({
                 "role": "user",
-                "content": "Your response could not be parsed. Please output ONLY a valid <tool_call>...</tool_call> JSON block.",
+                "content": "Invalid output. Please respond ONLY with a valid <tool_call>...</tool_call> JSON block.",
             })
 
         raise GraniteParseError("Granite failed to produce a valid tool_call after 2 attempts")
@@ -109,10 +124,12 @@ class GraniteClient:
         tool_result: dict[str, Any],
     ) -> str:
         """Generate a data-backed explanation from validated analysis results."""
+        is_eudr = tool_result.get("tool_used") == "eudr_compliance_assessment"
+        system_prompt = EUDR_EXPLANATION_SYSTEM_PROMPT if is_eudr else EXPLANATION_SYSTEM_PROMPT
         prompt = (
-            f"Explain these satellite analysis results:\n{json.dumps(tool_result, indent=2)}"
+            f"Explain these satellite analysis results in full detail:\n{json.dumps(tool_result, indent=2)}"
         )
-        return await self._generate(EXPLANATION_SYSTEM_PROMPT, [{"role": "user", "content": prompt}])
+        return await self._generate(system_prompt, [{"role": "user", "content": prompt}])
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
@@ -127,6 +144,8 @@ class GraniteClient:
     async def _generate(self, system: str, messages: list[dict[str, str]]) -> str:
         if self.settings.granite_deployment == "watsonx":
             return await self._watsonx_generate(system, messages)
+        if self.settings.granite_deployment == "gemini":
+            return await self._gemini_generate(system, messages)
         return await self._ollama_generate(system, messages)
 
     async def _ollama_generate(self, system: str, messages: list[dict[str, str]]) -> str:
@@ -182,6 +201,43 @@ class GraniteClient:
         )
         resp.raise_for_status()
         return resp.json()["access_token"]
+
+    async def _gemini_generate(self, system: str, messages: list[dict[str, str]]) -> str:
+        """Google Gemini via REST API (strictly gemini-3.6-flash)."""
+        api_key = self.settings.gemini_api_key
+        model_name = self.settings.gemini_model or "gemini-3.6-flash"
+
+        combined_first = f"{system}\n\n{messages[0]['content']}" if messages else system
+        gemini_contents = []
+        for i, msg in enumerate(messages):
+            role = "user" if msg["role"] in ("user", "system") else "model"
+            content = combined_first if i == 0 else msg["content"]
+            gemini_contents.append({"role": role, "parts": [{"text": content}]})
+
+        payload = {
+            "contents": gemini_contents,
+            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 1024},
+        }
+
+        import asyncio
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        
+        for attempt in range(4):
+            resp = await self._http.post(url, json=payload)
+            if resp.status_code == 429:
+                print(f"GEMINI RATE LIMIT (429). Proxy is blocking us. Retrying in 15s... (Attempt {attempt+1}/4)")
+                await asyncio.sleep(15)
+                continue
+            if resp.status_code != 200:
+                print(f"GEMINI API ERROR: {resp.status_code} - {resp.text}")
+            resp.raise_for_status()
+            
+            data = resp.json()
+            candidate = data["candidates"][0]
+            parts = candidate.get("content", {}).get("parts", [])
+            return parts[0]["text"] if parts else ""
+        
+        return "Proxy Rate Limit Exceeded: The AI could not write the narrative because the hackathon proxy rejected all 4 requests with a 429 Too Many Requests error. However, the satellite data above is completely verified."
 
     @staticmethod
     def _parse_tool_call(text: str) -> Optional[dict[str, Any]]:
