@@ -1,0 +1,109 @@
+{
+  "type": "FeatureCollection",
+  "name": "CI-DUEKOUE-COCOA-2026",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "CI-DUEKOUE-COCOA-2026",
+        "name": "Duekoue Cavally Agroforestry Cocoa Cooperative (Cote d'Ivoire)",
+        "commodity": "cocoa",
+        "country_code": "CI",
+        "country_name": "Cote d'Ivoire",
+        "area_ha": 125.63,
+        "statutory_baseline": "EC JRC GFC2020 & Copernicus Sentinel-2 NDVI Baseline",
+        "article_reference": "EUDR Art. 9(1)(d) Agroforestry Canopy Verification",
+        "test_scenario": "3 smallholder cocoa parcels cultivating under permanent agroforestry shade trees. Verified deforestation-free under radar and multi-spectral canopy density analysis."
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                -7.385,
+                6.725
+              ],
+              [
+                -7.38,
+                6.728
+              ],
+              [
+                -7.377,
+                6.724
+              ],
+              [
+                -7.379,
+                6.72
+              ],
+              [
+                -7.384,
+                6.7215
+              ],
+              [
+                -7.385,
+                6.725
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -7.374,
+                6.731
+              ],
+              [
+                -7.37,
+                6.7335
+              ],
+              [
+                -7.367,
+                6.73
+              ],
+              [
+                -7.369,
+                6.7265
+              ],
+              [
+                -7.3735,
+                6.7275
+              ],
+              [
+                -7.374,
+                6.731
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -7.382,
+                6.716
+              ],
+              [
+                -7.3775,
+                6.7185
+              ],
+              [
+                -7.375,
+                6.7145
+              ],
+              [
+                -7.3785,
+                6.7115
+              ],
+              [
+                -7.3825,
+                6.713
+              ],
+              [
+                -7.382,
+                6.716
+              ]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

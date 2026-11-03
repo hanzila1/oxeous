@@ -1,5 +1,5 @@
 """
-Tracing — request ID generation and context propagation.
+Tracing - request ID generation and context propagation.
 """
 from __future__ import annotations
 

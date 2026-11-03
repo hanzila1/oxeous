@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "name": "Paraguay_Gran_Chaco_Cattle_Frontier",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "PY-CHACO-CATTLE-2026-06",
+        "name": "Boquerón Gran Chaco Cattle Paddock (Paraguay)",
+        "commodity": "cattle",
+        "country_code": "PY",
+        "country_name": "Paraguay",
+        "test_scenario": "Dry Forest / Savanna Belt Cattle Pasture Conversion in the Gran Chaco (INFONA / SENACSA Cadastral Audit)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-60.8450, -21.9420],
+            [-60.8220, -21.9420],
+            [-60.8220, -21.9240],
+            [-60.8450, -21.9240],
+            [-60.8450, -21.9420]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

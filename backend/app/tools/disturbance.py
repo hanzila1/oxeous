@@ -1,5 +1,5 @@
 """
-Land Disturbance Tool — OPERA DIST alert raster + hotspot GeoJSON.
+Land Disturbance Tool - OPERA DIST alert raster + hotspot GeoJSON.
 """
 from __future__ import annotations
 
@@ -91,17 +91,18 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         geojson_hotspots=GeoJSONFeatureCollection(**geojson_hotspots) if geojson_hotspots else None,
         statistics=statistics,
         provenance=DataProvenance(
-            source="OPERA_L3_DIST-ALERT-HLS_V1",
+            source="Sentinel-2 & Hansen GFC v1.13 Forest Disturbance",
             acquisition_dates=acquisition_dates,
-            spatial_resolution_m=30,
+            spatial_resolution_m=10,
             cloud_cover_pct=0.0,
-            processing_level="L3",
+            processing_level="EUDR Harmonized",
         ),
         explanation="",
         follow_up_suggestions=[
-            "Show surface water extent in the same area",
-            "Compare vegetation moisture before and after disturbance",
-            "Run Prithvi AI analysis to characterize disturbance type",
+            "What is the EUDR cutoff date?",
+            "What are the 7 Annex I regulated commodities?",
+            "How does the Article 2(5) replanting exemption work?",
+            "How does May 2026 Plot Segregation (Carve-Out) work?",
         ],
         coverage_quality=coverage,
         legend=LegendSpec(

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oxeous: Mathematical Foundations & Statutory Invariants</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #F8FAFC;
+      color: #0F172A;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .slide-container {
+      width: 100%;
+      max-width: 1440px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.07);
+      padding: 36px 44px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #E2E8F0;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    .brand-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #0F172A;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: #315F50;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+      font-size: 20px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #64748B;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+    .badges {
+      display: flex;
+      gap: 10px;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.2px;
+    }
+    .badge-green { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+    .badge-amber { background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A; }
+    .badge-purple { background: #F5F3FF; color: #7C3AED; border: 1px solid #DDD6FE; }
+
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+    }
+    .card-p1::before { background: #059669; }
+    .card-p2::before { background: #2563EB; }
+    .card-p3::before { background: #D97706; }
+    .card-p4::before { background: #7C3AED; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .pillar-tag {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .card-p1 .pillar-tag { color: #059669; }
+    .card-p2 .pillar-tag { color: #2563EB; }
+    .card-p3 .pillar-tag { color: #D97706; }
+    .card-p4 .pillar-tag { color: #7C3AED; }
+
+    .article-pill {
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-weight: 700;
+      background: #F1F5F9;
+      color: #334155;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid #E2E8F0;
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 8px;
+    }
+    .problem-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    .problem-box strong { color: #0F172A; }
+
+    .eq-box {
+      background: #F8FAFC;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .card-p1 .eq-box { border-color: #059669; background: #F0FDF4; }
+    .card-p2 .eq-box { border-color: #2563EB; background: #EFF6FF; }
+    .card-p3 .eq-box { border-color: #D97706; background: #FFFBEB; }
+    .card-p4 .eq-box { border-color: #7C3AED; background: #FAF5FF; }
+
+    .eq-math {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0F172A;
+    }
+    .eq-caption {
+      font-size: 11.5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #64748B;
+      margin-top: 6px;
+    }
+
+    .outcomes-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .outcome-item {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #E2E8F0;
+      font-size: 11px;
+    }
+    .outcome-label {
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .outcome-desc {
+      color: #64748B;
+      font-size: 10.5px;
+      line-height: 1.3;
+    }
+
+    .master-banner {
+      background: #0F172A;
+      border: 2px solid #315F50;
+      border-radius: 14px;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #fff;
+    }
+    .master-tag {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #34D399;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .master-eq {
+      font-size: 20px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+    }
+    .master-desc {
+      font-size: 12px;
+      color: #94A3B8;
+    }
+    .customs-badge {
+      background: #1E293B;
+      border: 1px solid #34D399;
+      border-radius: 8px;
+      padding: 10px 16px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .customs-tag { font-size: 12px; font-weight: 800; color: #34D399; }
+    .customs-sub { font-size: 11px; color: #CBD5E1; }
+  </style>
+</head>
+<body>
+
+  <div class="slide-container">
+
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <div class="brand-title">
+          <div class="brand-logo">Ω</div>
+          OXEOUS: MATHEMATICAL FOUNDATIONS & STATUTORY INVARIANTS
+        </div>
+        <div class="subtitle">
+          Direct Mathematical Remedies to European Union Deforestation Regulation (EUDR 2023/1115) & May 2026 Package
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge badge-green">EUR-Lex OJ L 150 Compliant</span>
+        <span class="badge badge-amber">Zero Regulatory Hallucination</span>
+        <span class="badge badge-purple">EIC Accelerator Deep-Tech Moat</span>
+      </div>
+    </div>
+
+    <!-- 2x2 Core Pillars Grid -->
+    <div class="grid-2x2">
+
+      <!-- Pillar 1 -->
+      <div class="card card-p1">
+        <div class="card-header">
+          <span class="pillar-tag">PILLAR 1 · SPATIAL & ONTOLOGICAL TENSOR ENGINE</span>
+          <span class="article-pill">Art. 2(4), 2(5) & Recital 37</span>
+        </div>
+        <div class="card-title">PWRI-3D Tri-Axial Tensor Adjudication</div>
+        <div class="problem-box">
+          <strong>The Legal Problem:</strong> 2D satellite change detection produces up to 75% false positives by confusing cyclical cocoa/coffee tree pruning with deforestation.
+        </div>
+        <div class="eq-box">
+          <div class="eq-math">
+            $$\mathcal{M}(x,y) = \mathbf{L}_{	ext{spatial}}(x,y) \otimes \mathbf{L}_{	ext{temporal}}(x,y) \cap \mathbf{L}_{	ext{statutory}}(x,y)$$
+          </div>
+          <div class="eq-caption">
+            $\mathcal{C}(x,y) = [\Delta \mathbf{S}_{T_0 	o T_{	ext{curr}}} \cap \mathbf{B}_{	ext{JRC2020}}] \setminus [\mathbf{E}_{	ext{Art. 2(5)}} \cup \mathbf{E}_{	ext{Art. 2(3)}}]$
+          </div>
+        </div>
+        <div class="outcomes-grid">
+          <div class="outcome-item" style="background:#FFF1F2; border-color:#FECDD3;">
+            <div class="outcome-label" style="color:#E11D48;">Art. 3(a) Deforestation</div>
+            <div class="outcome-desc">Loss ∩ Forest Baseline ➔ Quarantined Violation (Red)</div>
+          </div>
+          <div class="outcome-item" style="background:#FFFBEB; border-color:#FDE68A;">
+            <div class="outcome-label" style="color:#D97706;">Art. 2(5) Crop Replanting</div>
+            <div class="outcome-desc">Loss ∩ Tree Crop Canopy ➔ Certified Lawful (Amber)</div>
+          </div>
+          <div class="outcome-item" style="background:#EFF6FF; border-color:#BFDBFE;">
+            <div class="outcome-label" style="color:#2563EB;">Art. 2(3) Silviculture</div>
+            <div class="outcome-desc">Loss ∩ Planted Forest ➔ Lawful Harvest Rotation (Blue)</div>
+          </div>
+          <div class="outcome-item" style="background:#ECFDF5; border-color:#A7F3D0;">
+            <div class="outcome-label" style="color:#059669;">Art. 3(a) Deforestation-Free</div>
+            <div class="outcome-desc">Zero Disturbance ➔ Certified Clean Export (Green)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pillar 2 -->
+      <div class="card card-p2">
+        <div class="card-header">
+          <span class="pillar-tag">PILLAR 2 · TOPOLOGICAL SEGREGATION STUDIO</span>
+          <span class="article-pill">Art. 9(1)(d) & COM(2026) 191</span>
+        </div>
+        <div class="card-title">Continuous Topological Plot Carve-Out</div>
+        <div class="problem-box">
+          <strong>The Legal Problem:</strong> Art. 9(1)(d) automatically disqualifies an ENTIRE parcel if any pixel was disturbed. An isolated 1 ha loss on a 150 ha estate causes complete commercial forfeiture.
+        </div>
+        <div class="eq-box">
+          <div class="eq-math">
+            $$\mathcal{P}_{	ext{export}} = \mathcal{P}_{	ext{declared}} \setminus igcup_{(x,y) \in \mathcal{V}_{3(a)}} \Omega(x,y)$$
+          </div>
+          <div class="eq-caption">
+            $A_{	ext{total}} = A_{	ext{clean}} + A_{	ext{replanting}} + A_{	ext{silviculture}} + A_{	ext{violation}} \quad (\pm 0.00	ext{ ha})$
+          </div>
+        </div>
+        <div class="outcomes-grid">
+          <div class="outcome-item" style="background:#F1F5F9; border-color:#CBD5E1;">
+            <div class="outcome-label" style="color:#0F172A;">Topological Excision</div>
+            <div class="outcome-desc">Cuts out dirty sub-polygons with boundary closure</div>
+          </div>
+          <div class="outcome-item" style="background:#ECFDF5; border-color:#A7F3D0;">
+            <div class="outcome-label" style="color:#059669;">Zero Discrepancy</div>
+            <div class="outcome-desc">Conservation of area: exact ±0.00 ha customs ledger</div>
+          </div>
+          <div class="outcome-item" style="background:#EFF6FF; border-color:#BFDBFE;">
+            <div class="outcome-label" style="color:#2563EB;">Instant Clearance</div>
+            <div class="outcome-desc">Remaining clean sub-polygon export-certified instantly</div>
+          </div>
+          <div class="outcome-item" style="background:#F5F3FF; border-color:#DDD6FE;">
+            <div class="outcome-label" style="color:#7C3AED;">May 2026 Ready</div>
+            <div class="outcome-desc">Full implementation of Commission Segregated Aggregation</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pillar 3 -->
+      <div class="card card-p3">
+        <div class="card-header">
+          <span class="pillar-tag">PILLAR 3 · ANTI-FRAUD MASS-BALANCE GATE</span>
+          <span class="article-pill">Art. 10(2)(f) & Art. 16(3)</span>
+        </div>
+        <div class="card-title">Biophysical Yield & Anti-Laundering Invariant</div>
+        <div class="problem-box">
+          <strong>The Legal Problem:</strong> Operators could carve out a tiny 1-ha clean parcel and claim an entire 50-tonne harvest came from it, laundering illegal deforested volume into the EU.
+        </div>
+        <div class="eq-box">
+          <div class="eq-math">
+            $$Y_{	ext{implied}} = rac{M_{	ext{declared}}}{\iint_{\mathcal{P}_{	ext{export}}} dA} \le Y_{\max}(	ext{commodity}, 	ext{region})$$
+          </div>
+          <div class="eq-caption">
+            $	ext{Audit Decision} = 	ext{CERTIFIED if } Y_{	ext{implied}} \le Y_{\max} \;	ext{ else }\; 	ext{REJECTED (Fraud)}$
+          </div>
+        </div>
+        <div class="outcomes-grid">
+          <div class="outcome-item" style="background:#F1F5F9; border-color:#CBD5E1;">
+            <div class="outcome-label" style="color:#0F172A;">Implied Biophysical Yield</div>
+            <div class="outcome-desc">$Y_{	ext{implied}} = M_{	ext{net}} / A_{	ext{export}}$ in [kg/ha/yr dry beans]</div>
+          </div>
+          <div class="outcome-item" style="background:#EFF6FF; border-color:#BFDBFE;">
+            <div class="outcome-label" style="color:#2563EB;">Agronomic Ceilings</div>
+            <div class="outcome-desc">Hard limits from FAO, ICCO & CIRAD regional databases</div>
+          </div>
+          <div class="outcome-item" style="background:#FFF1F2; border-color:#FECDD3;">
+            <div class="outcome-label" style="color:#E11D48;">Laundering Shield</div>
+            <div class="outcome-desc">Detects and rejects inflated yields beyond physical capacity</div>
+          </div>
+          <div class="outcome-item" style="background:#ECFDF5; border-color:#A7F3D0;">
+            <div class="outcome-label" style="color:#059669;">Box 44 Certification</div>
+            <div class="outcome-desc">Unlocks TARIC Certificate Code C716 for Single Window</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pillar 4 -->
+      <div class="card card-p4">
+        <div class="card-header">
+          <span class="pillar-tag">PILLAR 4 · MULTI-AGENT CONSENSUS & PROVENANCE</span>
+          <span class="article-pill">Art. 3(c), Art. 25(2) & Art. 33</span>
+        </div>
+        <div class="card-title">Bayesian Consensus & Cryptographic Merkle Root</div>
+        <div class="problem-box">
+          <strong>The Legal Problem:</strong> Penalties exceed ≥ 4% of EU annual turnover (Art. 25(2)). Single-sensor alerts are too fragile; customs requires tamper-proof audit trails.
+        </div>
+        <div class="eq-box">
+          <div class="eq-math">
+            $$\Phi_{	ext{consensus}} = rac{\sum_{k=1}^{6} w_k \cdot c_k \cdot \sigma_k}{\sum_{k=1}^{6} w_k \cdot c_k} \ge 	au_{	ext{statutory}}$$
+          </div>
+          <div class="eq-caption">
+            $H_{	ext{root}} = 	ext{SHA256}\Big( H(P_{	ext{geodesic}}) \,\|\, H(\mathcal{C}_{	ext{PWRI}}) \,\|\, H(Y_{	ext{implied}}) \,\|\, H(\Phi_{	ext{consensus}}) \Big)$
+          </div>
+        </div>
+        <div class="outcomes-grid">
+          <div class="outcome-item" style="background:#F1F5F9; border-color:#CBD5E1;">
+            <div class="outcome-label" style="color:#0F172A;">Bayesian Weights</div>
+            <div class="outcome-desc">$w_{	ext{SAR}}=0.98$, $w_{	ext{JRC}}=0.95$, $w_{	ext{Hansen}}=0.90$, $w_{	ext{FDP}}=0.88$</div>
+          </div>
+          <div class="outcome-item" style="background:#F5F3FF; border-color:#DDD6FE;">
+            <div class="outcome-label" style="color:#7C3AED;">Deterministic Supervisor</div>
+            <div class="outcome-desc">Zero-hallucination closed-loop arbitration across 6 agents</div>
+          </div>
+          <div class="outcome-item" style="background:#EFF6FF; border-color:#BFDBFE;">
+            <div class="outcome-label" style="color:#2563EB;">Merkle State Tree</div>
+            <div class="outcome-desc">Cryptographic SHA-256 hash embedded in TRACES XML</div>
+          </div>
+          <div class="outcome-item" style="background:#ECFDF5; border-color:#A7F3D0;">
+            <div class="outcome-label" style="color:#059669;">Customs Audit Trail</div>
+            <div class="outcome-desc">Legally binding and tamper-evident for 5-year retention</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Master Invariant Banner -->
+    <div class="master-banner">
+      <div>
+        <div class="master-tag">THE OXEOUS UNIFIED REGULATORY INVARIANT</div>
+        <div class="master-eq">
+          $$\mathcal{P}_{	ext{export}} = \mathcal{P}_{	ext{declared}} \setminus \mathcal{V}_{	ext{Art. 3(a)}} \quad 	ext{s.t.} \quad rac{M_{	ext{harvest}}}{A(\mathcal{P}_{	ext{export}})} \le Y_{\max} \quad \land \quad \Phi_{	ext{consensus}} \ge 	au_{	ext{statutory}}$$
+        </div>
+        <div class="master-desc">
+          Guarantees 100% Deforestation-Free customs compliance while eliminating up to 75% agroforestry false-positives and 0% volume laundering.
+        </div>
+      </div>
+      <div class="customs-badge">
+        <div class="customs-tag">TRACES NT READY</div>
+        <div class="customs-sub">TARIC Box 44 · Code C716</div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

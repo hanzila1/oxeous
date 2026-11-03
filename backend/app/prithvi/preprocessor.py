@@ -1,5 +1,5 @@
 """
-Prithvi Preprocessor — fetches HLS bands and prepares a (T, C, H, W) tensor.
+Prithvi Preprocessor - fetches HLS bands and prepares a (T, C, H, W) tensor.
 """
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ def run_model(image_stack: np.ndarray) -> np.ndarray:  # type: ignore[type-arg]
     try:
         return _terratorch_inference(image_stack)
     except ImportError:
-        logger.warning("TerraTorch not available — trying direct HuggingFace load")
+        logger.warning("TerraTorch not available - trying direct HuggingFace load")
         return _hf_inference(image_stack)
 
 

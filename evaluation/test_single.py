@@ -7,7 +7,7 @@ AGENT_URL = "http://localhost:8000/eudr/plots"
 
 # This is the exact same Colombia Coffee plot we just used for the Baseline test!
 TEST_PLOT = {
-    "name": "Colombia coffee — deceptive claim, false PASS risk",
+    "name": "Colombia coffee - deceptive claim, false PASS risk",
     "commodity": "coffee",
     "country_code": "CO",
     "country_name": "Colombia",

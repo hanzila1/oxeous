@@ -121,7 +121,7 @@ export default function AnalysisResultCard({ result }: Props) {
   );
 }
 
-// ── Statistics Section ─────────────────────────────────────────────────────
+// -- Statistics Section -----------------------------------------------------
 
 function StatisticsSection({ stats, analysisType }: { stats: Record<string, number | string>; analysisType: string }) {
   const entries = Object.entries(stats);
@@ -205,7 +205,7 @@ function getTrend(key: string, value: number | string): "up" | "down" | null {
   return null;
 }
 
-// ── Legend Section ─────────────────────────────────────────────────────────
+// -- Legend Section ---------------------------------------------------------
 
 function LegendSection({ legend }: { legend: AnalysisResponse["legend"] }) {
   const colormaps: Record<string, string[]> = {
@@ -241,7 +241,7 @@ function LegendSection({ legend }: { legend: AnalysisResponse["legend"] }) {
   );
 }
 
-// ── Provenance Section ─────────────────────────────────────────────────────
+// -- Provenance Section -----------------------------------------------------
 
 function ProvenanceSection({ provenance }: { provenance: AnalysisResponse["provenance"] }) {
   return (
@@ -292,7 +292,7 @@ function ProvenanceRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ── Icon helpers ──────────────────────────────────────────────────────────
+// -- Icon helpers ----------------------------------------------------------
 
 function AnalysisTypeIcon({ type }: { type: string }) {
   const icons: Record<string, string> = {

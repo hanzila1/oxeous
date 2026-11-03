@@ -5,7 +5,7 @@
       {
         "id": "TC-01",
         "decision": "UNCERTAIN",
-        "reason": "[MOCK BASELINE] Cannot verify deforestation without satellite data - supplier claims no clearing",
+        "reason": "[MOCK BASELINE] The provided coordinates require satellite imagery analysis against the 2020 forest reference map to verify the supplier's claim of no deforestation.",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -15,7 +15,7 @@
       {
         "id": "TC-02",
         "decision": "UNCERTAIN",
-        "reason": "[MOCK BASELINE] Cannot verify land use history from text alone",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -25,7 +25,7 @@
       {
         "id": "TC-03",
         "decision": "UNCERTAIN",
-        "reason": "[MOCK BASELINE] No satellite data available to verify peatland clearing claims",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -35,7 +35,7 @@
       {
         "id": "TC-04",
         "decision": "PASS",
-        "reason": "[MOCK BASELINE] FSC certified forest in low-risk EU country with no deforestation claims",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": true,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -45,7 +45,7 @@
       {
         "id": "TC-05",
         "decision": "PASS",
-        "reason": "[MOCK BASELINE] Supplier states clearing was in 2019 which is pre-cutoff date",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -55,7 +55,7 @@
       {
         "id": "TC-06",
         "decision": "UNCERTAIN",
-        "reason": "[MOCK BASELINE] Supplier admits 0.6ha clearing in 2022 which is post-cutoff but baseline cannot quantify",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -65,7 +65,7 @@
       {
         "id": "TC-07",
         "decision": "PASS",
-        "reason": "[MOCK BASELINE] PEFC certified boreal forest in low-risk Nordic country",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": true,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -75,7 +75,7 @@
       {
         "id": "TC-08",
         "decision": "UNCERTAIN",
-        "reason": "[MOCK BASELINE] Cannot verify protected area boundaries without geospatial tools",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -85,7 +85,7 @@
       {
         "id": "TC-09",
         "decision": "UNCERTAIN",
-        "reason": "[MOCK BASELINE] Cannot verify Amazon frontier pasture expansion without satellite data",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": false,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,
@@ -95,7 +95,7 @@
       {
         "id": "TC-10",
         "decision": "PASS",
-        "reason": "[MOCK BASELINE] FSC and PEFC certified alpine forest in low-risk EU country Austria",
+        "reason": "[MOCK BASELINE] Single LLM prompt, trusts supplier claims, zero satellite tools",
         "correct": true,
         "elapsed_ms": 0,
         "has_satellite_evidence": false,

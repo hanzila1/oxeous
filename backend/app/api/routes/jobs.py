@@ -1,4 +1,4 @@
-"""GET /jobs/{job_id} — Prithvi background job status polling."""
+"""GET /jobs/{job_id} - Prithvi background job status polling."""
 from fastapi import APIRouter, HTTPException
 from ...models.responses import JobStatusResponse
 from ...models.enums import JobStatus

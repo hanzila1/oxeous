@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "name": "Brazil_Mato_Grosso_Soya_Frontier_CarveOut",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "BR-MT-SOYA-2026-01",
+        "name": "Sinop BR-163 Soya Frontier Parcel (Mato Grosso, Brazil)",
+        "commodity": "soya",
+        "country_code": "BR",
+        "country_name": "Brazil",
+        "test_scenario": "May 2026 Plot Segregation Carve-Out + 500m Halo Ring Encroachment (~0.94 ha localized edge clearing on 287.15 ha Soya plot)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-55.3420, -11.5820],
+            [-55.3250, -11.5820],
+            [-55.3250, -11.5680],
+            [-55.3420, -11.5680],
+            [-55.3420, -11.5820]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Google Earth Engine
     gee_project: str = "ee-hanzilabinyounasai"
 
-    # Google Gemini (primary LLM — get free key at aistudio.google.com)
+    # Google Gemini (primary LLM - get free key at aistudio.google.com)
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"
 

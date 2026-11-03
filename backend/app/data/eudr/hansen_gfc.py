@@ -1,17 +1,17 @@
 """
 Hansen Global Forest Change (GFC) adapter.
 
-Data: University of Maryland / Hansen et al. — annual tree cover loss 2001–2023.
+Data: University of Maryland / Hansen et al. - annual tree cover loss 2001-2023.
 URL pattern: https://storage.googleapis.com/earthenginepartners-hansen/GFC-2023-v1.11/
 
 Bands available as Cloud-Optimized GeoTIFFs (30 m, WGS84):
-  - treecover2000    : % tree cover in year 2000 (0–100)
+  - treecover2000    : % tree cover in year 2000 (0-100)
   - lossyear         : year of tree cover loss (1=2001 … 23=2023), 0=no loss
-  - gain             : binary gain 2000–2012
+  - gain             : binary gain 2000-2012
   - datamask         : land/water/no-data mask
 
 Tile grid: 10°×10° tiles named {N/S}{lat}_{E/W}{lng}.tif
-           e.g. N00_E010.tif covers 0–10°N, 10–20°E
+           e.g. N00_E010.tif covers 0-10°N, 10-20°E
 
 EUDR cutoff: Dec 31 2020 → loss years 21, 22, 23 (lossyear values 21, 22, 23)
 """
@@ -73,7 +73,7 @@ async def read_forest_data(
         bands, _ = stack_bands(
             {"treecover2000": hrefs["treecover2000"], "lossyear": hrefs["lossyear"]},
             bbox,
-            earthdata_token=None,  # Hansen GFC is public — no auth required
+            earthdata_token=None,  # Hansen GFC is public - no auth required
         )
         return bands
     except Exception as exc:
@@ -109,7 +109,7 @@ def compute_deforestation_stats(
     loss_ha = float(loss_pixels * pixel_area_ha)
     loss_pct = float(loss_pixels / max(total_pixels, 1) * 100)
 
-    # Forest cover in 2020 = 2000 forest minus losses in years 1–20
+    # Forest cover in 2020 = 2000 forest minus losses in years 1-20
     pre_cutoff_loss = (lossyear >= 1) & (lossyear <= 20) & forest_2000.astype(bool)
     forest_2020 = forest_2000 & ~pre_cutoff_loss
     forest_pct_2020 = float(forest_2020.mean() * 100)

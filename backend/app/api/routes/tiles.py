@@ -1,4 +1,4 @@
-"""GET /tiles/{request_id}/overlay.png & /tiles/{request_id}/{z}/{x}/{y}.png — serve cached PNG tiles."""
+"""GET /tiles/{request_id}/overlay.png & /tiles/{request_id}/{z}/{x}/{y}.png - serve cached PNG tiles."""
 import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse

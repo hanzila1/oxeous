@@ -1,5 +1,5 @@
 """
-GraniteClient — thin abstraction over Ollama (local) and watsonx.ai (production).
+GraniteClient - thin abstraction over Ollama (local) and watsonx.ai (production).
 Handles tool-calling prompt construction, response parsing, and one retry on bad output.
 """
 from __future__ import annotations
@@ -15,12 +15,12 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# ── System prompt template ────────────────────────────────────────────────────
+# -- System prompt template ----------------------------------------------------
 
 SYSTEM_PROMPT_TEMPLATE = """You are Oxeous, an AI assistant for satellite Earth observation analysis.
 Your ONLY job is to:
 1. Extract the user's intent and return a structured JSON tool_call.
-2. When given validated analysis results, explain ONLY those results — never invent data.
+2. When given validated analysis results, explain ONLY those results - never invent data.
 
 RULES:
 - Never make up statistics, locations, or dates.
@@ -31,7 +31,7 @@ RULES:
 AVAILABLE TOOLS:
 {tool_definitions}
 
-OUTPUT FORMAT — always return exactly this JSON inside <tool_call> tags:
+OUTPUT FORMAT - always return exactly this JSON inside <tool_call> tags:
 <tool_call>
 {{
   "tool_name": "<one of the tool names above>",
@@ -49,10 +49,11 @@ OUTPUT FORMAT — always return exactly this JSON inside <tool_call> tags:
 EXPLANATION_SYSTEM_PROMPT = """You are Oxeous, an Earth observation AI. You are given validated satellite analysis results.
 Write a concise, factual 2-3 sentence explanation of the results.
 RULES:
-- Only reference facts in the provided statistics and provenance — never add extra claims.
+- Only reference facts in the provided statistics and provenance - never add extra claims.
 - Do not speculate about causes.
 - Mention the data source and acquisition dates.
 - Write for a non-expert audience.
+- Never use em dashes or en dashes; use a plain hyphen '-' instead.
 """
 
 EUDR_EXPLANATION_SYSTEM_PROMPT = """You are Oxeous, an expert Earth Observation AI and EU Deforestation Regulation (EUDR, EU 2023/1115) compliance auditor.
@@ -67,7 +68,18 @@ CRITICAL EXPLANATION REQUIREMENTS:
 3. State the forest typology (dominant_forest_type, e.g. primary vs tree crops/agroforestry) and the dominant loss driver (dominant_loss_driver, e.g. permanent agriculture vs wildfire).
 4. If there is a protected area overlap (overlaps_protected_area), explicitly name the overlapping protected area(s) (protected_area_names) and declare it a strict legality violation under EUDR Article 9.
 5. Provide a definitive regulatory verdict: COMPLIANT, NON-COMPLIANT, or AT-RISK under EU 2023/1115, explaining why.
-6. Be dynamically location-aware: adapt to the specific country, biome, coordinates, and commodity of the plot.
+6. Statutory Agricultural Plantation Exemption (EUDR Article 2(4) & Article 2(5)):
+   - If `is_plantation_replanting_exemption` is true or `jrc_forest_cover_2020_pct` is 0% over an established tree-crop plantation (such as rubber or palm oil), explicitly explain to the auditor why this plot is COMPLIANT:
+   - Article 2(4) explicitly excludes agricultural plantations and agroforestry from the statutory definition of 'forest'.
+   - Article 2(3) strictly defines Deforestation as 'the conversion of forest to agricultural use'.
+   - Therefore, cyclical felling and replanting of mature tree crops (like 20-25 year rubber rejuvenation cycles) on pre-existing agricultural plantations is a lawful agricultural replanting cycle, NOT illegal deforestation.
+   - Contrast this with legacy single-sensor optical tools (like Hansen GFC alone) which generate false-positive non-compliance disqualifications, and explain how multi-sensor consensus (JRC GFC2020 + Nature Trace ForTy + Google FDP) dynamically resolves the true statutory status.
+7. Pixel-Wise Raster Intersection (PWRI) & Continuous Compliance:
+   - Report the Continuous Spatial Compliance Index (`spatial_compliance_pct`%).
+   - Break down the exact parcel hectares: Total Parcel (`total_parcel_ha` ha), Verified Clean Area (`compliant_ha` ha), Agricultural Replanting Exemption (`plantation_replanting_ha` ha), and Statutory Deforestation Violation (`statutory_deforestation_ha` ha).
+   - If statutory deforestation is found (`statutory_deforestation_ha` > 0), outline the official May 2026 EU Plot Segregation Protocol: advise that the operator can carve out/delist the violation zone, allowing the remaining verified clean area (`compliant_ha` ha) to be cleared for TRACES NT export.
+8. Be dynamically location-aware: adapt to the specific country, biome, coordinates, and commodity of the plot.
+9. Style: Format your output using clear numbered Markdown headings (### 1. Statutory Verdict, ### 2. Dec 31 2020 Baseline, ### 3. Post-Cutoff Disturbance, ### 4. Statutory Ontology & Art. 2(5) Analysis, ### 5. Multi-Baseline Spatial Overlay (PWRI-3D), ### 6. Protected Areas & Legality, ### 7. Remediation: May 2026 EU Plot Segregation Protocol) with bullet points and bold metrics. Never use em dashes or en dashes; use a plain hyphen '-' instead.
 """
 
 
@@ -81,7 +93,7 @@ class GraniteClient:
     async def aclose(self) -> None:
         await self._http.aclose()
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # -- Public API ------------------------------------------------------------
 
     async def extract_intent(
         self,
@@ -131,7 +143,7 @@ class GraniteClient:
         )
         return await self._generate(system_prompt, [{"role": "user", "content": prompt}])
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    # -- Private helpers -------------------------------------------------------
 
     def _enrich_prompt(self, prompt: str, viewport: Optional[dict[str, Any]]) -> str:
         if viewport:
@@ -216,7 +228,7 @@ class GraniteClient:
 
         payload = {
             "contents": gemini_contents,
-            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 1024},
+            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 2048},
         }
 
         import asyncio
@@ -226,7 +238,7 @@ class GraniteClient:
             resp = await self._http.post(url, json=payload)
             if resp.status_code == 429:
                 print(f"GEMINI RATE LIMIT (429). Proxy is blocking us. Retrying in 15s... (Attempt {attempt+1}/4)")
-                await asyncio.sleep(15)
+                await asyncio.sleep(2)
                 continue
             if resp.status_code != 200:
                 print(f"GEMINI API ERROR: {resp.status_code} - {resp.text}")

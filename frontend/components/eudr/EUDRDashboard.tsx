@@ -1,43 +1,58 @@
 import { useState, useCallback, useRef } from "react";
 import Image from "next/image";
-import { ShieldCheck, X, AlertCircle, Leaf, ChevronRight, Loader2 } from "lucide-react";
+import { ShieldCheck, X, AlertCircle, ChevronRight, Loader2, Coffee, Trees, Palmtree, CircleDot, FileText, Leaf } from "lucide-react";
+import {
+  EULogoSeal,
+  JRC2020Emblem,
+  PanelExpandIcon,
+  PanelCollapseIcon,
+  AuditPlotIcon,
+  DossierIcon,
+} from "@/components/icons/EOIcons";
 import { cn } from "@/lib/utils";
 import { useStore, type ActiveLayer, type AgentLogEntry } from "@/lib/store";
 import type { EUDRAnalysisResponse, EUDRCommodity } from "@oxeous/shared-types";
 import PlotUploader from "./PlotUploader";
 import ComplianceResultCard from "./ComplianceResultCard";
+import { BENCHMARK_CASES, type BenchmarkCase } from "@/components/ui/TopFloatingBar";
+import { extractBboxFromGeometry } from "@/lib/maplibre";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-const EXAMPLES: Array<{ name: string; commodity: EUDRCommodity; country_code: string; country_name: string; desc: string; geometry: object }> = [
-  { name: "Mato Grosso Soya Frontier", commodity: "soya", country_code: "BR", country_name: "Brazil", desc: "Amazon deforestation frontier — active Hansen GFC post-2020 clearing detected",
-    geometry: { type: "Polygon", coordinates: [[[-55.50,-12.80],[-55.40,-12.80],[-55.40,-12.70],[-55.50,-12.70],[-55.50,-12.80]]] } },
-  { name: "Ashanti Cocoa Smallholder", commodity: "cocoa", country_code: "GH", country_name: "Ghana", desc: "Tano Offin forest fringe — historical loss & commercial agriculture conversion",
-    geometry: { type: "Polygon", coordinates: [[[-2.05,6.85],[-1.95,6.85],[-1.95,6.95],[-2.05,6.95],[-2.05,6.85]]] } },
-  { name: "Kalimantan Peatland Palm Oil", commodity: "palm_oil", country_code:"ID", country_name:"Indonesia", desc: "Sebangau peat swamp — WDPA protected area overlap violation",
-    geometry: { type: "Polygon", coordinates: [[[113.80,-2.40],[113.90,-2.40],[113.90,-2.30],[113.80,-2.30],[113.80,-2.40]]] } },
-  { name: "Bavaria FSC Sustainable Timber", commodity: "wood", country_code: "DE", country_name: "Germany", desc: "Ebrach State Forest — certified deforestation-free baseline (Pass benchmark)",
-    geometry: { type: "Polygon", coordinates: [[[10.45,49.80],[10.55,49.80],[10.55,49.90],[10.45,49.90],[10.45,49.80]]] } },
-];
-
-const EMOJI: Record<string, string> = { cocoa:"🍫", coffee:"☕", palm_oil:"🌴", soya:"🌱", cattle:"🐄", wood:"🪵", rubber:"⚙️" };
+const COMMODITY_ICON: Record<string, typeof Coffee> = {
+  coffee: Coffee,
+  cocoa: Trees,
+  rubber: CircleDot,
+  palm_oil: Palmtree,
+  soya: Leaf,
+};
 
 export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EUDRAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { addLayer, setActiveGeoJSON, addDDSHistory, addMessage, updateMessage, setRightPanel } = useStore();
+  const {
+    addLayer,
+    setActiveGeoJSON,
+    addDDSHistory,
+    addMessage,
+    updateMessage,
+    setRightPanel,
+    setActiveDossier,
+    eudrPanelExpanded,
+    setEudrPanelExpanded,
+    setIsScanning,
+  } = useStore();
 
   const run = useCallback(async (geometry: object, commodity: EUDRCommodity, countryCode: string, countryName: string, areaHa?: number) => {
     setLoading(true); setError(null); setResult(null);
+    setIsScanning(true);
     setActiveGeoJSON(geometry);
 
-    // Fly to geometry
-    const geom = geometry as { type: string; coordinates: number[][][] };
-    if (geom.type === "Polygon" && geom.coordinates?.[0]) {
-      const lngs = geom.coordinates[0].map(c => c[0]); const lats = geom.coordinates[0].map(c => c[1]);
-      const bbox: [number,number,number,number] = [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+    // Fly to geometry (Polygon, MultiPolygon, or Point)
+    const bbox = extractBboxFromGeometry(geometry);
+    if (bbox) {
       (window as Window & { oxeousFlyTo?: (b: typeof bbox) => void }).oxeousFlyTo?.(bbox);
     }
 
@@ -53,8 +68,42 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
     addMessage({ id: userMsgId, role: "user", content: promptText });
 
     let currentLogs: AgentLogEntry[] = [
-      { id: "ingest", label: "Plot Ingestion", detail: `Loaded plot geometry (${areaHa ? `${areaHa.toFixed(1)} ha` : "AOI"}) for ${commodity}`, status: "done" },
-      { id: "hansen", label: "Hansen GFC 2025", detail: "Querying Hansen v1.13 post-cutoff loss & baseline...", status: "active" },
+      {
+        id: "ingest",
+        label: "Plot Geometry & RFC 7946 Topology",
+        detail: `Verifying vector boundary (${areaHa ? `${areaHa.toFixed(1)} ha` : "AOI"}) for ${commodity.replace(/_/g, " ")}...`,
+        status: "active",
+      },
+      {
+        id: "hansen",
+        label: "Hansen GFC 2025 & Optical S2",
+        detail: "Queued: 2021-2025 post-cutoff canopy loss scan",
+        status: "pending",
+      },
+      {
+        id: "jrc",
+        label: "EC JRC GFC2020 & Forest Typology",
+        detail: "Queued: Official 10m Dec 2020 baseline & ForTy",
+        status: "pending",
+      },
+      {
+        id: "radd",
+        label: "Sentinel-1 SAR & Google FDP 2026a",
+        detail: "Queued: All-weather radar & commodity presence",
+        status: "pending",
+      },
+      {
+        id: "protected",
+        label: "WDPA Reserves & Art. 2(40) Legality",
+        detail: "Queued: IUCN I-VI & 8-domain sovereign cadastre",
+        status: "pending",
+      },
+      {
+        id: "consensus",
+        label: "6-Subagent Consensus & TRACES NT DDS",
+        detail: "Queued: Multi-agent arbitration & statutory dossier",
+        status: "pending",
+      },
     ];
 
     addMessage({
@@ -97,20 +146,36 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
           try {
             const event = JSON.parse(line.slice(6));
 
-            // Stream live agent log directly into the Agent Panel
+            // Stream live agent log directly into the 6-stage connected Agent Pipeline
             if (event.step === "agent_log") {
-              const stepId = String(event.id || "step");
-              const idx = currentLogs.findIndex(l => l.id === stepId);
-              const entry = {
-                id: stepId,
-                label: String(event.label || "Dataset Check"),
-                detail: String(event.detail || ""),
-                status: (event.status as "done" | "active" | "pending") || "active",
-              };
+              const rawId = String(event.id || "step");
+              const mappedId =
+                rawId === "natural_forest" || rawId === "typology"
+                  ? "jrc"
+                  : rawId === "drivers" || rawId === "commodity"
+                  ? "radd"
+                  : rawId;
+
+              const idx = currentLogs.findIndex((l) => l.id === mappedId);
+              const incomingStatus = (event.status as "done" | "active" | "pending") || "active";
+
               if (idx >= 0) {
-                currentLogs = currentLogs.map((l, i) => i === idx ? entry : l);
-              } else {
-                currentLogs = [...currentLogs, entry];
+                currentLogs = currentLogs.map((l, i) => {
+                  if (i < idx && l.status !== "done") {
+                    return { ...l, status: "done" as const };
+                  }
+                  if (i === idx) {
+                    const isIntermediateSubStep =
+                      (mappedId === "jrc" && rawId !== "typology") ||
+                      (mappedId === "radd" && rawId !== "commodity");
+                    return {
+                      ...l,
+                      detail: String(event.detail || l.detail),
+                      status: isIntermediateSubStep && incomingStatus === "done" ? ("active" as const) : incomingStatus,
+                    };
+                  }
+                  return l;
+                });
               }
               updateMessage(botMsgId, { agentLogs: [...currentLogs] });
             }
@@ -120,14 +185,17 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
               setResult(data);
               addDDSHistory(data);
 
-              // Mark all logs complete and display final LLM reasoning in Agent Panel
+              // Mark all logs complete and smoothly transition
               currentLogs = currentLogs.map(l => ({ ...l, status: "done" as const }));
-              updateMessage(botMsgId, {
-                content: data.explanation,
-                isLoading: false,
-                eudrResult: data,
-                agentLogs: currentLogs,
-              });
+              updateMessage(botMsgId, { agentLogs: [...currentLogs] });
+
+              setTimeout(() => {
+                updateMessage(botMsgId, {
+                  content: data.explanation,
+                  isLoading: false,
+                  eudrResult: data,
+                });
+              }, 450);
 
               // Add GEE layers to map
               if (data.map_layers && data.map_layers.length > 0) {
@@ -168,65 +236,78 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
       });
     } finally {
       setLoading(false);
+      setIsScanning(false);
     }
-  }, [addLayer, setActiveGeoJSON, addDDSHistory, addMessage, updateMessage, setRightPanel]);
+  }, [addLayer, setActiveGeoJSON, addDDSHistory, addMessage, updateMessage, setRightPanel, setIsScanning]);
 
   return (
     <div className="flex flex-col h-full bg-[#F4F5F6] text-[#1D2227] font-sans overflow-hidden">
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[#C8CFD5] flex-shrink-0 bg-[#F4F5F6]">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/oxeous-logo.png"
+      <header className="flex items-center justify-between px-4 py-3 border-b border-[#C8CFD5] flex-shrink-0 glass-header shadow-xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <img
+            src="/oxeous-logo-tight.png"
             alt="Oxeous"
-            width={140}
-            height={40}
-            priority
-            className="h-8 w-auto object-contain cursor-pointer"
+            style={{ height: "22px", width: "auto" }}
+            className="h-[22px] max-h-[22px] w-auto object-contain filter brightness-95"
           />
-          <div className="h-5 w-[1px] bg-[#C8CFD5]" />
-          <span className="text-[10px] font-mono font-bold text-[#315F50] bg-[rgba(49,95,80,0.10)] border border-[rgba(49,95,80,0.25)] px-2 py-0.5 rounded-chip">
-            EU 2023/1115
-          </span>
+          <div className="h-4 w-[1px] bg-[#C8CFD5]" />
+          <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-[#315F50] bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.25)] px-2 py-0.5 rounded-chip">
+            <EULogoSeal className="w-3 h-3 text-[#315F50]" />
+            <span>EU 2023/1115</span>
+          </div>
         </div>
-        {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg text-[#7A8791] hover:text-[#343B42] hover:bg-[#E3E7EA] transition-colors">
-            <X className="w-4 h-4" />
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setEudrPanelExpanded((v: boolean) => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10.5px] font-medium text-[#343B42] hover:text-[#1D2227] hover:bg-white/90 transition-all border border-[#C8CFD5] shadow-2xs cursor-pointer glass"
+            title={eudrPanelExpanded ? "Collapse to standard 460px width" : "Expand to wide 640px workbench"}
+          >
+            {eudrPanelExpanded ? <PanelCollapseIcon className="w-3.5 h-3.5 text-[#315F50]" /> : <PanelExpandIcon className="w-3.5 h-3.5 text-[#315F50]" />}
+            <span className="hidden sm:inline font-mono text-[10px]">{eudrPanelExpanded ? "460px" : "Wide Deck"}</span>
           </button>
-        )}
+          {onClose && (
+            <button onClick={onClose} className="p-1.5 rounded-lg text-[#747F88] hover:text-[#1D2227] hover:bg-white/80 transition-colors cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Regulation info strip */}
-      <div className="px-4 py-2 border-b border-[#E3E7EA] bg-[#E3E7EA] flex items-center justify-between text-[11px] flex-shrink-0">
-        <div className="flex items-center gap-1.5 text-[#343B42] font-semibold">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#315F50]" />
-          <span>EUDR Compliance & Due Diligence</span>
+      <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between text-[11px] flex-shrink-0">
+        <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+          <span>Statutory Due Diligence Suite</span>
         </div>
-        <span className="font-bold text-[#1D2227] font-mono text-[10px] bg-white border border-[#C8CFD5] px-1.5 py-0.5 rounded">
-          Cutoff: 31 DEC 2020
-        </span>
+        <div className="flex items-center gap-1.5">
+          <JRC2020Emblem className="w-3.5 h-3.5 text-amber-600" />
+          <span className="font-bold text-slate-900 font-mono text-[10px] bg-white border border-slate-300 px-1.5 py-0.5 rounded shadow-2xs">
+            Cutoff: 31 DEC 2020
+          </span>
+        </div>
       </div>
 
       {/* Scrollable body */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 bg-slate-50/50">
 
         {/* Agent active state */}
         {loading && (
           <div className="p-4 space-y-3">
-            <div className="rounded-xl border border-[#315F50]/30 bg-white p-4 space-y-2.5 shadow-sm">
-              <div className="flex items-center gap-2 text-[#315F50] text-[12px] font-semibold">
-                <Loader2 className="w-4 h-4 animate-spin text-[#315F50]" />
-                Oxeous Spatial Agent Running
+            <div className="rounded-xl border border-emerald-700/30 bg-white p-4 space-y-2.5 shadow-sm">
+              <div className="flex items-center gap-2 text-emerald-800 text-[12px] font-semibold">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                Oxeous Autonomous EO Pipeline Active
               </div>
-              <p className="text-[11px] text-[#747F88] leading-relaxed">
-                Querying 6 Earth Engine datasets. Real-time satellite telemetry and tool logs are streaming live in the <strong>Agent Panel</strong> (right).
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Querying multi-sensor constellations (Sentinel-2, Hansen v1.13, Google FDP 10m). Live tool execution logs are streaming in the <strong>Agent Panel</strong>.
               </p>
               <button
                 onClick={() => setRightPanel("chat")}
-                className="text-[11px] text-[#315F50] font-semibold hover:underline flex items-center gap-1 mt-1"
+                className="text-[11px] text-emerald-700 font-semibold hover:underline flex items-center gap-1 mt-1"
               >
-                View Live Agent Trace ➔
+                View Agent Execution Stream ➔
               </button>
             </div>
           </div>
@@ -234,12 +315,12 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
 
         {/* Error */}
         {!loading && error && (
-          <div className="m-4 flex items-start gap-2.5 bg-[rgba(166,75,69,0.06)] border border-[rgba(166,75,69,0.25)] rounded-card p-3">
-            <AlertCircle className="w-4 h-4 text-[#A64B45] flex-shrink-0 mt-0.5" />
+          <div className="m-4 flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl p-3">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-[12px] font-semibold text-[#A64B45]">Assessment failed</p>
-              <p className="text-[11px] text-[#A64B45]/80 mt-0.5 leading-relaxed">{error}</p>
-              <button onClick={() => { setError(null); }} className="text-[11px] text-[#315F50] font-medium mt-1.5 hover:underline">Try another plot</button>
+              <p className="text-[12px] font-semibold text-red-900">Assessment failed</p>
+              <p className="text-[11px] text-red-700/80 mt-0.5 leading-relaxed">{error}</p>
+              <button onClick={() => { setError(null); }} className="text-[11px] text-emerald-800 font-medium mt-1.5 hover:underline">Try another plot</button>
             </div>
           </div>
         )}
@@ -250,46 +331,93 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
             <ComplianceResultCard result={result} />
             <button
               onClick={() => { setResult(null); setError(null); setActiveGeoJSON(null); }}
-              className="w-full text-[11px] text-[#747F88] hover:text-[#1D2227] border border-[#C8CFD5] hover:border-[#7A8791] rounded-lg py-2 transition-all font-medium"
+              className="w-full text-[11px] text-slate-600 hover:text-slate-900 border border-slate-300 hover:border-slate-400 bg-white rounded-lg py-2 transition-all font-medium shadow-2xs"
             >
               Assess another plot
             </button>
           </div>
         )}
 
-        {/* Upload + examples — idle state */}
+        {/* Upload + Research Benchmarks - idle state */}
         {!loading && !result && !error && (
           <div className="p-4 space-y-4">
             <PlotUploader onPlotReady={run} disabled={loading} />
 
-            <div className="space-y-2">
-              <p className="text-[10px] text-[#AAB3BB] uppercase tracking-wider font-medium flex items-center gap-1">
-                <Leaf className="w-3 h-3 text-[#315F50]" /> Example sourcing plots
-              </p>
-              {EXAMPLES.map(ex => (
-                <button key={ex.name} onClick={() => run(ex.geometry, ex.commodity, ex.country_code, ex.country_name)}
-                  className="w-full text-left bg-white border border-[#C8CFD5] hover:border-[#7A8791] hover:bg-[#F4F5F6] rounded-card p-2.5 transition-all group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 min-w-0">
-                      <span className="text-base mt-0.5 flex-shrink-0">{EMOJI[ex.commodity]}</span>
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-semibold text-[#1D2227] truncate group-hover:text-[#315F50] transition-colors">{ex.name}</p>
-                        <p className="text-[10px] text-[#747F88] mt-0.5 leading-snug">{ex.desc}</p>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono font-bold">
+                  Research Benchmark Cases
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {BENCHMARK_CASES.length} Evaluated Plots
+                </span>
+              </div>
+
+              {BENCHMARK_CASES.map(c => {
+                const Icon = COMMODITY_ICON[c.commodityKey] ?? Trees;
+                const isCompliant = c.verdict.startsWith("COMPLIANT");
+                return (
+                  <div
+                    key={c.id}
+                    className="w-full text-left bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 transition-all shadow-2xs hover:shadow-sm space-y-2 group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className={cn(
+                          "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 border",
+                          isCompliant ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"
+                        )}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[12px] font-semibold text-slate-900 truncate">{c.label}</p>
+                            <span className={cn(
+                              "text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase",
+                              isCompliant
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-red-50 text-red-800 border-red-200"
+                            )}>
+                              {c.score}/100
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5 truncate font-mono">
+                            {c.country} · {c.commodity.toUpperCase()}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#AAB3BB] group-hover:text-[#315F50] group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1" />
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-[#E3E7EA]">
+                      <button
+                        onClick={() => run(c.geometry, c.commodity, c.countryCode, c.country)}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-semibold py-1.5 px-2.5 rounded-lg bg-[#315F50] text-white hover:bg-[#274d40] transition-colors shadow-2xs cursor-pointer"
+                      >
+                        <AuditPlotIcon className="w-3.5 h-3.5" />
+                        <span>Audit Plot</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveDossier(c.commodityKey)}
+                        className="flex items-center gap-1.5 text-[11px] font-semibold py-1.5 px-3 rounded-lg border border-[#C8CFD5] bg-white text-[#1D2227] hover:bg-[#F4F5F6] transition-colors shadow-2xs cursor-pointer"
+                      >
+                        <DossierIcon className="w-3.5 h-3.5 text-[#315F50]" />
+                        <span>Dossier</span>
+                      </button>
+                    </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <footer className="flex-shrink-0 border-t border-[#C8CFD5] px-4 py-2 bg-[#E3E7EA]">
-        <p className="text-[10px] text-[#AAB3BB] text-center">Hansen GFC · Nature Trace · ForTy · WRI Drivers · FDP · WDPA</p>
+      <footer className="flex-shrink-0 border-t border-slate-200 px-4 py-2.5 bg-white text-center">
+        <p className="text-[10px] text-slate-400 font-mono">
+          Copernicus Sentinel-2 · Hansen v1.13 · Google FDP · UNEP-WCMC
+        </p>
       </footer>
     </div>
   );

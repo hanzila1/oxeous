@@ -43,8 +43,10 @@ export interface DeforestationFinding {
   forest_cover_2000_pct?: number; // % tree cover in year 2000 baseline
   pre_cutoff_loss_pct?: number;  // % lost 2000-2020
   forest_cover_2020_pct: number; // % of plot covered by forest at cutoff date
+  jrc_forest_cover_2020_pct?: number; // % official EC JRC GFC2020 10m baseline
   forest_loss_pct: number;       // % lost after cutoff (2021-2025)
   forest_loss_ha: number;
+  radd_alert_pct?: number;       // % Sentinel-1 radar disturbance alert
   natural_forest_pct?: number;   // Nature Trace 10m Sentinel-2 baseline
   dominant_forest_type?: string; // e.g. PrimaryForest, TreeCropsAndAgroforestry
   dominant_loss_driver?: string; // e.g. Permanent agriculture
@@ -56,6 +58,22 @@ export interface DeforestationFinding {
   acquisition_dates: string[];
   ndvi_before: number | null;
   ndvi_after: number | null;
+  is_plantation_replanting_exemption?: boolean;
+  statutory_determination?: string;
+  total_parcel_ha?: number;
+  statutory_deforestation_ha?: number;
+  plantation_replanting_ha?: number;
+  compliant_ha?: number;
+  spatial_compliance_pct?: number;
+  carveout_eligible_ha?: number;
+  mmu_filtered_loss_ha?: number;
+  mean_elevation_m?: number;
+  mean_slope_deg?: number;
+  perimeter_halo_loss_pct?: number;
+  perimeter_km?: number;
+  compactness_index?: number;
+  agro_climatic_biome?: string;
+  intersection_tile_url?: string | null;
 }
 
 // ─── Legality finding ─────────────────────────────────────────────────────────
@@ -63,10 +81,38 @@ export interface DeforestationFinding {
 export interface LegalityFinding {
   plot_id: string;
   overlaps_protected_area: boolean;
+  protected_area_overlap_pct?: number;
+  is_strict_protected_area?: boolean;
   protected_area_names: string[];
   protected_area_categories: string[];
   country_risk_level: EUDRCountryRisk;
   issues: string[];              // human-readable legality concerns
+}
+
+export interface SubagentFinding {
+  agent_id: string;
+  agent_name: string;
+  verdict: "COMPLIANT" | "NON_COMPLIANT" | "AT_RISK" | "EXEMPT_ART2_5" | "INCONCLUSIVE";
+  confidence_score: number;
+  headline: string;
+  statutory_citation: string;
+  evidence_metrics: Record<string, unknown>;
+  sensor_provenance: string[];
+  mitigation_or_rebuttal?: string | null;
+  processing_time_ms: number;
+}
+
+export interface SupervisorConsensus {
+  consensus_verdict: "COMPLIANT" | "NON_COMPLIANT" | "AT_RISK" | "EXEMPT_ART2_5" | "INCONCLUSIVE";
+  composite_risk_score: number;
+  unanimous: boolean;
+  conflict_detected: boolean;
+  conflict_resolution_narrative: string;
+  supplier_perjury_detected: boolean;
+  subagent_findings: SubagentFinding[];
+  cryptographic_audit_hash: string;
+  model_foundation: string;
+  carveout_recommended: boolean;
 }
 
 // ─── Risk Assessment (per plot) ───────────────────────────────────────────────
@@ -74,7 +120,7 @@ export interface LegalityFinding {
 export interface EUDRRiskAssessment {
   plot_id: string;
   overall_risk: EUDRRiskLevel;
-  risk_score: number;            // 0–100, 0 = fully compliant
+  risk_score: number;            // 0-100, 0 = fully compliant
   deforestation: DeforestationFinding;
   legality: LegalityFinding;
   commodity_risk_factors: string[];
@@ -82,6 +128,7 @@ export interface EUDRRiskAssessment {
   assessor: "oxeous-automated";
   requires_human_review: boolean;
   summary: string;               // Granite-generated plain-language summary
+  multi_agent_consensus?: SupervisorConsensus;
 }
 
 // ─── Due Diligence Statement (DDS) ───────────────────────────────────────────
@@ -128,6 +175,7 @@ export interface EUDRAnalysisResponse {
   dds?: EUDRDueDiligenceStatement;
   tile_url?: string;              // forest-loss raster tile
   deforestation_geojson?: unknown; // GeoJSON of detected loss patches
+  carveout_geojson?: unknown;     // Decomposed compliant + violation GeoJSON
   explanation: string;
   follow_up_suggestions: string[];
   map_layers?: GEEMapLayer[];     // Real GEE map tile layers

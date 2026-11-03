@@ -1,5 +1,5 @@
 """
-GEE Tile Server — Real satellite map tiles for frontend rendering
+GEE Tile Server - Real satellite map tiles for frontend rendering
 =================================================================
 Uses ee.Image.getMapId() to generate XYZ tile URLs that MapLibre
 can consume directly. These are REAL pixel-level GEE outputs, not
@@ -81,11 +81,11 @@ def _clip_image(img: Any, bbox: tuple[float, float, float, float] | None = None,
 
 
 
-# ── 1. Hansen GFC v1.13 2025 — Tree Cover 2020 ───────────────────────────────
+# -- 1. Hansen GFC v1.13 2025 - Tree Cover 2020 -------------------------------
 
 def get_hansen_treecover_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    Hansen GFC v1.13 — treecover2000 band.
+    Hansen GFC v1.13 - treecover2000 band.
     Shows forest cover percentage (0-100%) → black to green gradient.
     This is the 2020 baseline for EUDR compliance.
     """
@@ -113,11 +113,11 @@ def get_hansen_treecover_tiles(bbox: tuple[float, float, float, float] | None = 
         return {"available": False, "error": str(exc)}
 
 
-# ── 2. Hansen GFC v1.13 2025 — Post-2020 Forest Loss ────────────────────────
+# -- 2. Hansen GFC v1.13 2025 - Post-2020 Forest Loss ------------------------
 
 def get_hansen_loss_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    Hansen GFC v1.13 — lossyear band filtered to post-2020 only (EUDR relevant).
+    Hansen GFC v1.13 - lossyear band filtered to post-2020 only (EUDR relevant).
     Yellow = 2021, Orange = 2022-2023, Red = 2024-2025.
     This is THE primary EUDR deforestation evidence layer.
     """
@@ -140,9 +140,11 @@ def get_hansen_loss_tiles(bbox: tuple[float, float, float, float] | None = None,
             "dataset": "UMD/hansen/global_forest_change_2025_v1_13",
             "band": "lossyear > 20",
             "legend": {
-                "title": "Post-Dec 2020 Forest Loss",
-                "colormap": "YlOrRd",
-                "min": 2021, "max": 2025, "units": "Year",
+                "title": "Hansen Forest Loss (30m)",
+                "classes": [
+                    {"label": "Standing Forest Baseline (Dec 2020)", "color": "#315F50"},
+                    {"label": "Post-2020 Forest Loss (EUDR Art. 3(a) Violation)", "color": "#F04444"},
+                ],
             },
         }
     except Exception as exc:
@@ -150,7 +152,7 @@ def get_hansen_loss_tiles(bbox: tuple[float, float, float, float] | None = None,
         return {"available": False, "error": str(exc)}
 
 
-# ── 3. Natural Forests 2020 — Probability Map ────────────────────────────────
+# -- 3. Natural Forests 2020 - Probability Map --------------------------------
 
 def get_natural_forest_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
@@ -194,11 +196,11 @@ def get_natural_forest_tiles(bbox: tuple[float, float, float, float] | None = No
         return {"available": False, "error": str(exc)}
 
 
-# ── 4. Forest Typology 2020 — 6-Class Classification ────────────────────────
+# -- 4. Forest Typology 2020 - 6-Class Classification ------------------------
 
 def get_forest_typology_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    Forest Typology (ForTy) 2020 v1.0 — argmax class per pixel.
+    Forest Typology (ForTy) 2020 v1.0 - argmax class per pixel.
     6 classes:
       1=Primary Forest (dark green)
       2=Naturally Regenerating (light green)
@@ -245,11 +247,11 @@ def get_forest_typology_tiles(bbox: tuple[float, float, float, float] | None = N
         return {"available": False, "error": str(exc)}
 
 
-# ── 5. WRI Drivers of Forest Loss 2001-2025 ──────────────────────────────────
+# -- 5. WRI Drivers of Forest Loss 2001-2025 ----------------------------------
 
 def get_wri_drivers_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    WRI/Google DeepMind — Dominant driver of tree cover loss 2001-2025.
+    WRI/Google DeepMind - Dominant driver of tree cover loss 2001-2025.
     7 classes:
       1=Permanent Agriculture (orange)
       2=Hard Commodities (salmon)
@@ -294,11 +296,11 @@ def get_wri_drivers_tiles(bbox: tuple[float, float, float, float] | None = None,
         return {"available": False, "error": str(exc)}
 
 
-# ── 6. ESA WorldCover 2020 v100 (10m) ─────────────────────────────────────────
+# -- 6. ESA WorldCover 2020 v100 (10m) -----------------------------------------
 
 def get_esa_worldcover_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    ESA WorldCover 2020 v100 (10m) — Land cover classification at EUDR cutoff date (Dec 31, 2020).
+    ESA WorldCover 2020 v100 (10m) - Land cover classification at EUDR cutoff date (Dec 31, 2020).
     11 discrete classes remapped for clean visualization.
     """
     if not _init():
@@ -345,13 +347,12 @@ def get_esa_worldcover_tiles(bbox: tuple[float, float, float, float] | None = No
         return {"available": False, "error": str(exc)}
 
 
-# ── 7. Commodity Presence Maps 2025 ──────────────────────────────────────────
-
+# -- 7. Commodity Presence Maps 2026a (Google / Forest Data Partnership) -------
 COMMODITY_TILE_CONFIG = {
-    "cocoa":    ("projects/forestdatapartnership/assets/cocoa/model_2025a",   0.50, "2020", "white,#6f4e37"),
-    "coffee":   ("projects/forestdatapartnership/assets/coffee/model_2025a",  0.95, "2020", "white,#3d2b1f"),
-    "palm_oil": ("projects/forestdatapartnership/assets/palm/model_2025b",    0.90, "2020", "white,#228b22"),
-    "rubber":   ("projects/forestdatapartnership/assets/rubber/model_2025b",  0.38, "2020", "white,#708090"),
+    "cocoa":    ("projects/forestdatapartnership/assets/cocoa/model_2026a",   0.50, "2020", "white,#6f4e37"),
+    "coffee":   ("projects/forestdatapartnership/assets/coffee/model_2026a",  0.95, "2020", "white,#3d2b1f"),
+    "palm_oil": ("projects/forestdatapartnership/assets/palm/model_2026a",    0.47, "2020", "white,#228b22"),
+    "rubber":   ("projects/forestdatapartnership/assets/rubber/model_2026a",  0.35, "2020", "white,#708090"),
 }
 
 COMMODITY_NAMES = {
@@ -362,7 +363,7 @@ COMMODITY_NAMES = {
 
 def get_commodity_tiles(commodity: str, bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    Forest Data Partnership 2025 — commodity probability map.
+    Forest Data Partnership 2025 - commodity probability map.
     Returns actual pixel-level probability of commodity presence.
     Available for: cocoa, coffee, palm_oil, rubber.
     """
@@ -403,35 +404,228 @@ def get_commodity_tiles(commodity: str, bbox: tuple[float, float, float, float] 
         return {"available": False, "error": str(exc)}
 
 
-# ── Master: Generate all map layers for a plot ────────────────────────────────
+# -- 8. EC JRC GFC2020 (Official EU Forest Baseline 10m) ----------------------
+
+def get_jrc_gfc2020_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
+    """
+    European Commission Joint Research Centre (JRC) Global Forest Cover 2020 (10m).
+    Official EU reference baseline dataset for Regulation (EU) 2023/1115.
+    Band 'Map' == 1 represents forest standing at Dec 31, 2020.
+    Uses high-contrast vibrant electric emerald green (#00FF88) so it strongly stands
+    out against dark green satellite imagery.
+    """
+    if not _init():
+        return {"available": False}
+    try:
+        import ee
+        jrc = ee.Image("JRC/GFC2020/V4").select("Map")
+        forest_only = jrc.updateMask(jrc.eq(1))
+        forest_only = _clip_image(forest_only, bbox, geometry)
+        url = _safe_tile_url(forest_only, {
+            "min": 1, "max": 1,
+            "palette": ["00FF88"],
+        })
+        return {
+            "available": bool(url),
+            "tile_url": url,
+            "label": "EC JRC GFC2020 · Official EU Forest Baseline (10m)",
+            "dataset": "JRC/GFC2020/V4",
+            "band": "Map == 1",
+            "legend": {
+                "title": "EC JRC Forest 2020 (10m)",
+                "classes": [{"label": "EU Baseline Forest (Dec 31, 2020)", "color": "#00FF88"}],
+            },
+        }
+    except Exception as exc:
+        logger.warning("JRC tiles failed: %s", exc)
+        return {"available": False, "error": str(exc)}
+
+
+# -- 9. WUR/WRI RADD Sentinel-1 Radar Disturbance Alerts (10m) ----------------
+
+def get_radd_alerts_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
+    """
+    Wageningen University / WRI RADD Sentinel-1 Radar Disturbance Alerts (10m).
+    All-weather cloud-penetrating radar disturbance monitoring.
+    Alert values: 2 = unconfirmed disturbance, 3 = confirmed disturbance.
+    """
+    if not _init():
+        return {"available": False}
+    try:
+        import ee
+        radd_col = ee.ImageCollection("projects/radar-wur/raddalert/v1") \
+            .filter(ee.Filter.listContains("system:band_names", "Alert")) \
+            .select(["Alert"])
+        radd = radd_col.mosaic()
+        alerts = radd.updateMask(radd.gte(2))
+        alerts = _clip_image(alerts, bbox, geometry)
+        url = _safe_tile_url(alerts, {
+            "min": 2, "max": 3,
+            "palette": ["ff8800", "ff0000"],
+        })
+        return {
+            "available": bool(url),
+            "tile_url": url,
+            "label": "WUR/WRI RADD · Sentinel-1 Radar Disturbance Alerts (10m)",
+            "dataset": "projects/radar-wur/raddalert/v1",
+            "band": "Alert",
+            "legend": {
+                "title": "Sentinel-1 Radar Alerts (10m)",
+                "classes": [
+                    {"label": "Unconfirmed Radar Disturbance", "color": "#ff8800"},
+                    {"label": "High-Confidence Radar Disturbance", "color": "#ff0000"},
+                ],
+            },
+        }
+    except Exception as exc:
+        logger.warning("RADD alert tiles failed: %s", exc)
+        return {"available": False, "error": str(exc)}
+
+
+# -- 10. UNEP-WCMC WDPA Protected Areas ----------------------------------------
+
+def get_protected_areas_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
+    """
+    UNEP-WCMC World Database on Protected Areas (WDPA).
+    Legality constraint layer for EUDR Article 3(b).
+    """
+    if not _init():
+        return {"available": False}
+    try:
+        import ee
+        pa = ee.FeatureCollection("WCMC/WDPA/current/polygons")
+        img = ee.Image().byte().paint(pa, 1)
+        img = _clip_image(img, bbox, geometry)
+        url = _safe_tile_url(img, {
+            "min": 1, "max": 1,
+            "palette": ["dc2626"],
+        })
+        return {
+            "available": bool(url),
+            "tile_url": url,
+            "label": "UNEP-WCMC · WDPA Protected Areas (GEE)",
+            "dataset": "WCMC/WDPA/current/polygons",
+            "legend": {
+                "title": "Protected Areas (WDPA)",
+                "classes": [{"label": "Designated Protected Area", "color": "#dc2626"}],
+            },
+        }
+    except Exception as exc:
+        logger.warning("WDPA protected areas tiles failed: %s", exc)
+        return {"available": False, "error": str(exc)}
+
+
+def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
+    """
+    Pixel-Wise Raster Intersection (PWRI):
+    Multi-sensor spatial intersection between post-2020 Hansen loss and JRC GFC2020 V4 statutory forest:
+      - Crimson Red (#E63946): Statutory Deforestation (EUDR Art. 3(a) violation on standing 2020 forest)
+      - Amber (#FFB703): Agricultural Plantation Replanting / Crop Rotation (EUDR Art. 2(5) exempt)
+    """
+    if not _init():
+        return {"available": False}
+    try:
+        import ee
+        hansen = ee.Image("UMD/hansen/global_forest_change_2025_v1_13")
+        treecover = hansen.select("treecover2000")
+        lossyear  = hansen.select("lossyear")
+        loss      = hansen.select("loss")
+        post_cutoff = lossyear.gt(20).And(loss.eq(1)).And(treecover.gte(30))
+
+        jrc_img = ee.Image("JRC/GFC2020/V4")
+        jrc_forest = jrc_img.select("Map").unmask(0).eq(1)
+
+        statutory_deforest = post_cutoff.And(jrc_forest)
+        replanting = post_cutoff.And(jrc_forest.Not())
+
+        inter_vis = ee.ImageCollection([
+            ee.Image(1).updateMask(replanting).visualize(palette=['#FFB703']),
+            ee.Image(1).updateMask(statutory_deforest).visualize(palette=['#E63946']),
+        ]).mosaic()
+
+        inter_vis = _clip_image(inter_vis, bbox, geometry)
+        url = _safe_tile_url(inter_vis, {})
+        return {
+            "available": bool(url),
+            "tile_url": url,
+            "label": "PWRI · Statutory Deforestation Intersection (EUDR Core)",
+            "dataset": "UMD/hansen/global_forest_change_2025_v1_13 ∩ JRC/GFC2020/V4",
+            "legend": {
+                "title": "Raster Intersection (PWRI)",
+                "classes": [
+                    {"label": "Statutory Deforestation (Art. 3a Violation)", "color": "#E63946"},
+                    {"label": "Plantation Replanting (Art. 2(5) Exempt)", "color": "#FFB703"},
+                ],
+            },
+        }
+    except Exception as exc:
+        logger.warning("PWRI intersection tiles failed: %s", exc)
+        return {"available": False, "error": str(exc)}
+
+
+# -- Master: Generate all map layers for a plot --------------------------------
 
 def get_all_map_layers(commodity: str, bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> list[dict[str, Any]]:
     """
     Generate ALL GEE map tile URLs for a given commodity assessment.
     These are REAL XYZ tile URLs from GEE that MapLibre renders as raster layers.
-
-    Returns a list of layer dicts, each with:
-      - id: unique layer identifier
-      - label: human-readable name
-      - tile_url: MapLibre-compatible XYZ tile URL
-      - visible: whether to show by default
-      - opacity: default opacity
-      - legend: legend spec for layer panel
     """
     layers = []
 
-    # 1. Hansen Post-2020 Loss (primary EUDR layer — always shown first)
+    # 0. PWRI Statutory Deforestation Intersection (Core EUDR Map Algebra)
+    pwri = get_pwri_intersection_tiles(bbox=bbox, geometry=geometry)
+    if pwri.get("available") and pwri.get("tile_url"):
+        layers.append({
+            "id": "gee-pwri-intersection",
+            "label": pwri["label"],
+            "tile_url": pwri["tile_url"],
+            "visible": True,
+            "opacity": 1.0,
+            "legend": pwri["legend"],
+            "dataset": pwri.get("dataset", ""),
+            "layer_type": "intersection",
+        })
+
+    # 1. Hansen Post-2020 Loss (primary EUDR layer - available in panel)
     loss = get_hansen_loss_tiles(bbox=bbox, geometry=geometry)
     if loss.get("available") and loss.get("tile_url"):
         layers.append({
             "id": "gee-hansen-loss",
             "label": loss["label"],
             "tile_url": loss["tile_url"],
-            "visible": True,
+            "visible": False,
             "opacity": 1.0,
             "legend": loss["legend"],
             "dataset": loss.get("dataset", ""),
             "layer_type": "hansen_loss",
+        })
+
+    # 2. EC JRC GFC2020 (Official European Commission Baseline 10m)
+    jrc = get_jrc_gfc2020_tiles(bbox=bbox, geometry=geometry)
+    if jrc.get("available") and jrc.get("tile_url"):
+        layers.append({
+            "id": "gee-jrc-gfc2020",
+            "label": jrc["label"],
+            "tile_url": jrc["tile_url"],
+            "visible": False,
+            "opacity": 0.85,
+            "legend": jrc["legend"],
+            "dataset": jrc.get("dataset", ""),
+            "layer_type": "jrc_gfc2020",
+        })
+
+    # 3. WUR/WRI RADD Sentinel-1 Radar Alerts (All-weather 10m near-real-time)
+    radd = get_radd_alerts_tiles(bbox=bbox, geometry=geometry)
+    if radd.get("available") and radd.get("tile_url"):
+        layers.append({
+            "id": "gee-radd-alerts",
+            "label": radd["label"],
+            "tile_url": radd["tile_url"],
+            "visible": False,
+            "opacity": 1.0,
+            "legend": radd["legend"],
+            "dataset": radd.get("dataset", ""),
+            "layer_type": "radd_alerts",
         })
 
     # 2. Hansen Tree Cover 2020 (baseline context)
@@ -516,6 +710,20 @@ def get_all_map_layers(commodity: str, bbox: tuple[float, float, float, float] |
             "legend": cm["legend"],
             "dataset": cm.get("dataset", ""),
             "layer_type": "commodity_map",
+        })
+
+    # 8. UNEP-WCMC Protected Areas (Article 3b legality check)
+    pa = get_protected_areas_tiles(bbox=bbox, geometry=geometry)
+    if pa.get("available") and pa.get("tile_url"):
+        layers.append({
+            "id": "gee-protected-areas",
+            "label": pa["label"],
+            "tile_url": pa["tile_url"],
+            "visible": False,
+            "opacity": 0.8,
+            "legend": pa["legend"],
+            "dataset": pa.get("dataset", ""),
+            "layer_type": "protected_areas",
         })
 
     return layers

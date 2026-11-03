@@ -1,5 +1,5 @@
 """
-Surface Water Extent Tool — OPERA DSWx water classification raster.
+Surface Water Extent Tool - OPERA DSWx water classification raster.
 """
 from __future__ import annotations
 
@@ -96,9 +96,9 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         ),
         explanation="",
         follow_up_suggestions=[
-            "Compare with previous week to track flooding extent",
-            "Overlay with NDMI to assess vegetation stress from waterlogging",
-            "Run Prithvi AI analysis for advanced flood segmentation",
+            "What is the EUDR cutoff date?",
+            "What are the 7 Annex I regulated commodities?",
+            "How does Article 2(5) exempt plantation replanting?",
         ],
         coverage_quality=coverage,
         legend=LegendSpec(

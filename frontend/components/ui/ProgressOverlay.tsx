@@ -31,7 +31,7 @@ export default function ProgressOverlay() {
                 type: "raster",
                 tileUrl: s.result.tile_url,
                 visible: true,
-                opacity: 0.9,
+                opacity: 1.0,
                 legend: s.result.legend,
                 analysisType: "prithvi_change_detection",
               });
@@ -64,7 +64,7 @@ export default function ProgressOverlay() {
             <Cpu className="w-4 h-4 text-prithvi-purple flex-shrink-0" />
             <div>
               <p className="text-xs font-semibold text-text">Spatial AI Analysis</p>
-              <p className="text-[10px] text-muted">Gemini + GEE + NASA workflow</p>
+              <p className="text-[10px] text-muted">Copernicus & GEE Earth Observation Pipeline</p>
             </div>
           </div>
           {(isComplete || isFailed) && (
@@ -109,7 +109,7 @@ export default function ProgressOverlay() {
 
         {isComplete && (
           <div className="flex items-center gap-1.5 text-[11px] text-success">
-            ✓ Analysis complete — layer added to map
+            ✓ Analysis complete - layer added to map
           </div>
         )}
 

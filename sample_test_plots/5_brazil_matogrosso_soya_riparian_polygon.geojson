@@ -1,0 +1,75 @@
+{
+  "type": "FeatureCollection",
+  "name": "BR-MT-SOYA-2026-05",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "BR-MT-SOYA-2026-05",
+        "name": "Sinop Teles Pires Soya Frontier (Mato Grosso, Brazil)",
+        "commodity": "soya",
+        "country_code": "BR",
+        "country_name": "Brazil",
+        "area_ha": 421.22,
+        "statutory_baseline": "EC JRC GFC2020 & PRODES Amazonia Baseline",
+        "article_reference": "EUDR Art. 3(a) Plot Segregation Carve-Out & Art. 2(40) Brazilian Forest Code APP",
+        "test_scenario": "12-vertex organic soya cropland polygon bounding the Teles Pires riparian forest reserve. 93% clean cropland with localized 7.2 ha riparian clearing eligible for May 2026 export carve-out."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -55.345,
+              -11.578
+            ],
+            [
+              -55.339,
+              -11.572
+            ],
+            [
+              -55.332,
+              -11.568
+            ],
+            [
+              -55.326,
+              -11.567
+            ],
+            [
+              -55.322,
+              -11.571
+            ],
+            [
+              -55.321,
+              -11.577
+            ],
+            [
+              -55.3235,
+              -11.583
+            ],
+            [
+              -55.328,
+              -11.5865
+            ],
+            [
+              -55.334,
+              -11.588
+            ],
+            [
+              -55.34,
+              -11.586
+            ],
+            [
+              -55.344,
+              -11.5825
+            ],
+            [
+              -55.345,
+              -11.578
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

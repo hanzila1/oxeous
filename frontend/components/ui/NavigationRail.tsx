@@ -1,14 +1,19 @@
 "use client";
 
-import { Globe2, ShieldCheck, Layers, MessageSquare } from "lucide-react";
+import {
+  SatelliteGlobeIcon,
+  ComplianceShieldIcon,
+  AgentSparkIcon,
+  LayerStackIcon,
+} from "@/components/icons/EOIcons";
 import { cn } from "@/lib/utils";
 import { useStore, type SidePanelType } from "@/lib/store";
 
-const NAV_ITEMS: { id: SidePanelType; icon: typeof Globe2; label: string; desc: string }[] = [
-  { id: null,     icon: Globe2,        label: "Map",     desc: "Satellite view" },
-  { id: "eudr",   icon: ShieldCheck,   label: "EUDR",    desc: "Compliance" },
-  { id: "chat",   icon: MessageSquare, label: "Agent",   desc: "Spatial AI" },
-  { id: "layers", icon: Layers,        label: "Layers",  desc: "Raster layers" },
+const NAV_ITEMS: { id: SidePanelType; icon: React.ComponentType<{ className?: string }>; label: string; desc: string }[] = [
+  { id: null,     icon: SatelliteGlobeIcon,   label: "Map",     desc: "Satellite view" },
+  { id: "eudr",   icon: ComplianceShieldIcon, label: "EUDR",    desc: "Compliance" },
+  { id: "chat",   icon: AgentSparkIcon,       label: "Agent",   desc: "Spatial AI" },
+  { id: "layers", icon: LayerStackIcon,       label: "Layers",  desc: "Raster layers" },
 ];
 
 export default function NavigationRail() {
@@ -35,11 +40,12 @@ export default function NavigationRail() {
 
   return (
     <nav
-      className="flex flex-col items-center flex-shrink-0 h-full bg-[#F4F5F6] border-r border-[#C8CFD5] z-20"
-      style={{ width: 56 }}
+      className="flex flex-col items-center flex-shrink-0 h-full glass border-r border-[#C8CFD5] z-20 shadow-[1px_0_4px_rgba(0,0,0,0.03)]"
+      style={{ width: 60 }}
     >
-      {/* ── Nav buttons ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col items-center gap-1 pt-3 flex-1 w-full px-1">
+
+      {/* Nav buttons */}
+      <div className="flex flex-col items-center gap-1.5 pt-3 flex-1 w-full px-1.5">
         {NAV_ITEMS.map(({ id, icon: Icon, label, desc }) => {
           const active =
             id === "eudr"
@@ -53,29 +59,31 @@ export default function NavigationRail() {
             <button
               key={label}
               onClick={() => handleNav(id)}
-              title={`${label} — ${desc}`}
-              aria-label={label}
+              aria-label={`${label} - ${desc}`}
               className={cn(
-                "relative group flex flex-col items-center justify-center w-full rounded-lg py-2.5 gap-0.5",
-                "transition-all duration-100 select-none",
+                "group relative flex flex-col items-center justify-center w-full rounded-xl py-2.5 gap-1 border",
+                "transition-all duration-150 select-none cursor-pointer",
                 active
-                  ? "bg-[#E3E7EA] text-[#315F50]"
-                  : "text-[#7A8791] hover:bg-[#E3E7EA] hover:text-[#343B42]",
+                  ? "bg-white text-[#1D2227] border-[#C8CFD5] shadow-xs font-bold"
+                  : "border-transparent text-[#747F88] hover:bg-white/70 hover:text-[#1D2227]",
               )}
             >
-              <Icon strokeWidth={active ? 2.2 : 1.7} className="w-[17px] h-[17px]" />
-              <span className="text-[9px] font-medium leading-none tracking-wide">{label}</span>
+              {active && (
+                <span className="absolute -left-1.5 top-2.5 bottom-2.5 w-1 bg-[#315F50] rounded-r-full shadow-2xs" />
+              )}
+              <Icon className={cn("w-4 h-4 transition-colors", active ? "text-[#315F50]" : "text-[#7A8791] group-hover:text-[#1D2227]")} />
+              <span className={cn("text-[9.5px] leading-none tracking-wide", active ? "font-bold text-[#1D2227]" : "font-medium text-[#747F88] group-hover:text-[#1D2227]")}>{label}</span>
 
-              {/* Tooltip */}
-              <span className="pointer-events-none absolute left-full ml-2 z-50 px-2 py-1 rounded-md bg-[#343B42] text-white text-[11px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-panel">
-                {label} — {desc}
+              {/* Glass Tooltip */}
+              <span className="oxe-tip" data-side="right">
+                {label} <small>{desc}</small>
               </span>
             </button>
           );
         })}
       </div>
 
-      {/* ── Version ─────────────────────────────────────────────────────── */}
+      {/* Version */}
       <div className="pb-3">
         <span className="text-[9px] text-[#AAB3BB] font-mono">v0.1</span>
       </div>

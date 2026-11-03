@@ -1,5 +1,5 @@
 """
-Geocoder — resolves location strings to WGS84 bounding boxes using Nominatim.
+Geocoder - resolves location strings to WGS84 bounding boxes using Nominatim.
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """
-True Color Imagery Tool — returns a GIBS tile layer URL (no computation).
+True Color Imagery Tool - returns a GIBS tile layer URL (no computation).
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         tile_url=tile_url,
         statistics={"source": "NASA GIBS", "date": gibs_date},
         provenance=DataProvenance(
-            source=f"NASA GIBS — {GIBS_LAYER}",
+            source=f"NASA GIBS - {GIBS_LAYER}",
             acquisition_dates=[gibs_date],
             spatial_resolution_m=375,
             cloud_cover_pct=0.0,

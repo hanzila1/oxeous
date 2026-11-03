@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "name": "Sweden_Boreal_Wood_Forestry",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "SE-BOREAL-WOOD-2026-07",
+        "name": "Hälsingland Boreal Silviculture Stand (Sweden)",
+        "commodity": "wood",
+        "country_code": "SE",
+        "country_name": "Sweden",
+        "test_scenario": "High-Latitude Boreal Coniferous Forest Zone (61.7°N) WGS84 Ellipsoidal Geodesic Area + EU Member State Low-Risk Timber Verification"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [15.8420, 61.7420],
+            [15.8680, 61.7420],
+            [15.8680, 61.7560],
+            [15.8420, 61.7560],
+            [15.8420, 61.7420]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

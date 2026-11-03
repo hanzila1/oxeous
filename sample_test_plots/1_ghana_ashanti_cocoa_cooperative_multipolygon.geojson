@@ -1,0 +1,113 @@
+{
+  "type": "FeatureCollection",
+  "name": "GH-ASHANTI-COOP-2026",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "GH-ASHANTI-COOP-2026",
+        "name": "Ashanti Smallholder Cocoa Cooperative Aggregation (Ghana)",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 158.59,
+        "statutory_baseline": "EC JRC GFC2020 (Dec 31, 2020)",
+        "article_reference": "EUDR Art. 9(1)(d) Smallholder Cooperative Aggregation & Art. 3(a)",
+        "test_scenario": "Multi-parcel smallholder cooperative aggregation (3 discrete parcels). Parcels 1 & 2 are 100% compliant agroforestry; Parcel 3 exhibits southern boundary disturbance overlapping standing 2020 forest."
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                -1.9835,
+                6.8785
+              ],
+              [
+                -1.979,
+                6.8815
+              ],
+              [
+                -1.9765,
+                6.879
+              ],
+              [
+                -1.975,
+                6.875
+              ],
+              [
+                -1.9785,
+                6.872
+              ],
+              [
+                -1.983,
+                6.8735
+              ],
+              [
+                -1.9835,
+                6.8785
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -1.972,
+                6.884
+              ],
+              [
+                -1.9675,
+                6.8865
+              ],
+              [
+                -1.9645,
+                6.8825
+              ],
+              [
+                -1.9665,
+                6.878
+              ],
+              [
+                -1.971,
+                6.8795
+              ],
+              [
+                -1.972,
+                6.884
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -1.981,
+                6.867
+              ],
+              [
+                -1.977,
+                6.869
+              ],
+              [
+                -1.974,
+                6.8655
+              ],
+              [
+                -1.978,
+                6.8615
+              ],
+              [
+                -1.982,
+                6.863
+              ],
+              [
+                -1.981,
+                6.867
+              ]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

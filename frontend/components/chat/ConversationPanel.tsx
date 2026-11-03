@@ -1,94 +1,38 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useId } from "react";
-import { Send, Bot, User, Loader2, AlertCircle, X, Sparkles, MapPinned, Activity, FileJson2, ChevronRight } from "lucide-react";
+import { Send, Bot, User, Loader2, AlertCircle, X, FileJson2, ChevronRight, ArrowRight, FileText, Coffee, Trees, CircleDot, Palmtree, Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
+import OxeousOrbitIcon from "@/components/ui/OxeousOrbitIcon";
 import { api } from "@/lib/api";
 import { useStore, type AgentLogEntry, type ActiveLayer } from "@/lib/store";
 import type { AnalysisResponse, EUDRAnalysisResponse, EUDRCommodity } from "@oxeous/shared-types";
+import { BENCHMARK_CASES, type BenchmarkCase } from "@/components/ui/TopFloatingBar";
+import { extractBboxFromGeometry } from "@/lib/maplibre";
 import AnalysisResultCard from "./AnalysisResultCard";
 import FollowUpChips from "./FollowUpChips";
 import FormattedMarkdown from "./FormattedMarkdown";
+import AgentTelemetryStepper from "./AgentTelemetryStepper";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-interface BenchmarkCase {
-  id: string;
-  title: string;
-  region: string;
-  commodity: EUDRCommodity;
-  countryCode: string;
-  countryName: string;
-  prompt: string;
-  geometry: { type: string; coordinates: number[][][] };
-  flag: string;
-  tag: string;
-  tagColor: string;
-}
+const COMMODITY_ICON: Record<string, typeof Coffee> = {
+  coffee: Coffee,
+  cocoa: Trees,
+  rubber: CircleDot,
+  palm_oil: Palmtree,
+  soya: Leaf,
+};
 
-const BENCHMARK_CASES: BenchmarkCase[] = [
-  {
-    id: "brazil_soya",
-    title: "Mato Grosso Soya Deforestation",
-    region: "Brazil · Soya",
-    commodity: "soya",
-    countryCode: "BR",
-    countryName: "Brazil",
-    prompt: "Audit Amazon frontier plot for post-2020 commercial soya clearing",
-    geometry: { type: "Polygon", coordinates: [[[-55.50,-12.80],[-55.40,-12.80],[-55.40,-12.70],[-55.50,-12.70],[-55.50,-12.80]]] },
-    flag: "🇧🇷",
-    tag: "Post-2020 Loss",
-    tagColor: "text-[#A64B45] bg-[rgba(166,75,69,0.08)] border-[rgba(166,75,69,0.25)]",
-  },
-  {
-    id: "ghana_cocoa",
-    title: "Ashanti Cocoa Smallholder Fringe",
-    region: "Ghana · Cocoa",
-    commodity: "cocoa",
-    countryCode: "GH",
-    countryName: "Ghana",
-    prompt: "Assess Tano Offin cocoa plot for historical clearing & forest degradation",
-    geometry: { type: "Polygon", coordinates: [[[-2.05,6.85],[-1.95,6.85],[-1.95,6.95],[-2.05,6.95],[-2.05,6.85]]] },
-    flag: "🇬🇭",
-    tag: "High Loss Driver",
-    tagColor: "text-[#C58A3A] bg-[rgba(197,138,58,0.08)] border-[rgba(197,138,58,0.25)]",
-  },
-  {
-    id: "indonesia_palm",
-    title: "Kalimantan Peatland Palm Oil",
-    region: "Indonesia · Palm Oil",
-    commodity: "palm_oil",
-    countryCode: "ID",
-    countryName: "Indonesia",
-    prompt: "Investigate Sebangau peatland concession for WDPA protected reserve overlap",
-    geometry: { type: "Polygon", coordinates: [[[113.80,-2.40],[113.90,-2.40],[113.90,-2.30],[113.80,-2.30],[113.80,-2.40]]] },
-    flag: "🇮🇩",
-    tag: "Reserve Overlap",
-    tagColor: "text-[#A64B45] bg-[rgba(166,75,69,0.08)] border-[rgba(166,75,69,0.25)]",
-  },
-  {
-    id: "germany_timber",
-    title: "Bavaria FSC Sustainable Timber",
-    region: "Germany · Wood",
-    commodity: "wood",
-    countryCode: "DE",
-    countryName: "Germany",
-    prompt: "Certify Ebrach State Forest timber plot for zero-deforestation compliance",
-    geometry: { type: "Polygon", coordinates: [[[10.45,49.80],[10.55,49.80],[10.55,49.90],[10.45,49.90],[10.45,49.80]]] },
-    flag: "🇩🇪",
-    tag: "Pass Benchmark",
-    tagColor: "text-[#315F50] bg-[rgba(49,95,80,0.08)] border-[rgba(49,95,80,0.25)]",
-  },
-];
 
 export default function ConversationPanel({ onClose }: { onClose?: () => void }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [runningAssessment, setRunningAssessment] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const uid = useId();
-  const { messages, addMessage, updateMessage, conversationHistory, appendHistory, viewport, addLayer, setActiveGeoJSON, addDDSHistory } = useStore();
+  const { messages, addMessage, updateMessage, conversationHistory, appendHistory, viewport, addLayer, setActiveGeoJSON, addDDSHistory, isScanning, setIsScanning, setActiveDossier, setEudrPanelOpen, setEudrPanelExpanded } = useStore();
+  const isBusy = sending || isScanning || messages.some((m) => m.isLoading);
 
   const buildAgentLogs = useCallback(
     (prompt: string, response?: AnalysisResponse | null): AgentLogEntry[] => {
@@ -122,143 +66,302 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
   }, [messages]);
 
   const submit = useCallback(async (prompt: string) => {
-    if (!prompt.trim() || sending || runningAssessment) return;
+    if (!prompt.trim() || sending) return;
     const msgId = `${uid}-${Date.now()}`;
     addMessage({ id: `${msgId}-user`, role: "user", content: prompt });
     appendHistory({ role: "user", content: prompt });
     const botId = `${msgId}-bot`;
-    addMessage({ id: botId, role: "assistant", content: "", isLoading: true, agentLogs: buildAgentLogs(prompt) });
+    const isSpatialCmd = /(calculate|compute|render|generate|display|show)\s+(ndvi|ndwi|moisture|water|true\s+color|rgb|prithvi)/i.test(prompt) ||
+                         /run\s+(ndvi|ndwi|land\s+disturbance|prithvi|water)/i.test(prompt);
+
+    addMessage({
+      id: botId,
+      role: "assistant",
+      content: "",
+      isLoading: true,
+      agentLogs: [
+        {
+          id: "intent",
+          label: isSpatialCmd ? "Query & Intent Parsing" : "Statutory Intelligence & Intent Parsing",
+          detail: isSpatialCmd
+            ? `Interpreting geospatial query: "${prompt.trim().slice(0, 50)}..."`
+            : `Consulting EU 2023/1115 regulatory knowledge base & audit context...`,
+          status: "active",
+        },
+      ],
+    });
     setSending(true);
+
+    const stageTimer = isSpatialCmd
+      ? setTimeout(() => {
+          updateMessage(botId, {
+            agentLogs: [
+              {
+                id: "intent",
+                label: "Query & Intent Parsing",
+                detail: `Parsed target AOI: [${viewport.bbox.map((n) => Number(n).toFixed(2)).join(", ")}]`,
+                status: "done",
+              },
+              {
+                id: "tool",
+                label: "Earth Observation Query",
+                detail: "Dispatching spatial analysis engine across Sentinel & GEE datasets...",
+                status: "active",
+              },
+            ],
+          });
+        }, 450)
+      : null;
+
     try {
-      const res = await api.chat({ prompt, conversation_history: conversationHistory, map_viewport: viewport });
-      updateMessage(botId, { content: res.explanation, isLoading: false, analysisResult: res, agentLogs: buildAgentLogs(prompt, res) });
+      // If viewport bbox area exceeds 3.8 deg², focus on central 1.0° x 1.0° analysis window
+      let effectiveViewport = { ...viewport };
+      const [w, s, e, n] = viewport.bbox;
+      const area = Math.abs(e - w) * Math.abs(n - s);
+      if (area > 3.8) {
+        const cLng = (w + e) / 2;
+        const cLat = (s + n) / 2;
+        effectiveViewport = {
+          ...viewport,
+          bbox: [cLng - 0.45, cLat - 0.45, cLng + 0.45, cLat + 0.45],
+        };
+      }
+
+      const res = await api.chat({ prompt, conversation_history: conversationHistory, map_viewport: effectiveViewport });
+      if (stageTimer) clearTimeout(stageTimer);
+      updateMessage(botId, { content: res.explanation, isLoading: false, analysisResult: res });
       appendHistory({ role: "assistant", content: res.explanation });
       if (res.tile_url) addLayer({ id: res.request_id, label: res.analysis_type.replace(/_/g, " "), type: "raster", tileUrl: res.tile_url, overlayUrl: res.overlay_url, visible: true, opacity: 1.0, legend: res.legend, analysisType: res.analysis_type });
       if (res.granite_intent?.bbox) { const fn = (window as Window & { oxeousFlyTo?: (b: [number,number,number,number]) => void }).oxeousFlyTo; fn?.(res.granite_intent.bbox); }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Request failed";
-      updateMessage(botId, { content: "", isLoading: false, error: errorMessage, agentLogs: buildAgentLogs(prompt) });
+      if (stageTimer) clearTimeout(stageTimer);
+      let errorMessage = err instanceof Error ? err.message : "Request failed";
+      try {
+        const cleaned = errorMessage.replace(/^\d+:\s*/, "");
+        const parsed = JSON.parse(cleaned);
+        if (parsed.detail) errorMessage = typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+      } catch {
+        // ignore JSON parse error
+      }
+      updateMessage(botId, { content: "", isLoading: false, error: errorMessage });
     } finally {
       setSending(false);
     }
   }, [sending, uid, addMessage, updateMessage, appendHistory, conversationHistory, viewport, addLayer, buildAgentLogs]);
 
-  const runCaseStudy = useCallback(async (cs: BenchmarkCase) => {
-    if (sending || runningAssessment) return;
-    setRunningAssessment(true);
-    setActiveGeoJSON(cs.geometry);
-    
-    // Fly to bbox
-    const coords = cs.geometry.coordinates[0];
-    const lngs = coords.map(c => c[0]);
-    const lats = coords.map(c => c[1]);
-    const bbox: [number, number, number, number] = [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
-    (window as Window & { oxeousFlyTo?: (b: typeof bbox) => void }).oxeousFlyTo?.(bbox);
+  const handleInspectInEUDR = useCallback((eudrResult: EUDRAnalysisResponse) => {
+    setEudrPanelOpen(true);
+    setEudrPanelExpanded(true);
 
-    const userPrompt = `Audit ${cs.title} (${cs.region}): ${cs.prompt}`;
-    const userMsgId = `user-${Date.now()}`;
-    const botMsgId = `earth-bot-${Date.now()}`;
-
-    addMessage({ id: userMsgId, role: "user", content: userPrompt });
-
-    let currentLogs: AgentLogEntry[] = [
-      { id: "ingest", label: "Plot Ingestion", detail: `Ingested benchmark geometry for ${cs.commodity.toUpperCase()} (${cs.region})`, status: "done" },
-      { id: "hansen", label: "Hansen GFC 2025", detail: "Querying Hansen v1.13 post-cutoff loss & baseline...", status: "active" },
-    ];
-
-    addMessage({
-      id: botMsgId,
-      role: "assistant",
-      content: "",
-      isLoading: true,
-      agentLogs: currentLogs,
-    });
-
-    try {
-      const res = await fetch(`${API_BASE}/eudr/plots/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commodity: cs.commodity,
-          country_code: cs.countryCode,
-          country_name: cs.countryName,
-          geometry: cs.geometry,
-          generate_dds: true
-        }),
-      });
-
-      if (!res.ok) throw new Error("Assessment failed");
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("Stream unavailable");
-
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
-            if (event.step === "agent_log") {
-              const stepId = String(event.id || "step");
-              const idx = currentLogs.findIndex(l => l.id === stepId);
-              const entry: AgentLogEntry = {
-                id: stepId,
-                label: String(event.label || "Dataset Check"),
-                detail: String(event.detail || ""),
-                status: (event.status as "done" | "active" | "pending") || "active",
-              };
-              if (idx >= 0) currentLogs = currentLogs.map((l, i) => i === idx ? entry : l);
-              else currentLogs = [...currentLogs, entry];
-              updateMessage(botMsgId, { agentLogs: [...currentLogs] });
-            }
-            if (event.step === "done" && event.data) {
-              const data = event.data as EUDRAnalysisResponse;
-              addDDSHistory(data);
-              currentLogs = currentLogs.map(l => ({ ...l, status: "done" as const }));
-              updateMessage(botMsgId, {
-                content: data.explanation,
-                isLoading: false,
-                eudrResult: data,
-                agentLogs: currentLogs,
-              });
-              if (data.map_layers?.length) {
-                data.map_layers.forEach(lyr => {
-                  addLayer({
-                    id: lyr.id,
-                    label: lyr.label,
-                    type: "raster",
-                    tileUrl: lyr.tile_url,
-                    visible: lyr.visible,
-                    opacity: 1.0,
-                    legend: lyr.legend as ActiveLayer["legend"] | undefined,
-                    analysisType: (lyr as { layer_type?: string }).layer_type || "land_disturbance",
-                    layer_type: (lyr as { layer_type?: string }).layer_type,
-                  });
-                });
-              }
-            }
-          } catch {
-            // ignore malformed
-          }
-        }
+    if (eudrResult.plot?.geometry) {
+      setActiveGeoJSON(eudrResult.plot.geometry);
+      const bbox = extractBboxFromGeometry(eudrResult.plot.geometry);
+      if (bbox) {
+        const flyFn = (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo;
+        flyFn?.(bbox);
       }
-    } catch (e) {
-      updateMessage(botMsgId, {
+    }
+  }, [setEudrPanelOpen, setEudrPanelExpanded, setActiveGeoJSON]);
+
+  const runBenchmark = useCallback(
+    async (c: BenchmarkCase) => {
+      if (sending || isBusy) return;
+
+      // 1. Set plot on map & fly to bbox
+      setActiveGeoJSON(c.geometry);
+      const flyFn = (window as Window & { oxeousFlyTo?: (b: typeof c.bbox) => void }).oxeousFlyTo;
+      flyFn?.(c.bbox);
+
+      // 2. Add user message
+      const promptText = `Assess EUDR statutory compliance for ${c.label} (${c.country})`;
+      const userMsgId = `user-${Date.now()}`;
+      const botMsgId = `eudr-bot-${Date.now()}`;
+
+      addMessage({ id: userMsgId, role: "user", content: promptText });
+      appendHistory({ role: "user", content: promptText });
+
+      let currentLogs: AgentLogEntry[] = [
+        {
+          id: "ingest",
+          label: "Plot Geometry & RFC 7946 Topology",
+          detail: `Verifying vector boundary for ${c.label} (${c.country})...`,
+          status: "active",
+        },
+        {
+          id: "hansen",
+          label: "Hansen GFC 2025 & Optical S2",
+          detail: "Queued: 2021-2025 post-cutoff canopy loss scan",
+          status: "pending",
+        },
+        {
+          id: "jrc",
+          label: "EC JRC GFC2020 & Forest Typology",
+          detail: "Queued: Official 10m Dec 2020 baseline & ForTy",
+          status: "pending",
+        },
+        {
+          id: "radd",
+          label: "Sentinel-1 SAR & Google FDP 2026a",
+          detail: "Queued: All-weather radar & commodity presence",
+          status: "pending",
+        },
+        {
+          id: "protected",
+          label: "WDPA Reserves & Art. 2(40) Legality",
+          detail: "Queued: IUCN I-VI & 8-domain sovereign cadastre",
+          status: "pending",
+        },
+        {
+          id: "consensus",
+          label: "6-Subagent Consensus & TRACES NT DDS",
+          detail: "Queued: Multi-agent arbitration & statutory dossier",
+          status: "pending",
+        },
+      ];
+
+      addMessage({
+        id: botMsgId,
+        role: "assistant",
         content: "",
-        isLoading: false,
-        error: e instanceof Error ? e.message : "Assessment failed",
+        isLoading: true,
         agentLogs: currentLogs,
       });
-    } finally {
-      setRunningAssessment(false);
-    }
-  }, [sending, runningAssessment, addMessage, updateMessage, addDDSHistory, addLayer, setActiveGeoJSON]);
+      setSending(true);
+      setIsScanning(true);
+
+      try {
+        const res = await fetch(`${API_BASE}/eudr/plots/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            commodity: c.commodity,
+            country_code: c.countryCode,
+            country_name: c.country,
+            geometry: c.geometry,
+            generate_dds: true,
+          }),
+        });
+
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(e.detail ?? "Assessment failed");
+        }
+
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) throw new Error("No stream available");
+
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.replace(/^data:\s*/, "").trim();
+            if (!jsonStr) continue;
+
+            try {
+              const event = JSON.parse(jsonStr);
+
+              if (event.step === "stage") {
+                const rawId = String(event.stage_id || "");
+                const stageMapping: Record<string, string> = {
+                  geometry: "ingest",
+                  baseline: "jrc",
+                  typology: "jrc",
+                  disturbance: "hansen",
+                  commodity: "radd",
+                  sar: "radd",
+                  protected_areas: "protected",
+                  sovereign_legality: "protected",
+                  consensus: "consensus",
+                };
+                const mappedId = stageMapping[rawId] || rawId;
+                const idx = currentLogs.findIndex((l) => l.id === mappedId);
+                const incomingStatus = (event.status as "done" | "active" | "pending") || "active";
+
+                if (idx >= 0) {
+                  currentLogs = currentLogs.map((l, i) => {
+                    if (i < idx && l.status !== "done") return { ...l, status: "done" as const };
+                    if (i === idx) {
+                      const isIntermediate =
+                        (mappedId === "jrc" && rawId !== "typology") ||
+                        (mappedId === "radd" && rawId !== "commodity");
+                      return {
+                        ...l,
+                        detail: String(event.detail || l.detail),
+                        status: isIntermediate && incomingStatus === "done" ? ("active" as const) : incomingStatus,
+                      };
+                    }
+                    return l;
+                  });
+                }
+                updateMessage(botMsgId, { agentLogs: [...currentLogs] });
+              }
+
+              if (event.step === "done" && event.data) {
+                const data = event.data as EUDRAnalysisResponse;
+                addDDSHistory(data);
+
+                currentLogs = currentLogs.map((l) => ({ ...l, status: "done" as const }));
+                updateMessage(botMsgId, { agentLogs: [...currentLogs] });
+
+                setTimeout(() => {
+                  const summary = (data as unknown as { plain_english_summary?: string }).plain_english_summary || data.explanation;
+                  updateMessage(botMsgId, {
+                    content: summary,
+                    isLoading: false,
+                    eudrResult: data,
+                  });
+                  appendHistory({ role: "assistant", content: summary });
+                }, 450);
+
+                if (data.map_layers && data.map_layers.length > 0) {
+                  data.map_layers.forEach((lyr) => {
+                    addLayer({
+                      id: lyr.id,
+                      label: lyr.label,
+                      type: "raster",
+                      tileUrl: lyr.tile_url,
+                      visible: lyr.visible,
+                      opacity: lyr.opacity,
+                      legend: lyr.legend as ActiveLayer["legend"] | undefined,
+                      analysisType: (lyr as { layer_type?: string }).layer_type || "land_disturbance",
+                      layer_type: (lyr as { layer_type?: string }).layer_type,
+                    });
+                  });
+                }
+              }
+
+              if (event.step === "error") {
+                throw new Error((event.message as string) || "Assessment failed");
+              }
+            } catch {
+              // Ignore parse errors on chunk boundary
+            }
+          }
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Assessment failed";
+        updateMessage(botMsgId, {
+          content: "",
+          isLoading: false,
+          error: errMsg,
+          agentLogs: currentLogs,
+        });
+      } finally {
+        setSending(false);
+        setIsScanning(false);
+      }
+    },
+    [sending, isBusy, setActiveGeoJSON, addMessage, appendHistory, updateMessage, addDDSHistory, addLayer, setIsScanning]
+  );
+
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(input); setInput(""); }
@@ -268,20 +371,34 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
     <div className="flex flex-col h-full bg-[#F4F5F6] text-[#1D2227] font-sans overflow-hidden">
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[#C8CFD5] flex-shrink-0">
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-[#C8CFD5] bg-white flex-shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#1D2227] border border-[#343B42] flex items-center justify-center shadow-sm">
-            <Bot className="w-4 h-4 text-[#4ade80]" strokeWidth={2} />
+          <div className="w-8 h-8 rounded-lg bg-white border border-[#C8CFD5] flex items-center justify-center shadow-2xs">
+            <OxeousOrbitIcon size={20} isSpinning={isBusy} className={isBusy ? "text-[#315F50]" : "text-[#1D2227]"} />
           </div>
           <div>
-            <h2 className="text-[13px] font-bold text-[#1D2227] flex items-center gap-2">
-              Oxeous Earth Agent
-            </h2>
-            <p className="text-[10.5px] text-[#747F88] mt-0.5">Autonomous Earth Observation & Spatial Reasoning</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-[13px] font-bold text-[#1D2227] tracking-tight">
+                Oxeous Earth Agent
+              </h2>
+              <span className={cn(
+                "flex items-center gap-1.5 text-[9.5px] font-mono font-semibold px-2 py-0.5 rounded-full border transition-colors",
+                isBusy
+                  ? "bg-[#315F50]/10 text-[#315F50] border-[#315F50]/30"
+                  : "bg-[#F4F5F6] text-[#343B42] border-[#C8CFD5]"
+              )}>
+                <span className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  isBusy ? "bg-[#315F50] animate-ping" : "bg-[#315F50]"
+                )} />
+                {isBusy ? "Auditing..." : "Ready"}
+              </span>
+            </div>
+
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg text-[#7A8791] hover:text-[#343B42] hover:bg-[#E3E7EA] transition-colors">
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
             <X className="w-4 h-4" />
           </button>
         )}
@@ -291,121 +408,70 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
           <Welcome
-            disabled={sending || runningAssessment}
-            onCaseStudy={runCaseStudy}
-            onPrompt={p => { setInput(p); submit(p); }}
+            disabled={sending || isBusy}
+            isSpinning={sending || isBusy}
+            onSelectBenchmark={runBenchmark}
+            onSelectPrompt={(text: string) => submit(text)}
           />
         )}
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-[#D8E1E5] bg-white/80 px-3 py-2 text-[11px] text-[#44515B]">
-          <div className="flex items-center gap-2">
-            <MapPinned className="h-3.5 w-3.5 text-[#315F50]" />
-            <span className="font-medium text-[#1D2227]">Selected AOI</span>
-          </div>
-          <span className="font-mono text-[10px] text-[#5B6773]">[{viewport.bbox.map((n) => Number(n).toFixed(3)).join(", ")}]</span>
-        </div>
         {messages.map(msg => (
           <div key={msg.id} className={cn("flex gap-2.5 animate-fade-in", msg.role === "user" ? "flex-row-reverse" : "")}>
-            <div className={cn("w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center border",
+            <div className={cn("w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center border shadow-2xs",
               msg.role === "user" ? "bg-[rgba(49,95,80,0.12)] border-[rgba(49,95,80,0.25)] text-[#315F50]" : "bg-[#E3E7EA] border-[#C8CFD5] text-[#7A8791]"
             )}>
-              {msg.role === "user" ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
+              {msg.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
             </div>
-            <div className={cn("flex-1 max-w-[320px] w-full", msg.role === "user" ? "flex flex-col items-end" : "")}>
+            <div className={cn("flex-1 min-w-0 w-full", msg.role === "user" ? "max-w-[340px] ml-auto flex flex-col items-end" : "max-w-full")}>
               {msg.role === "user"
-                ? <div className="bg-[#343B42] text-white rounded-xl px-3 py-2 text-[12px] leading-relaxed">{msg.content}</div>
+                ? <div className="bg-[#24473B] text-white rounded-2xl rounded-tr-xs px-3.5 py-2.5 text-[12.5px] leading-relaxed shadow-xs font-medium">{msg.content}</div>
                 : msg.isLoading
                   ? (
-                    <div className="space-y-2 w-full">
-                      <div className="flex items-center gap-2 text-[11px] text-[#315F50] bg-[rgba(49,95,80,0.06)] border border-[rgba(49,95,80,0.2)] rounded-xl px-3 py-2">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#315F50] flex-shrink-0" />
-                        <span className="font-medium">Oxeous Agent Executing Analysis...</span>
-                      </div>
-                      {msg.agentLogs && msg.agentLogs.length > 0 && (
-                        <div className="rounded-xl border border-[#D8E1E5] bg-white p-2.5 shadow-sm space-y-1.5">
-                          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5B6773] border-b border-[#E3E7EA] pb-1">
-                            <span className="flex items-center gap-1.5">
-                              <Activity className="h-3 w-3 text-[#315F50]" />
-                              Live Agent Trace
-                            </span>
-                            <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
-                          </div>
-                          <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                            {msg.agentLogs.map((log) => (
-                              <div key={log.id} className="flex gap-2 rounded-lg bg-[#F5F7F8] p-2">
-                                <div className={cn(
-                                  "mt-0.5 h-2.5 w-2.5 rounded-full border border-white flex-shrink-0",
-                                  log.status === "done" ? "bg-[#315F50]" : log.status === "active" ? "bg-[#D5A85C] animate-pulse" : "bg-[#C8CFD5]"
-                                )} />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-[10px] font-semibold text-[#1D2227]">{log.label}</div>
-                                  <div className="text-[10px] leading-relaxed text-[#5B6773] break-words">{log.detail}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    <div className="w-full">
+                      <AgentTelemetryStepper logs={msg.agentLogs || []} />
                     </div>
                   )
                   : msg.error
                     ? <div className="flex items-start gap-2 bg-[rgba(166,75,69,0.06)] border border-[rgba(166,75,69,0.2)] rounded-xl px-3 py-2"><AlertCircle className="w-3.5 h-3.5 text-[#A64B45] flex-shrink-0 mt-0.5" /><p className="text-[11px] text-[#A64B45]">{msg.error}</p></div>
                     : (
                       <div className="space-y-2.5 w-full">
-                        {/* 1. Final LLM Reasoning & Synthesis */}
                         {msg.content && (
-                          <div className="rounded-xl border border-[#C8CFD5] bg-white p-3 space-y-1.5 shadow-sm">
-                            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#315F50]">
-                              <Sparkles className="w-3 h-3 text-[#315F50]" />
-                              Gemini AI Compliance Reasoning
-                            </div>
+                          <div className="rounded-xl border border-[#C8CFD5] bg-white p-3.5 space-y-1.5 shadow-xs">
                             <FormattedMarkdown content={msg.content} />
                           </div>
                         )}
 
-                        {/* 2. Completed Agent Trace */}
-                        {msg.agentLogs && msg.agentLogs.length > 0 && (
-                          <div className="rounded-xl border border-[#D8E1E5] bg-white p-2.5 shadow-sm">
-                            <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5B6773]">
-                              <span className="flex items-center gap-1.5">
-                                <Activity className="h-3 w-3 text-[#315F50]" />
-                                Verified Agent Trace
-                              </span>
-                              <span className="text-[9px] text-[#315F50] font-mono font-medium">Tool Calls Complete</span>
-                            </div>
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                              {msg.agentLogs.map((log) => (
-                                <div key={log.id} className="flex gap-2 rounded-lg bg-[#F5F7F8] p-1.5">
-                                  <div className="mt-0.5 h-2 w-2 rounded-full bg-[#315F50] flex-shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-[10px] font-semibold text-[#1D2227]">{log.label}</div>
-                                    <div className="text-[10px] text-[#5B6773] break-words">{log.detail}</div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 3. EUDR Verdict Summary Card */}
+                        {/* 3. Statutory Audit Action Pill: View Dossier + Inspect in EUDR */}
                         {msg.eudrResult && (
-                          <div className="rounded-xl border border-[#C8CFD5] bg-[#F4F5F6] p-3 space-y-1.5 shadow-sm">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] uppercase font-bold text-[#747F88] font-mono">
-                                Verdict: {msg.eudrResult.risk_assessment.overall_risk.replace(/_/g, " ").toUpperCase()}
-                              </span>
-                              <span className="font-mono text-[11px] font-bold text-[#315F50]">
-                                Score {msg.eudrResult.risk_assessment.risk_score.toFixed(0)}/100
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-[#747F88] font-mono flex items-center justify-between pt-1 border-t border-[#E3E7EA]">
-                              <span>Cutoff Loss: {msg.eudrResult.risk_assessment.deforestation.forest_loss_ha.toFixed(1)} ha</span>
-                              <span>Reserves: {msg.eudrResult.risk_assessment.legality.overlaps_protected_area ? "OVERLAP ⚠" : "CLEAR ✓"}</span>
+                          <div className="flex items-center justify-between px-3 py-2 bg-white border border-[#C8CFD5] rounded-xl text-[11px] shadow-2xs gap-2">
+                            <span className="flex items-center gap-1.5 text-[10px] font-mono text-[#5B6773] truncate">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#315F50] flex-shrink-0" />
+                              <span className="truncate">EU 2023/1115 Audit</span>
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setActiveDossier(msg.eudrResult!.plot.commodity)}
+                                className="px-2 py-1 rounded-lg bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.25)] text-[#315F50] hover:bg-[rgba(49,95,80,0.15)] font-semibold text-[10.5px] flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                                title="Open Official EUDR Audit Report & PDF Dossier"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>View Dossier</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleInspectInEUDR(msg.eudrResult!)}
+                                className="px-2 py-1 rounded-lg bg-[#315F50] text-white hover:bg-[#274d40] font-semibold text-[10.5px] flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                                title="Fly to plot on satellite map and expand EUDR Deck"
+                              >
+                                <span>Inspect in EUDR</span>
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
                             </div>
                           </div>
                         )}
 
-                        {/* 4. Regular Spatial Analysis Result */}
-                        {msg.analysisResult && (
+                        {/* 4. Regular Spatial Analysis Result (only when real raster layer was generated) */}
+                        {msg.analysisResult && Boolean(msg.analysisResult.tile_url) && (
                           <div className="rounded-xl border border-[#D8E1E5] bg-white p-2.5">
                             <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5B6773]">
                               <FileJson2 className="h-3 w-3 text-[#315F50]" />
@@ -421,7 +487,7 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
                             </div>
                           </div>
                         )}
-                        {msg.analysisResult && <AnalysisResultCard result={msg.analysisResult} />}
+                        {msg.analysisResult && Boolean(msg.analysisResult.tile_url) && <AnalysisResultCard result={msg.analysisResult} />}
                         {(msg.analysisResult?.follow_up_suggestions?.length ?? 0) > 0 && (
                           <FollowUpChips suggestions={msg.analysisResult!.follow_up_suggestions} onSelect={s => submit(s)} />
                         )}
@@ -437,7 +503,7 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
       <footer className="flex-shrink-0 border-t border-[#C8CFD5] p-3 bg-[#F4F5F6]">
         <div className="flex items-end gap-2 bg-white border border-[#C8CFD5] rounded-xl focus-within:border-[#7A8791] transition-all px-2.5 py-2">
           <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
-            placeholder="Ask about satellite imagery, forest cover, moisture…"
+            placeholder="Ask about EUDR compliance, Article 3(a) cutoff, carve-outs, or audit a plot…"
             rows={1} className="flex-1 bg-transparent text-[12px] text-[#1D2227] placeholder:text-[#AAB3BB] resize-none outline-none leading-relaxed"
           />
           <button onClick={() => { if (input.trim()) { submit(input); setInput(""); } }} disabled={!input.trim() || sending}
@@ -448,7 +514,7 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
             {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
           </button>
         </div>
-        <p className="text-[10px] text-[#AAB3BB] mt-1.5 px-1">Enter to send · Shift+Enter for newline</p>
+
       </footer>
     </div>
   );
@@ -483,88 +549,116 @@ function summarizeEvidence(result: AnalysisResponse) {
 
 function Welcome({
   disabled,
-  onCaseStudy,
-  onPrompt,
+  onSelectBenchmark,
+  onSelectPrompt,
+  isSpinning,
 }: {
   disabled?: boolean;
-  onCaseStudy: (cs: BenchmarkCase) => void;
-  onPrompt: (p: string) => void;
+  onSelectBenchmark: (c: BenchmarkCase) => void;
+  onSelectPrompt?: (prompt: string) => void;
+  isSpinning?: boolean;
 }) {
   return (
-    <div className="py-2 space-y-3.5 animate-fade-in">
-      <div className="flex items-center justify-center w-10 h-10 mx-auto rounded-xl bg-[rgba(49,95,80,0.10)] border border-[rgba(49,95,80,0.2)]">
-        <Sparkles className="w-5 h-5 text-[#315F50]" />
-      </div>
-      <div className="text-center space-y-1">
-        <h3 className="text-[13px] font-bold text-[#1D2227]">Oxeous Earth Agent</h3>
-        <p className="text-[11px] text-[#747F88] leading-relaxed">
-          Autonomous multi-dataset spatial reasoning.<br />
-          Click any benchmark case study to execute live in 1 click.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-[10px] text-[#AAB3BB] uppercase tracking-wider font-semibold px-1">
-          High-Impact Case Studies (1-Click Run)
-        </p>
-        <div className="space-y-1.5">
-          {BENCHMARK_CASES.map((cs) => (
-            <button
-              key={cs.id}
-              disabled={disabled}
-              onClick={() => onCaseStudy(cs)}
-              className={cn(
-                "w-full text-left bg-white border border-[#C8CFD5] rounded-xl p-2.5 transition-all group shadow-sm",
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:border-[#315F50] hover:bg-[#F4F5F6]"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm flex-shrink-0">{cs.flag}</span>
-                    <span className="text-[12px] font-semibold text-[#1D2227] group-hover:text-[#315F50] transition-colors truncate">
-                      {cs.title}
-                    </span>
-                  </div>
-                  <p className="text-[10.5px] text-[#747F88] mt-0.5 leading-snug line-clamp-1">
-                    {cs.prompt}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className={cn("text-[9px] font-bold font-mono px-1.5 py-0.5 rounded border", cs.tagColor)}>
-                    {cs.tag}
-                  </span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[#AAB3BB] group-hover:text-[#315F50] group-hover:translate-x-0.5 transition-all" />
-                </div>
-              </div>
-            </button>
-          ))}
+    <div className="py-2 space-y-4 animate-fade-in">
+      {/* Agent Identity / Mission */}
+      <div className="flex flex-col items-center justify-center text-center space-y-1.5 pt-1">
+        <div className="w-11 h-11 rounded-2xl bg-white border border-[#C8CFD5] flex items-center justify-center shadow-xs">
+          <OxeousOrbitIcon size={24} isSpinning={isSpinning} className={isSpinning ? "text-[#315F50]" : "text-[#1D2227]"} />
+        </div>
+        <div>
+          <h3 className="text-[13px] font-bold text-[#1D2227] tracking-tight">Statutory Due Diligence & Spatial AI</h3>
+          <p className="text-[11px] text-[#747F88] mt-0.5 max-w-[320px] mx-auto leading-relaxed">
+            Multi-sensor EU 2023/1115 compliance verification. Audit a benchmark plot or ask statutory questions below.
+          </p>
         </div>
       </div>
 
-      <div className="pt-1 space-y-1.5">
-        <p className="text-[10px] text-[#AAB3BB] uppercase tracking-wider font-medium px-1">
-          Or ask freeform Earth questions
-        </p>
+      {/* Compact Benchmark Test Chips */}
+      <div className="space-y-2 pt-1">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[9.5px] text-[#747F88] uppercase tracking-wider font-mono font-bold">
+            Test Benchmark Plots
+          </span>
+          <span className="text-[9px] text-[#AAB3BB] font-mono">
+            {BENCHMARK_CASES.length} Statutory Presets
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5">
+          {BENCHMARK_CASES.map((c) => {
+            const Icon = COMMODITY_ICON[c.commodityKey] ?? Trees;
+            const isCompliant = c.verdict.startsWith("COMPLIANT");
+            return (
+              <button
+                key={c.id}
+                disabled={disabled}
+                onClick={() => onSelectBenchmark(c)}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] transition-all text-left shadow-2xs hover:shadow-xs group cursor-pointer active:scale-[0.98]",
+                  disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#315F50]/5"
+                )}
+                title={"Run full 6-agent EUDR assessment on " + c.label}
+              >
+                <div
+                  className={cn(
+                    "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border transition-colors",
+                    isCompliant
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 group-hover:bg-emerald-100"
+                      : "bg-red-50 border-red-200 text-red-700 group-hover:bg-red-100"
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[11px] font-bold text-[#1D2227] group-hover:text-[#315F50] transition-colors truncate">
+                      {c.country}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[8.5px] font-mono font-bold px-1 rounded border",
+                        isCompliant
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-red-50 text-red-800 border-red-200"
+                      )}
+                    >
+                      {c.score}/100
+                    </span>
+                  </div>
+                  <p className="text-[9.5px] text-[#747F88] font-mono truncate capitalize">
+                    {c.commodity.replace(/_/g, " ")}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Suggested Statutory Starter Prompts */}
+      <div className="space-y-1.5 pt-1">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[9.5px] text-[#747F88] uppercase tracking-wider font-mono font-bold">
+            Statutory Due Diligence Prompts
+          </span>
+          <span className="text-[9px] text-[#AAB3BB] font-mono">
+            1-Click Guided Query
+          </span>
+        </div>
         <div className="space-y-1">
           {[
-            "Show me true color satellite imagery over this active plot",
-            "Calculate vegetation index (NDVI) and evaluate canopy loss",
-          ].map((q) => (
+            "What are the main articles of EUDR and what do they say in simple words?",
+            "How does the May 2026 plot carve-out segregation protocol work?",
+            "Why is agricultural plantation replanting exempt under EUDR Article 2(5)?",
+          ].map((promptText) => (
             <button
-              key={q}
+              key={promptText}
               disabled={disabled}
-              onClick={() => onPrompt(q)}
-              className={cn(
-                "w-full text-left text-[11px] text-[#44515B] bg-white border border-[#E3E7EA] rounded-lg px-2.5 py-1.5 transition-all leading-snug",
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:text-[#1D2227] hover:border-[#7A8791]"
-              )}
+              onClick={() => onSelectPrompt?.(promptText)}
+              className="w-full text-left p-2 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 text-[11px] text-[#343B42] hover:text-[#1D2227] transition-all flex items-center justify-between group shadow-2xs cursor-pointer active:scale-[0.99]"
             >
-              {q}
+              <span className="truncate flex-1">{promptText}</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#7A8791] group-hover:text-[#315F50] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1.5" />
             </button>
           ))}
         </div>

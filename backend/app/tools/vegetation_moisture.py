@@ -1,5 +1,5 @@
 """
-Vegetation Moisture Change Tool — NDMI delta from HLS S30 COG reads.
+Vegetation Moisture Change Tool - NDMI delta from HLS S30 COG reads.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
     cache = get_cache()
     bbox = request.bbox
 
-    # ── Check cache ──────────────────────────────────────────────────────────
+    # -- Check cache ----------------------------------------------------------
     dates_key = f"{request.current_period.start}_{request.current_period.end}"
     if request.comparison_period:
         dates_key += f"_{request.comparison_period.start}_{request.comparison_period.end}"
@@ -39,7 +39,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         logger.info("Cache hit for %s", cache_key)
         return AnalysisResponse(**cached)
 
-    # ── STAC search ──────────────────────────────────────────────────────────
+    # -- STAC search ----------------------------------------------------------
     token = settings.nasa_earthdata_token
 
     current_items = await stac_client.search_items(
@@ -60,7 +60,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
             earthdata_token=token,
         )
 
-    # ── Coverage quality ─────────────────────────────────────────────────────
+    # -- Coverage quality -----------------------------------------------------
     has_current = bool(current_items)
     has_comparison = bool(comparison_items) or request.comparison_period is None
 
@@ -73,7 +73,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         cc = best.get("properties", {}).get("eo:cloud_cover", 100) if best else 100
         coverage = CoverageQuality.good if cc < 20 else CoverageQuality.partial
 
-    # ── Compute NDMI delta ────────────────────────────────────────────────────
+    # -- Compute NDMI delta ----------------------------------------------------
     acquisition_dates: list[str] = []
     delta = None
     profile: dict = {}
@@ -101,10 +101,10 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
                             comp_ndmi = index_compute.ndmi(**comp_bands)
                             delta = index_compute.index_change(comp_ndmi, current_ndmi)
                 else:
-                    # No comparison period — return current NDMI as static layer
+                    # No comparison period - return current NDMI as static layer
                     delta = current_ndmi
 
-    # ── Generate PNG tile ─────────────────────────────────────────────────────
+    # -- Generate PNG tile -----------------------------------------------------
     tile_url: str | None = None
     statistics: dict = {}
 
@@ -149,7 +149,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         follow_up_suggestions=[
             "Compare with NDVI to assess vegetation greenness",
             "Overlay FIRMS fire data to check for thermal stress",
-            "Run Prithvi AI analysis on the worst-affected hotspot",
+            "How does May 2026 Plot Segregation (Carve-Out) work?",
         ],
         coverage_quality=coverage,
         legend=legend,
@@ -173,7 +173,7 @@ async def _read_ndmi_bands(
             hrefs[band] = href
 
     if len(hrefs) < 2:
-        logger.warning("Missing bands for NDMI — found: %s", list(hrefs.keys()))
+        logger.warning("Missing bands for NDMI - found: %s", list(hrefs.keys()))
         return {}, {}
 
     try:

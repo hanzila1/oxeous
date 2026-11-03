@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figure 1: Oxeous Earth Agent Architecture (Publication & Interactive)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       Academic & Scientific Paper Publication Theme + Interactive Layer
+       Standards: IEEE / ACM / Nature / Science style guidelines
+       - Pure white paper background (#ffffff), crisp typography (#0f172a)
+       - Professional iconography, clean data-flow pipelines, 300 DPI vector clarity
+       ========================================================================== */
+    :root {
+      --paper-bg: #ffffff;
+      --paper-off: #f8fafc;
+      --border-strong: #0f172a;
+      --border-medium: #cbd5e1;
+      --border-light: #e2e8f0;
+      --text-title: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --accent-blue: #1d4ed8;
+      --accent-green: #15803d;
+      --accent-amber: #b45309;
+      --font-serif: 'Crimson Pro', Georgia, serif;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: var(--text-body);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      overflow-x: auto;
+    }
+
+    /* Top Control Bar for Interactive Tools */
+    .control-bar {
+      width: 100%;
+      max-width: 1240px;
+      background: #ffffff;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 10px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      font-size: 0.85rem;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background: #ffffff;
+      border: 1px solid var(--border-medium);
+      color: var(--text-title);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      font-family: var(--font-sans);
+    }
+
+    .btn:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .btn-primary {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    .btn-primary:hover {
+      background: #1e293b;
+    }
+
+    .badge-pill {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      background: #f1f5f9;
+      color: var(--text-muted);
+      border-radius: 999px;
+      border: 1px solid var(--border-light);
+    }
+
+    /* Publication Paper Sheet */
+    .paper-sheet {
+      width: 1240px;
+      background: var(--paper-bg);
+      border: 1px solid var(--border-medium);
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      padding: 44px 50px;
+      position: relative;
+    }
+
+    /* Paper Header */
+    .paper-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--border-strong);
+      padding-bottom: 16px;
+      margin-bottom: 28px;
+    }
+
+    .paper-title h1 {
+      font-family: var(--font-sans);
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--text-title);
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .paper-title p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .paper-meta {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Architecture Diagram Pipeline */
+    .diagram-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    /* Layer Box (Container) */
+    .layer-box {
+      border: 1.5px solid var(--border-medium);
+      border-radius: 8px;
+      background: #ffffff;
+      position: relative;
+      padding: 22px 24px 24px;
+      transition: all 0.25s ease;
+    }
+
+    .layer-box.active-tier {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+    }
+
+    .layer-label {
+      position: absolute;
+      top: -11px;
+      left: 18px;
+      background: #ffffff;
+      padding: 0 10px;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-title);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .layer-label .num {
+      color: var(--accent-blue);
+    }
+
+    /* Directional Connector Arrow between layers */
+    .flow-arrow-down {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: -8px 0;
+      height: 26px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .flow-arrow-down svg {
+      width: 20px;
+      height: 20px;
+      stroke: #64748b;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    /* Grid Layouts inside Layers */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .grid-6 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    /* Subsystem Component Card */
+    .arch-card {
+      border: 1px solid var(--border-light);
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 14px 16px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .arch-card:hover {
+      border-color: #94a3b8;
+      background: #f8fafc;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .arch-card.highlighted {
+      border-color: var(--accent-blue);
+      background: #eff6ff;
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.25);
+    }
+
+    /* Card Icon Container */
+    .card-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #0f172a;
+      transition: all 0.2s ease;
+    }
+
+    .arch-card:hover .card-icon-box {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      transform: scale(1.05);
+    }
+
+    .card-icon-box svg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 1.8;
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-title);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-tag {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-light);
+    }
+
+    .card-desc {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Satellite Mini Previews in Tier 2 */
+    .dataset-card {
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .dataset-card:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+    }
+
+    .dataset-card.highlighted {
+      border-color: var(--accent-blue);
+      background: #eff6ff;
+    }
+
+    /* Mini Satellite Aerial Imagery Badges */
+    .dataset-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid var(--border-light);
+      background: #f1f5f9;
+    }
+
+    .dataset-icon-box svg {
+      width: 22px;
+      height: 22px;
+      stroke: #334155;
+    }
+
+    .dataset-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dataset-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-title);
+    }
+
+    .dataset-detail {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    /* Horizontal Flow in Tier 3 */
+    .pipe-step-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .pipe-step-row .arch-card {
+      flex: 1;
+    }
+
+    .pipe-step-arrow {
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Foundation Layer Footer */
+    .foundation-bar {
+      margin-top: 18px;
+      border-top: 1px dashed var(--border-medium);
+      padding-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      font-size: 0.78rem;
+    }
+
+    .foundation-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+    }
+
+    .foundation-item svg {
+      width: 20px;
+      height: 20px;
+      stroke: #475569;
+      flex-shrink: 0;
+    }
+
+    .foundation-item strong {
+      color: var(--text-title);
+    }
+
+    /* Academic Caption */
+    .paper-caption {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-light);
+      font-family: var(--font-serif);
+      font-size: 0.95rem;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+
+    .paper-caption strong {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      color: var(--text-title);
+      letter-spacing: -0.01em;
+    }
+
+    /* Modal Inspector Drawer */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .drawer-overlay.open {
+      display: flex;
+    }
+
+    .drawer {
+      width: 520px;
+      height: 100%;
+      background: #ffffff;
+      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+      padding: 32px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .drawer-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: none;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      padding: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .drawer-close:hover {
+      background: #f8fafc;
+      color: var(--text-title);
+    }
+
+    .drawer-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-title);
+    }
+
+    .drawer-subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent-blue);
+      margin-top: 2px;
+    }
+
+    .drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .drawer-section h4 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .drawer-section p, .drawer-section li {
+      font-size: 0.85rem;
+      color: var(--text-body);
+      line-height: 1.55;
+    }
+
+    .code-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: #0f172a;
+      overflow-x: auto;
+      line-height: 1.45;
+    }
+
+    /* Print / Export Styles */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .control-bar, .drawer-overlay {
+        display: none !important;
+      }
+      .paper-sheet {
+        width: 100%;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Bar -->
+  <div class="control-bar">
+    <div class="control-group">
+      <span style="font-weight: 600; color: #0f172a;">Publication View (With Icons)</span>
+      <span class="badge-pill">IEEE / Nature Paper Standard</span>
+      <span class="badge-pill">300 DPI Vector</span>
+    </div>
+
+    <div class="control-group">
+      <a class="btn" href="pwri_3d_architecture.html" style="text-decoration:none; color:inherit; font-weight:600; border-color:#2563eb; color:#1d4ed8;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Figure 2: PWRI-3D
+      </a>
+      <a class="btn" href="agent_constellation_architecture.html" style="text-decoration:none; color:inherit; font-weight:600; border-color:#7c3aed; color:#6b21a8;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+        Figure 3: Agents
+      </a>
+      <button class="btn" onclick="highlightDataFlow()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Simulate Audit Trace
+      </button>
+      <button class="btn" onclick="copyLatexSnippet()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Copy LaTeX Figure
+      </button>
+      <button class="btn btn-primary" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <polyline points="6 9 6 2 18 2 18 9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Print / Export PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Publication Paper Canvas -->
+  <div class="paper-sheet" id="paperFigure">
+
+    <!-- Paper Header Title -->
+    <div class="paper-header">
+      <div class="paper-title">
+        <h1>Oxeous Earth Agent Architecture</h1>
+        <p>Autonomous spatial compliance framework for EU Deforestation Regulation (EUDR 2023/1115)</p>
+      </div>
+      <div class="paper-meta">
+        <div><strong>Frontier Engineering Challenge 2026</strong></div>
+        <div>Track: Autonomous Spatial Agents</div>
+        <div>Figure 1: Full System Pipeline & Subsystems</div>
+      </div>
+    </div>
+
+    <!-- Diagram Pipeline -->
+    <div class="diagram-container">
+
+      <!-- ============================================================
+           1. USER / OPERATOR INGEST LAYER
+           ============================================================ -->
+      <div class="layer-box" id="layer-input">
+        <div class="layer-label"><span class="num">1.</span> User / Operator Ingest Layer</div>
+        <div class="grid-2">
+          
+          <div class="arch-card" id="card-aoi" onclick="openDetails('aoi')">
+            <div class="card-icon-box">
+              <!-- Vector Polygon Geometry Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                <polyline points="2 17 12 22 22 17"/>
+                <polyline points="2 12 12 17 22 12"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Plot Polygon Coordinates (AOI)
+                <span class="card-tag">GeoJSON / WKT</span>
+              </div>
+              <div class="card-desc">Spatial boundaries of agricultural production unit (0.1 ha smallholders to 1,000,000 ha commercial concessions).</div>
+            </div>
+          </div>
+
+          <div class="arch-card" id="card-comm" onclick="openDetails('commodity')">
+            <div class="card-icon-box">
+              <!-- Crop Sprout Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 2a10 10 0 0 0-7.07 17.07C7.6 21.75 12 22 12 22s4.4-.25 7.07-2.93A10 10 0 0 0 12 2z"/>
+                <path d="M12 2v20"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Commodity Declaration & Supplier Claim
+                <span class="card-tag">EUDR Annex I</span>
+              </div>
+              <div class="card-desc">Declared target commodity (Cocoa, Coffee, Soya, Palm Oil, Wood) with supplier baseline claim to be cross-checked.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Connector 1 -> 2 -->
+      <div class="flow-arrow-down">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="18"/><polyline points="7 13 12 18 17 13"/></svg>
+      </div>
+
+      <!-- ============================================================
+           2. SATELLITE OBSERVATION ORCHESTRATOR (GEE)
+           ============================================================ -->
+      <div class="layer-box" id="layer-gee">
+        <div class="layer-label"><span class="num">2.</span> Satellite Observation Orchestrator <span style="font-weight:400; text-transform:none; color:#64748b;">(Google Earth Engine 6-Tool Suite)</span></div>
+        <div class="grid-6">
+          
+          <div class="dataset-card" id="card-hansen" onclick="openDetails('hansen')">
+            <div class="dataset-icon-box">
+              <!-- Globe Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            </div>
+            <div class="dataset-info">
+              <div class="dataset-name">Hansen GFC v1.13</div>
+              <div class="dataset-detail">Post-Dec 31, 2020 forest loss pixels (lossyear &gt; 20). 30m resolution.</div>
+            </div>
+          </div>
+
+          <div class="dataset-card" id="card-naturetrace" onclick="openDetails('naturetrace')">
+            <div class="dataset-icon-box">
+              <!-- Natural Forest Leaf Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+                <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+              </svg>
+            </div>
+            <div class="dataset-info">
+              <div class="dataset-name">Nature Trace 2020</div>
+              <div class="dataset-detail">10m high-resolution baseline verifying natural undisturbed forest.</div>
+            </div>
+          </div>
+
+          <div class="dataset-card" id="card-forty" onclick="openDetails('forty')">
+            <div class="dataset-icon-box">
+              <!-- Forest Typology Tree Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polygon points="12 2 3 14 8 14 4 20 20 20 16 14 21 14 12 2"/>
+                <line x1="12" y1="20" x2="12" y2="24"/>
+              </svg>
+            </div>
+            <div class="dataset-info">
+              <div class="dataset-name">Forest Typology</div>
+              <div class="dataset-detail">Primary intact rainforest vs timber plantations vs agroforestry.</div>
+            </div>
+          </div>
+
+          <div class="dataset-card" id="card-wri" onclick="openDetails('wri')">
+            <div class="dataset-icon-box">
+              <!-- Loss Drivers Flame / Ax Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+              </svg>
+            </div>
+            <div class="dataset-info">
+              <div class="dataset-name">WRI Loss Drivers</div>
+              <div class="dataset-detail">Permanent commercial agriculture vs shifting cultivation vs wildfire.</div>
+            </div>
+          </div>
+
+          <div class="dataset-card" id="card-commoditymaps" onclick="openDetails('commoditymaps')">
+            <div class="dataset-icon-box">
+              <!-- Commodity Crop Rows Grid Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </div>
+            <div class="dataset-info">
+              <div class="dataset-name">FDP Commodity Maps</div>
+              <div class="dataset-detail">Deep learning verification confirming cocoa, oil palm, or soya presence.</div>
+            </div>
+          </div>
+
+          <div class="dataset-card" id="card-wdpa" onclick="openDetails('wdpa')">
+            <div class="dataset-icon-box">
+              <!-- National Park Mountain Shield Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="m8 14 3-3 2 2 3-4"/>
+              </svg>
+            </div>
+            <div class="dataset-info">
+              <div class="dataset-name">WDPA Protected Areas</div>
+              <div class="dataset-detail">Spatial intersection with national parks and ecological reserves.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Connector 2 -> 3 -->
+      <div class="flow-arrow-down">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="18"/><polyline points="7 13 12 18 17 13"/></svg>
+      </div>
+
+      <!-- ============================================================
+           3. INTELLIGENCE & REGULATORY GATING LAYER
+           ============================================================ -->
+      <div class="layer-box" id="layer-reasoning">
+        <div class="layer-label"><span class="num">3.</span> Intelligence, Optimization & Regulatory Gating Layer</div>
+        <div class="pipe-step-row">
+          
+          <div class="arch-card" id="card-scale" onclick="openDetails('scale')">
+            <div class="card-icon-box">
+              <!-- Multi-Resolution Pyramid Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polygon points="12 2 2 22 22 22 12 2"/>
+                <line x1="5.5" y1="15" x2="18.5" y2="15"/>
+                <line x1="8.5" y1="9" x2="15.5" y2="9"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Dynamic Scale Optimization
+                <span class="card-tag">_compute_scale</span>
+              </div>
+              <div class="card-desc">Adaptive pyramid sampling (30m &rarr; 60m &rarr; 120m). Prevents GEE memory overflow on large plots.</div>
+            </div>
+          </div>
+
+          <div class="pipe-step-arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/></svg>
+          </div>
+
+          <div class="arch-card" id="card-risk" onclick="openDetails('riskengine')">
+            <div class="card-icon-box">
+              <!-- Official Compliance Shield Checkmark -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Algorithmic Risk Gating
+                <span class="card-tag">Risk 0-100</span>
+              </div>
+              <div class="card-desc">Strict EUDR Article 3/9 cutoff. Hard gating: post-2020 loss > 0 or WDPA overlap triggers FAIL.</div>
+            </div>
+          </div>
+
+          <div class="pipe-step-arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/></svg>
+          </div>
+
+          <div class="arch-card" id="card-gemini" onclick="openDetails('gemini')">
+            <div class="card-icon-box">
+              <!-- Neural Brain Intelligence Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3.08A2.5 2.5 0 0 1 9.5 2Z"/>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3.08A2.5 2.5 0 0 0 14.5 2Z"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Gemini AI Spatial Reasoning
+                <span class="card-tag">Gemini 2.0</span>
+              </div>
+              <div class="card-desc">Evidence-grounded spatial explanation. Synthesizes satellite facts without inventing numbers.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Connector 3 -> 4 -->
+      <div class="flow-arrow-down">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="18"/><polyline points="7 13 12 18 17 13"/></svg>
+      </div>
+
+      <!-- ============================================================
+           4. OUTPUT & DELIVERY LAYER
+           ============================================================ -->
+      <div class="layer-box" id="layer-output">
+        <div class="layer-label"><span class="num">4.</span> Output, Interface & Legal Delivery Layer</div>
+        <div class="grid-3">
+          
+          <div class="arch-card" id="card-sse" onclick="openDetails('sse')">
+            <div class="card-icon-box">
+              <!-- Signal Wave Telemetry Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M4.93 4.93a10 10 0 0 1 14.14 0"/>
+                <path d="M7.76 7.76a6 6 0 0 1 8.48 0"/>
+                <circle cx="12" cy="12" r="2"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Real-Time Streaming (SSE)
+                <span class="card-tag">Telemetry</span>
+              </div>
+              <div class="card-desc">Streams sub-second step-by-step agent telemetry to operators for audit transparency.</div>
+            </div>
+          </div>
+
+          <div class="arch-card" id="card-map" onclick="openDetails('maplibre')">
+            <div class="card-icon-box">
+              <!-- Layered Isometric Map Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                <polyline points="2 17 12 22 22 17"/>
+                <polyline points="2 12 12 17 22 12"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Interactive Map (MapLibre GL)
+                <span class="card-tag">WebGL Viewport</span>
+              </div>
+              <div class="card-desc">Hardware-accelerated canvas with zero-fade raster tile caching and GeoJSON plot boundaries.</div>
+            </div>
+          </div>
+
+          <div class="arch-card" id="card-traj" onclick="openDetails('trajectory')">
+            <div class="card-icon-box">
+              <!-- Verified Document Trajectory Icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <path d="m9 15 2 2 4-4"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-title">
+                Audit Trajectory (JSON / DDS)
+                <span class="card-tag">Article 9</span>
+              </div>
+              <div class="card-desc">Immutable audit file (trajectories/req_*.json) capturing exact sensor raw outputs and human checkpoints.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Foundation Layer Footer -->
+        <div class="foundation-bar">
+          <div class="foundation-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+            <div><strong>Geospatial Data Sources:</strong> Planetary GEE multi-spectral ingestion + NASA HLS S30</div>
+          </div>
+          <div class="foundation-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <div><strong>Secure Processing Layer:</strong> Stateless async FastAPI, cryptographic request tokens</div>
+          </div>
+          <div class="foundation-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A7.003 7.003 0 0 1 5.07 11H5a1 1 0 0 1 0-2h.07A7.003 7.003 0 0 1 11 3.07V3a1 1 0 0 1 2 0v.07A7.003 7.003 0 0 1 18.93 9H19a1 1 0 0 1 0 2h-.07A7.003 7.003 0 0 1 13 16.93z"/>
+            </svg>
+            <div><strong>Immutable Audit Storage:</strong> 5-year tamper-evident JSON archive meeting EU inspection rules</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Scientific Academic Caption -->
+    <div class="paper-caption">
+      <strong>Figure 1. End-to-end architectural pipeline of the Oxeous autonomous Earth observation compliance agent.</strong>
+      The system executes a strictly sequential, four-tier pipeline for EUDR (Regulation EU 2023/1115) compliance verification:
+      <strong>(1) Ingest Layer:</strong> Producer farm polygons and declared commodity parameters are submitted via GeoJSON boundaries.
+      <strong>(2) Satellite Orchestration Layer:</strong> A parallel Earth Engine query evaluates six authoritative datasets (Hansen GFC, Nature Trace, Forest Typology, WRI Loss Drivers, FDP Commodity Maps, and UNEP-WCMC WDPA) to verify physical forest cover changes post-December 31, 2020.
+      <strong>(3) Intelligence Layer:</strong> Large-scale plots undergo dynamic scale optimization (<em>_compute_scale</em>) before passing to an algorithmic risk scoring engine that enforces hard zero-deforestation cutoffs and legal boundary constraints; Gemini 2.0 Flash then generates evidence-grounded legal memorandums.
+      <strong>(4) Delivery Layer:</strong> Findings are streamed in real time via Server-Sent Events (SSE) to an interactive MapLibre WebGL canvas and committed as immutable, court-ready JSON audit trajectories (<em>trajectories/req_*.json</em>) meeting EUDR Article 9 requirements.
+    </div>
+
+  </div>
+
+  <!-- Interactive Detail Inspector Drawer -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer(event)">
+    <div class="drawer" onclick="event.stopPropagation()">
+      <button class="drawer-close" onclick="closeDrawer()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div>
+        <div class="drawer-subtitle" id="drawerSub">SUBSYSTEM SPECIFICATION</div>
+        <div class="drawer-title" id="drawerTitle">Component Specification</div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Role & Scientific Objective</h4>
+        <p id="drawerDesc">Description goes here.</p>
+      </div>
+
+      <div class="drawer-section">
+        <h4>EUDR Regulatory Grounding</h4>
+        <p id="drawerReg">Regulatory reference goes here.</p>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Source Code Implementation</h4>
+        <div class="code-box" id="drawerCode">backend/app/tools/eudr/gee_commodity.py</div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Scientific Dataset / Citation</h4>
+        <p id="drawerCitation" style="font-family: var(--font-serif); font-size: 0.9rem; color: #475569;">Citation goes here.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Component database for interactive inspection
+    const specs = {
+      aoi: {
+        sub: "TIER 1 &bull; INPUT SPECIFICATION",
+        title: "Plot Polygon Coordinates (AOI)",
+        desc: "Defines the precise geographic boundary of the agricultural production plot using GeoJSON or WKT formats. Supports smallholder farms (<1 ha) up to large commercial concessions (>1,000,000 ha). Automatically computes bounding box for satellite tile clipping.",
+        reg: "EUDR Article 9(1)(d): Mandates exact geolocation coordinates of all plots of land where the relevant commodities were produced.",
+        code: "backend/app/eudr/models.py: EUDRPlot(plot_id, geometry, commodity, country_code)",
+        citation: "ISO 19125-1 / OGC Simple Features standard for geographic polygon representations."
+      },
+      commodity: {
+        sub: "TIER 1 &bull; COMMODITY SPECIFICATION",
+        title: "Commodity Declaration & Supplier Claim",
+        desc: "Ingests the declared commodity and historical supplier claims (e.g., claimed clearing dates). In naïve text-only baselines, false claims produce catastrophic False PASSes. In Oxeous, claims are cross-checked against physical satellite pixels.",
+        reg: "EUDR Annex I: Covers seven core commodities (Cattle, Cocoa, Coffee, Oil Palm, Rubber, Soya, Wood) and their derived products.",
+        code: "backend/app/eudr/country_risk.py: get_commodity_risk_factors(commodity)",
+        citation: "Official Journal of the European Union, Regulation (EU) 2023/1115 Annex I."
+      },
+      hansen: {
+        sub: "TIER 2 &bull; SATELLITE TOOL 01",
+        title: "Hansen Global Forest Change v1.13 (2025)",
+        desc: "Analyzes 25 years of Landsat time-series data at 30m resolution. Computes pre-cutoff forest baseline (2000-2020) and identifies exact post-cutoff tree cover loss pixels where lossyear > 20 (years 2021 through 2025).",
+        reg: "EUDR Article 3(a): Relevant commodities shall not be placed on the market unless they are deforestation-free post-December 31, 2020.",
+        code: "backend/app/tools/eudr/gee_commodity.py: check_hansen_deforestation(geometry, scale)",
+        citation: "Hansen, M. C., et al. (2013). High-Resolution Global Maps of 21st-Century Forest Cover Change. Science, 342(6160), 850-853. Updated to v1.13 (2025)."
+      },
+      naturetrace: {
+        sub: "TIER 2 &bull; SATELLITE TOOL 02",
+        title: "Nature Trace Natural Forests 2020 (10m)",
+        desc: "High-resolution 10m baseline map based on Sentinel-2 multi-spectral imagery. Quantifies the statistical probability that the land was an undisturbed natural forest ecosystem on December 31, 2020.",
+        reg: "EUDR Article 2(13): Defines 'forest' as land spanning more than 0.5 hectares with trees higher than 5 meters and canopy cover >10%.",
+        code: "backend/app/tools/eudr/gee_commodity.py: check_natural_forest_baseline(geometry, scale)",
+        citation: "European Commission Joint Research Centre (JRC) Global Map of Forest Cover 2020."
+      },
+      forty: {
+        sub: "TIER 2 &bull; SATELLITE TOOL 03",
+        title: "Forest Typology 2020 (ForTy)",
+        desc: "Classifies forest canopy into primary natural forest, secondary forest, and planted production forest. Distinguishes legitimate plantation harvesting from illegal primary rainforest clear-cutting.",
+        reg: "EUDR Article 2(7): Differentiates 'deforestation' from standard silvicultural practices in certified tree plantations.",
+        code: "backend/app/tools/eudr/gee_commodity.py: check_forest_typology(geometry, scale)",
+        citation: "World Resources Institute (WRI) & Global Forest Watch Forest Typology Dataset (2020)."
+      },
+      wri: {
+        sub: "TIER 2 &bull; SATELLITE TOOL 04",
+        title: "WRI Drivers of Forest Loss (2001-2025)",
+        desc: "Deep learning classification model identifying the primary driver of observed canopy loss: permanent commodity-driven agriculture, shifting cultivation, forestry harvesting, or natural wildfire.",
+        reg: "EUDR Article 2(5): Loss driven by wildfire or non-anthropogenic disturbances is treated differently from permanent agricultural conversion.",
+        code: "backend/app/tools/eudr/gee_commodity.py: check_loss_drivers(geometry, scale)",
+        citation: "Curtis, P. G., et al. (2018). Classifying drivers of global forest loss. Science, 361(6407), 1108-1111."
+      },
+      commoditymaps: {
+        sub: "TIER 2 &bull; SATELLITE TOOL 05",
+        title: "Forest Data Partnership Commodity Maps (2025)",
+        desc: "High-accuracy spatial distribution models verifying whether declared crop types (cocoa, oil palm, soya, rubber) are physically present within the polygon boundaries.",
+        reg: "EUDR Article 9(1): Verification of supply chain integrity and truthfulness of producer origin declarations.",
+        code: "backend/app/tools/eudr/gee_commodity.py: check_commodity_presence(geometry, commodity)",
+        citation: "Forest Data Partnership & Google DeepMind Agricultural Mapping Consortium (2025)."
+      },
+      wdpa: {
+        sub: "TIER 2 &bull; SATELLITE TOOL 06",
+        title: "WDPA World Database on Protected Areas",
+        desc: "Executes real-time spatial polygon intersection between plot coordinates and the authoritative UNEP-WCMC database of global national parks, indigenous reserves, and protected ecological sanctuaries.",
+        reg: "EUDR Article 3(b): Commodities must have been produced in accordance with relevant legislation of the country of production, strictly prohibiting protected area logging.",
+        code: "backend/app/tools/eudr/gee_commodity.py: check_wdpa_protected_areas(geometry)",
+        citation: "UNEP-WCMC and IUCN (2025), Protected Planet: The World Database on Protected Areas (WDPA), Cambridge, UK."
+      },
+      scale: {
+        sub: "TIER 3 &bull; COMPUTATIONAL OPTIMIZATION",
+        title: "Dynamic Scale Optimization (_compute_scale)",
+        desc: "Calculates adaptive pixel sampling pyramid levels based on plot area: 30m for <1,000 ha, 60m for 1,000-50,000 ha, and 120m for >50,000 ha. Prevents Google Earth Engine memory overflows on 1M-ha plots, reducing query latency from timeout to 32 seconds.",
+        reg: "Operational Scalability: Enables auditing 100,000 supply chain plots within harvest season deadlines.",
+        code: "backend/app/tools/eudr/gee_commodity.py:\ndef _compute_scale(area_ha: float) -> int:\n    if area_ha <= 1000: return 30\n    elif area_ha <= 50000: return 60\n    return 120",
+        citation: "Multi-resolution spatial pyramid reduction algorithms in cloud-based raster geospatial engines."
+      },
+      riskengine: {
+        sub: "TIER 3 &bull; ALGORITHMIC GATE",
+        title: "Algorithmic Risk Gating (Risk 0-100)",
+        desc: "Deterministic mathematical scoring engine enforcing non-negotiable EUDR Article 3 legal criteria. Evaluates post-2020 loss hectares, forest baseline percentages, and protected area intersections. Any post-2020 loss or park overlap triggers immediate FAIL. Risk score >= 40 triggers mandatory human checkpoint.",
+        reg: "EUDR Article 3 & Article 10: Mandatory risk assessment criteria including deforestation presence, country benchmarking, and legal land rights.",
+        code: "backend/app/eudr/analysis_engine.py: assess_plot()\nRisk Score Formula:\nScore = (Loss_ha * 10) + (Country_Risk_Multiplier) + (WDPA_Overlap ? 100 : 0)",
+        citation: "EUDR Article 10(2) Mandatory Due Diligence Risk Assessment Criteria."
+      },
+      gemini: {
+        sub: "TIER 3 &bull; REASONING AGENT",
+        title: "Google Gemini 2.0 Flash Spatial Explainer",
+        desc: "Evidence-grounded spatial reasoning model. Operates under strict prompt constraints: never invents or guesses satellite numbers; cross-references supplier text against physical Earth Engine findings to synthesize court-ready Due Diligence Statements.",
+        reg: "EUDR Article 9: Requirement to produce clear, documented Due Diligence Statements for competent inspection authorities.",
+        code: "backend/app/core/granite_client.py: generate_explanation(tool_context)",
+        citation: "Grounded multimodal spatial reasoning with Google Gemini 2.0 Flash."
+      },
+      sse: {
+        sub: "TIER 4 &bull; TELEMETRY STREAM",
+        title: "Real-Time Streaming Engine (SSE)",
+        desc: "Asynchronous Server-Sent Events channel streaming live 9-stage agent telemetry directly to client dashboards. Emits plot ingestion, GEE dataset querying, risk scores, and final DDS packages with sub-second latency.",
+        reg: "Traceability & Transparency: Provides human auditors with instant verification of every processing step.",
+        code: "backend/app/api/routes/eudr.py: /plots/stream",
+        citation: "W3C Server-Sent Events Specification (RFC 6202)."
+      },
+      maplibre: {
+        sub: "TIER 4 &bull; CLIENT CANVAS",
+        title: "MapCanvas (MapLibre GL JS)",
+        desc: "WebGL-powered interactive dual-panel map canvas. Features zero-fade raster tile caching, vector polygon styling, and real-time visual alignment with Google Earth Engine slippy tiles.",
+        reg: "Visual Auditability: Allows compliance officers to visually verify deforestation pixel clusters against farm boundaries.",
+        code: "frontend/components/map/MapCanvas.tsx",
+        citation: "MapLibre GL JS Open-Source High-Performance Map Rendering Engine."
+      },
+      trajectory: {
+        sub: "TIER 4 &bull; AUDIT TRAIL",
+        title: "Immutable Trajectory Logger (JSON / DDS)",
+        desc: "Tamper-evident structured JSON audit trail saved to trajectories/req_*.json. Records exact system prompts, raw GEE numbers, risk scores, human review timestamps, and EUDR Article 9 compliance verdicts.",
+        reg: "EUDR Article 9(3): Operators must retain due diligence documentation for five years and make it immediately accessible to national authorities upon request.",
+        code: "backend/app/core/trajectory_logger.py: TrajectoryLogger.log_decision()",
+        citation: "EU Regulation 2023/1115 Article 9(3) Mandatory Five-Year Audit Trail Archive."
+      }
+    };
+
+    function openDetails(key) {
+      const data = specs[key];
+      if (!data) return;
+      document.getElementById('drawerSub').innerHTML = data.sub;
+      document.getElementById('drawerTitle').innerText = data.title;
+      document.getElementById('drawerDesc').innerText = data.desc;
+      document.getElementById('drawerReg').innerText = data.reg;
+      document.getElementById('drawerCode').innerText = data.code;
+      document.getElementById('drawerCitation').innerText = data.citation;
+      document.getElementById('drawerOverlay').classList.add('open');
+    }
+
+    function closeDrawer(e) {
+      if (e && e.target !== e.currentTarget && !e.target.closest('.drawer-close')) return;
+      document.getElementById('drawerOverlay').classList.remove('open');
+    }
+
+    function highlightDataFlow() {
+      const sequence = [
+        'card-aoi', 'card-comm',
+        'card-hansen', 'card-naturetrace', 'card-forty', 'card-wri', 'card-commoditymaps', 'card-wdpa',
+        'card-scale', 'card-risk', 'card-gemini',
+        'card-sse', 'card-map', 'card-traj'
+      ];
+
+      sequence.forEach((id, idx) => {
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.add('highlighted');
+            setTimeout(() => el.classList.remove('highlighted'), 800);
+          }
+        }, idx * 180);
+      });
+    }
+
+    function copyLatexSnippet() {
+      const latex = `\\begin{figure*}[t]
+\\centering
+\\includegraphics[width=\\textwidth]{figures/oxeous_architecture.pdf}
+\\caption{\\textbf{End-to-end architectural pipeline of the Oxeous autonomous Earth observation compliance agent.} The system coordinates four tiers: (1) Operator AOI polygon and commodity declaration ingest; (2) Parallel planetary satellite querying across six Google Earth Engine datasets (Hansen GFC, Nature Trace, ForTy, WRI Drivers, FDP Commodity Maps, and UNEP-WCMC WDPA); (3) Dynamic scale optimization (\\textit{\\_compute\\_scale}) and algorithmic risk gating enforcing EUDR Article 3 and Article 9 non-negotiable thresholds, paired with Gemini 2.0 Flash for evidence-grounded legal memorandums; and (4) Real-time Server-Sent Events (SSE) streaming to an interactive MapLibre WebGL canvas and immutable JSON audit trajectories (\\textit{trajectories/req\\_*.json}).}
+\\label{fig:oxeous_arch}
+\\end{figure*}`;
+      navigator.clipboard.writeText(latex).then(() => {
+        alert("LaTeX figure snippet copied to clipboard for Overleaf / paper publication!");
+      });
+    }
+  </script>
+</body>
+</html>

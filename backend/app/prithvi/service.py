@@ -1,5 +1,5 @@
 """
-Prithvi Background Job Service — manages async inference jobs.
+Prithvi Background Job Service - manages async inference jobs.
 """
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ async def _run_inference(job_id: str, request: AnalysisRequest) -> None:
             geojson_hotspots=hotspots,
             statistics=statistics,
             provenance=DataProvenance(
-                source="IBM–NASA Prithvi-EO-2.0-100M via TerraTorch",
+                source="IBM-NASA Prithvi-EO-2.0-100M via TerraTorch",
                 acquisition_dates=[request.current_period.end],
                 spatial_resolution_m=30,
                 cloud_cover_pct=0.0,

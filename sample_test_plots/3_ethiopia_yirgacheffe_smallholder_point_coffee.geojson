@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "name": "Ethiopia_Yirgacheffe_Smallholder_Point_Coffee",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "ET-YIRG-COFFEE-2026-03",
+        "name": "Yirgacheffe Highland Smallholder Plot (<4 ha Point Declaration)",
+        "commodity": "coffee",
+        "country_code": "ET",
+        "country_name": "Ethiopia",
+        "test_scenario": "EUDR Art. 9(1)(d) Smallholder <4 ha Point Geometry -> Auto-Buffered to 1.8 ha WGS84 Geodesic Circle (~1,900m SRTM Highland Elevation)"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [38.2085, 6.1482]
+      }
+    }
+  ]
+}
+

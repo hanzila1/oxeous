@@ -1,4 +1,4 @@
-"""GET /health — dependency health check."""
+"""GET /health - dependency health check."""
 from fastapi import APIRouter, Request
 from ...models.responses import HealthResponse
 from ...config import get_settings

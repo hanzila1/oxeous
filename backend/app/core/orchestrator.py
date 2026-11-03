@@ -1,5 +1,5 @@
 """
-Orchestrator — routes a validated AnalysisRequest to the correct tool and returns an AnalysisResponse.
+Orchestrator - routes a validated AnalysisRequest to the correct tool and returns an AnalysisResponse.
 """
 from __future__ import annotations
 

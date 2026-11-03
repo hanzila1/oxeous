@@ -1,5 +1,5 @@
 """
-COG Reader — windowed reads from Cloud-Optimized GeoTIFFs using rasterio/vsicurl.
+COG Reader - windowed reads from Cloud-Optimized GeoTIFFs using rasterio/vsicurl.
 Supports NASA EarthData bearer token authentication.
 """
 from __future__ import annotations

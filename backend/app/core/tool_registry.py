@@ -1,5 +1,5 @@
 """
-ToolRegistry — stores tool definitions and validates Granite outputs against them.
+ToolRegistry - stores tool definitions and validates Granite outputs against them.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ..models.requests import AnalysisRequest, DateRange
 from ..models.enums import AnalysisType
 from ..utils.date_resolver import resolve as resolve_date
 
-# ── Tool Definitions (JSON Schema shared with Granite) ────────────────────────
+# -- Tool Definitions (JSON Schema shared with Granite) ------------------------
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
@@ -54,7 +54,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "analyze_prithvi_change_detection",
         "analysis_type": "prithvi_change_detection",
-        "description": "Run IBM–NASA Prithvi-EO 2.0 AI model for advanced change detection segmentation. Use when the user explicitly asks for AI analysis, machine learning analysis, or Prithvi.",
+        "description": "Run IBM-NASA Prithvi-EO 2.0 AI model for advanced change detection segmentation. Use when the user explicitly asks for AI analysis, machine learning analysis, or Prithvi.",
         "parameters": {
             "preferred_product": {"enum": ["PRITHVI_EO_2_100M"], "default": "PRITHVI_EO_2_100M"},
             "requires_comparison_period": True,
@@ -93,14 +93,14 @@ class ToolRegistry:
                 f"Unknown tool '{tool_name}'. Valid: {list(_TOOL_NAME_MAP.keys())}"
             )
 
-        # ── Resolve current_period with fallback ─────────────────────────
+        # -- Resolve current_period with fallback -------------------------
         current_period = params.get("current_period")
         if not current_period or not isinstance(current_period, dict) or not current_period.get("start"):
             # Fallback: use past 30 days
             start, end = resolve_date("past 30 days")
             current_period = {"start": start, "end": end}
 
-        # ── Resolve comparison_period if tool requires it ────────────────
+        # -- Resolve comparison_period if tool requires it ----------------
         comparison_period = params.get("comparison_period")
         tool_def = _ANALYSIS_TYPE_MAP.get(analysis_type, {})
         requires_comparison = tool_def.get("parameters", {}).get("requires_comparison_period", False)
@@ -109,12 +109,15 @@ class ToolRegistry:
             comp_start, comp_end = resolve_date("past 30 days", reference=__import__("datetime").date.fromisoformat(current_period["start"]))
             comparison_period = {"start": comp_start, "end": comp_end}
 
+        if "bbox" not in params or not params.get("bbox"):
+            raise ValueError("Missing required parameter 'bbox'")
+
         # Build AnalysisRequest from params
         try:
             request = AnalysisRequest(
                 analysis_type=AnalysisType(analysis_type),
                 location=params.get("location", ""),
-                bbox=tuple(params.get("bbox", [0, 0, 0, 0])),  # type: ignore[arg-type]
+                bbox=tuple(params["bbox"]),  # type: ignore[arg-type]
                 current_period=current_period,
                 comparison_period=comparison_period,
                 preferred_product=params.get(

@@ -1,5 +1,5 @@
 """
-Tile Renderer — converts float32 GeoTIFFs to web-ready PNG tiles.
+Tile Renderer - converts float32 GeoTIFFs to web-ready PNG tiles.
 Uses rio-tiler where available, falls back to PIL/matplotlib colormapping.
 """
 from __future__ import annotations

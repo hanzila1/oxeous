@@ -36,7 +36,7 @@ Rules:
 # Let's test the Colombia Coffee plot (TC-05 in the benchmark).
 # This farm actually has 2.1 hectares of deforestation, but the supplier is lying!
 TEST_CASE = {
-    "name": "Colombia coffee — deceptive claim, false PASS risk",
+    "name": "Colombia coffee - deceptive claim, false PASS risk",
     "commodity": "coffee",
     "country_name": "Colombia",
     "supplier_claim": "100% sustainable shade-grown coffee. No deforestation since 2018.",

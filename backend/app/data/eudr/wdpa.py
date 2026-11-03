@@ -36,7 +36,7 @@ async def check_protected_areas(
     api_key = getattr(settings, "wdpa_api_key", "")
 
     if not api_key:
-        logger.info("WDPA API key not set — skipping protected area check")
+        logger.info("WDPA API key not set - skipping protected area check")
         return _empty_result()
 
     # Use WDPA intersect endpoint

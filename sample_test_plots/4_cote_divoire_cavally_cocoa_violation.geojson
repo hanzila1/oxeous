@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "name": "Cote_dIvoire_Cavally_Cocoa_Hard_Violation",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "CI-CAVALLY-VIOLATION-2026-04",
+        "name": "Cavally Nature Reserve Illegal Cocoa Encroachment (C\u00f4te d'Ivoire)",
+        "commodity": "cocoa",
+        "country_code": "CI",
+        "country_name": "C\u00f4te d'Ivoire",
+        "test_scenario": "HARD EUDR VIOLATION: 128.8 ha post-2020 clearing inside protected primary tropical rainforest (96.9% JRC forest cover in 2020 + Reserve naturelle du Cavally IUCN IV overlap)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -7.55,
+              5.82
+            ],
+            [
+              -7.53,
+              5.82
+            ],
+            [
+              -7.53,
+              5.835
+            ],
+            [
+              -7.55,
+              5.835
+            ],
+            [
+              -7.55,
+              5.82
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "name": "Brazil_Para_Cattle_Arc_Of_Deforestation",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "BR-PA-CATTLE-2026-02",
+        "name": "Novo Progresso Cattle Pasture Expansion (Pará, Brazil)",
+        "commodity": "cattle",
+        "country_code": "BR",
+        "country_name": "Brazil",
+        "test_scenario": "Active Post-2020 Statutory Deforestation for Cattle Pasture (~13.96 ha clearing on 311.48 ha Amazon plot)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-55.4150, -7.1950],
+            [-55.3980, -7.1950],
+            [-55.3980, -7.1800],
+            [-55.4150, -7.1800],
+            [-55.4150, -7.1950]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

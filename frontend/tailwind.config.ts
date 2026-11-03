@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// ── Oxeous Light Steel Palette ────────────────────────────────────────────────
+// -- Oxeous Light Steel Palette ------------------------------------------------
 // Main background:     Cloud White   #F4F5F6
 // Secondary bg:        Pale Steel    #E3E7EA
 // Borders/dividers:    Silver Steel  #C8CFD5
@@ -23,23 +23,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ── Surface system ──────────────────────────────────────────
-        bg:           "#F4F5F6",   // Cloud White — main background
-        "bg-2":       "#E3E7EA",   // Pale Steel — secondary background
-        border:       "#C8CFD5",   // Silver Steel — borders/dividers
-        "border-2":   "#AAB3BB",   // Soft Steel — subtle/disabled
-        // ── Text system ─────────────────────────────────────────────
-        text:         "#1D2227",   // Carbon Black — primary text
-        "text-2":     "#747F88",   // Slate Steel — secondary text
-        muted:        "#AAB3BB",   // Soft Steel — disabled/placeholder
-        // ── Brand ───────────────────────────────────────────────────
-        steel:        "#7A8791",   // Steel Blue-Gray — icons/symbol
-        graphite:     "#343B42",   // Graphite — dark surfaces/headers
-        // ── Functional accents ──────────────────────────────────────
-        verified:     "#315F50",   // Forest green — compliant/verified
-        warning:      "#C58A3A",   // Amber — medium risk
-        danger:       "#A64B45",   // Muted red — high risk / loss
-        // ── Subtle tints ────────────────────────────────────────────
+        // -- Surface system ------------------------------------------
+        bg:           "#F4F5F6",   // Cloud White - main background
+        "bg-2":       "#E3E7EA",   // Pale Steel - secondary background
+        border:       "#C8CFD5",   // Silver Steel - borders/dividers
+        "border-2":   "#AAB3BB",   // Soft Steel - subtle/disabled
+        // -- Text system ---------------------------------------------
+        text:         "#1D2227",   // Carbon Black - primary text
+        "text-2":     "#747F88",   // Slate Steel - secondary text
+        muted:        "#AAB3BB",   // Soft Steel - disabled/placeholder
+        // -- Brand ---------------------------------------------------
+        steel:        "#7A8791",   // Steel Blue-Gray - icons/symbol
+        graphite:     "#343B42",   // Graphite - dark surfaces/headers
+        // -- Functional accents --------------------------------------
+        verified:     "#315F50",   // Forest green - compliant/verified
+        warning:      "#C58A3A",   // Amber - medium risk
+        danger:       "#A64B45",   // Muted red - high risk / loss
+        // -- Subtle tints --------------------------------------------
         "verified-bg":  "rgba(49,95,80,0.08)",
         "warning-bg":   "rgba(197,138,58,0.08)",
         "danger-bg":    "rgba(166,75,69,0.08)",
@@ -56,6 +56,9 @@ const config: Config = {
         panel: "0 1px 4px rgba(29,34,39,0.08), 0 4px 16px rgba(29,34,39,0.06)",
         "panel-lg": "0 2px 8px rgba(29,34,39,0.10), 0 8px 32px rgba(29,34,39,0.08)",
         header: "0 1px 0 #C8CFD5",
+      },
+      transitionTimingFunction: {
+        panel: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
       animation: {
         "fade-in":      "fadeIn 0.15s ease-out",

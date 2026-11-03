@@ -1,5 +1,5 @@
 """
-ESA WorldCover 2020 adapter — 10 m global land cover at EUDR cutoff date.
+ESA WorldCover 2020 adapter - 10 m global land cover at EUDR cutoff date.
 
 WorldCover 2020 tiles are publicly available as Cloud-Optimized GeoTIFFs on S3:
   s3://esa-worldcover/v100/2020/map/ESA_WorldCover_10m_2020_v100_{tile}_Map.tif

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, memo } from "react";
 import maplibregl from "maplibre-gl";
-import { BASE_STYLE, DEFAULT_MAP_OPTIONS, bboxToLngLatBounds } from "@/lib/maplibre";
-import { useStore } from "@/lib/store";
+import { BASE_STYLE, DEFAULT_MAP_OPTIONS, bboxToLngLatBounds, extractBboxFromGeometry } from "@/lib/maplibre";
+import { useStore, resolveCompareLayerIds } from "@/lib/store";
+import MapSwipeSlider from "./MapSwipeSlider";
+import PixelInspectorHUD from "./PixelInspectorHUD";
 
 let mapInstance: maplibregl.Map | null = null;
 export function getMap() { return mapInstance; }
@@ -20,17 +22,40 @@ const PLOT_FILL = "oxeous-plot-fill";
 const PLOT_CASING = "oxeous-plot-casing";
 const PLOT_LINE = "oxeous-plot-line";
 
-export default function MapCanvas() {
+function isPointInPolygon(point: [number, number], polygon: number[][]): boolean {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function MapCanvasComponent() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const compareContainerRef = useRef<HTMLDivElement>(null);
+  const compareMapRef = useRef<maplibregl.Map | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
   const drawPointsRef = useRef<[number, number][]>([]);
   const [vertexCount, setVertexCount] = useState(0);
   const {
     setViewport, layers, activeGeoJSON, viewport,
     drawingAOI, setDrawingAOI, setActiveGeoJSON, setActivePanel,
+    ddsHistory, setEudrPanelOpen, isScanning,
+    compareMode, comparePosition, compareLeftLayerId, compareRightLayerId,
   } = useStore();
 
-  // ── Init map ─────────────────────────────────────────────────────────────
+  const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
+    layers,
+    compareLeftLayerId,
+    compareRightLayerId
+  );
+
+  // -- Init map -------------------------------------------------------------
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
 
@@ -41,12 +66,65 @@ export default function MapCanvas() {
       center: viewport.center as [number, number],
       zoom: viewport.zoom,
       attributionControl: false,
-      fadeDuration: 0,
+      fadeDuration: 150,
       maxTileCacheSize: 500,
     });
 
     map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-left");
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    
+    // Zero-latency real-time coordinate tracking directly on map events
+    const updateCoordinatesUI = (lat: number, lng: number) => {
+      const coordEl = document.getElementById("oxeous-live-coords");
+      if (coordEl) {
+        const latDir = lat >= 0 ? "N" : "S";
+        const lngDir = lng >= 0 ? "E" : "W";
+        coordEl.textContent = `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}`;
+      }
+      (window as Window & { oxeousCurrentCoords?: { lat: number; lng: number } }).oxeousCurrentCoords = { lat, lng };
+    };
+
+    const updateZoomUI = (zoom: number) => {
+      const zoomEl = document.getElementById("oxeous-live-zoom");
+      if (zoomEl) zoomEl.textContent = `Z ${zoom.toFixed(1)}`;
+    };
+
+    // Immediately push current center and zoom to HUD
+    updateCoordinatesUI(viewport.center[1], viewport.center[0]);
+    updateZoomUI(viewport.zoom);
+
+    // Native container listener guarantees instant response before or across overlay boundaries
+    const container = containerRef.current;
+    const handleContainerMouseMove = (e: MouseEvent) => {
+      if (!map) return;
+      const rect = container?.getBoundingClientRect();
+      if (!rect) return;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      try {
+        const lngLat = map.unproject([x, y]);
+        updateCoordinatesUI(lngLat.lat, lngLat.lng);
+      } catch {}
+    };
+    const handleContainerMouseLeave = () => {
+      if (!map) return;
+      const c = map.getCenter();
+      updateCoordinatesUI(c.lat, c.lng);
+    };
+    container?.addEventListener("mousemove", handleContainerMouseMove, { passive: true });
+    container?.addEventListener("mouseleave", handleContainerMouseLeave);
+
+    map.on("mousemove", (e) => {
+      updateCoordinatesUI(e.lngLat.lat, e.lngLat.lng);
+    });
+
+    map.on("move", () => {
+      const c = map.getCenter();
+      updateCoordinatesUI(c.lat, c.lng);
+    });
+
+    map.on("zoom", () => {
+      updateZoomUI(map.getZoom());
+    });
 
     map.on("moveend", () => {
       const c = map.getCenter();
@@ -82,9 +160,39 @@ export default function MapCanvas() {
       });
     });
 
+    // Keep the canvas in sync with the container while side panels animate.
+    // Instead of thrashing map.resize() on every 16ms animation frame (which
+    // destroys the WebGL drawing buffer and cancels tile requests, causing
+    // the map to vanish/flicker), we debounce resize until the CSS transition
+    // settles, and listen for transitionend on the panel containers for an instant,
+    // smooth resize.
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (mapRef.current) { mapRef.current.resize(); }
+        if (compareMapRef.current) { compareMapRef.current.resize(); }
+      }, 120);
+    });
+    resizeObserver.observe(containerRef.current);
+
+    const onTransitionEnd = (e: TransitionEvent) => {
+      if (e.propertyName === "width") {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        if (mapRef.current) { mapRef.current.resize(); }
+        if (compareMapRef.current) { compareMapRef.current.resize(); }
+      }
+    };
+    window.addEventListener("transitionend", onTransitionEnd);
+
     mapRef.current = map;
     mapInstance = map;
     return () => {
+      container?.removeEventListener("mousemove", handleContainerMouseMove);
+      container?.removeEventListener("mouseleave", handleContainerMouseLeave);
+      window.removeEventListener("transitionend", onTransitionEnd);
+      resizeObserver.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
       map.remove();
       mapRef.current = null;
       mapInstance = null;
@@ -92,7 +200,7 @@ export default function MapCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Helper: render the permanent polygon directly on the map ──────────────
+  // -- Helper: render the permanent polygon directly on the map --------------
   const renderPermanentPolygon = useCallback((geojson: object | null) => {
     const map = mapRef.current;
     if (!map) return;
@@ -115,10 +223,10 @@ export default function MapCanvas() {
 
     const src = map.getSource(PLOT_SRC) as maplibregl.GeoJSONSource | undefined;
     if (src) {
-      // Source already exists — just update the data
+      // Source already exists - just update the data
       src.setData(data);
     } else {
-      // First time — add source + layers
+      // First time - add source + layers
       map.addSource(PLOT_SRC, { type: "geojson", data });
       // 1. Transparent interior fill
       map.addLayer({
@@ -148,7 +256,7 @@ export default function MapCanvas() {
     if (map.getLayer(PLOT_LINE)) map.moveLayer(PLOT_LINE);
   }, []);
 
-  // ── Drawing mode: click to add vertex, dblclick to finish ────────────────
+  // -- Drawing mode: click to add vertex, dblclick to finish ----------------
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -213,19 +321,115 @@ export default function MapCanvas() {
     };
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
-      if (!drawingAOI) return;
-      e.preventDefault();
-      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      if (drawingAOI) {
+        e.preventDefault();
+        const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
 
-      // Prevent duplicate point from dblclick (same coord within ~1m)
-      const last = drawPointsRef.current[drawPointsRef.current.length - 1];
-      if (last && Math.abs(pt[0] - last[0]) < 0.00001 && Math.abs(pt[1] - last[1]) < 0.00001) {
-        return; // Skip duplicate — dblclick fires two clicks at same spot
+        // Prevent duplicate point from dblclick (same coord within ~1m)
+        const last = drawPointsRef.current[drawPointsRef.current.length - 1];
+        if (last && Math.abs(pt[0] - last[0]) < 0.00001 && Math.abs(pt[1] - last[1]) < 0.00001) {
+          return; // Skip duplicate - dblclick fires two clicks at same spot
+        }
+
+        drawPointsRef.current = [...drawPointsRef.current, pt];
+        setVertexCount(drawPointsRef.current.length);
+        updatePreview();
+        return;
       }
 
-      drawPointsRef.current = [...drawPointsRef.current, pt];
-      setVertexCount(drawPointsRef.current.length);
-      updatePreview();
+      // -- Audit Map Click Tooltip (when not in drawing mode) -----------------
+      if (popupRef.current) {
+        popupRef.current.remove();
+        popupRef.current = null;
+      }
+
+      const activeRes = ddsHistory[0];
+      const lng = e.lngLat.lng;
+      const lat = e.lngLat.lat;
+
+      // Check if clicked point is inside the active parcel polygon
+      let isInsideParcel = false;
+      if (activeGeoJSON) {
+        try {
+          const geom = activeGeoJSON as { type: string; coordinates: any };
+          if (geom.type === "Polygon" && geom.coordinates?.[0]) {
+            isInsideParcel = isPointInPolygon([lng, lat], geom.coordinates[0]);
+          } else if (geom.type === "MultiPolygon" && geom.coordinates) {
+            isInsideParcel = geom.coordinates.some((poly: any) =>
+              poly[0] && isPointInPolygon([lng, lat], poly[0])
+            );
+          }
+        } catch {
+          isInsideParcel = false;
+        }
+      }
+
+      if (isInsideParcel && activeRes) {
+        const def = activeRes.risk_assessment.deforestation;
+        const isExempt = def.is_plantation_replanting_exemption;
+        const hasLoss = def.has_deforestation;
+        const compPct = def.spatial_compliance_pct ?? (hasLoss ? 0.0 : 100.0);
+
+        let statusBadge = "";
+        let legalText = "";
+        if (isExempt) {
+          statusBadge = `<span style="background:rgba(255,183,3,0.18);color:#b45309;border:1px solid rgba(255,183,3,0.5);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">🌿 ART. 2(5) EXEMPT</span>`;
+          legalText = "Lawful agricultural plantation replanting cycle on pre-2020 tree-crop land. Statutorily compliant under EU 2023/1115.";
+        } else if (hasLoss) {
+          statusBadge = `<span style="background:rgba(230,57,70,0.18);color:#dc2626;border:1px solid rgba(230,57,70,0.5);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">⚠️ STATUTORY DEFORESTATION</span>`;
+          legalText = "Post-2020 canopy loss overlaps standing 2020 EU forest baseline (Art. 3(a)). Eligible for May 2026 plot carve-out.";
+        } else {
+          statusBadge = `<span style="background:rgba(16,185,129,0.18);color:#047857;border:1px solid rgba(16,185,129,0.5);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">✅ 100% DEFORESTATION-FREE</span>`;
+          legalText = "Zero post-cutoff deforestation detected. 100% compliant for TRACES NT export customs clearance.";
+        }
+
+        const html = `
+          <div style="font-family:system-ui,-apple-system,sans-serif;color:#1e293b;padding:2px 0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">
+              <span style="font-size:11px;font-weight:800;color:#0f172a;letter-spacing:0.02em;">EUDR AUDIT INSPECTION</span>
+              ${statusBadge}
+            </div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:8px;font-family:monospace;">
+              GPS: ${lat.toFixed(5)}°N, ${lng.toFixed(5)}°W
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-bottom:8px;font-size:11px;line-height:1.4;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <span style="color:#64748b;">Commodity / Plot:</span>
+                <strong style="color:#0f172a;">${(activeRes.plot.commodity || "Commodity").toUpperCase()} · ${(activeRes.plot.area_ha || 0).toFixed(1)} ha</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <span style="color:#64748b;">Spatial Compliance:</span>
+                <strong style="color:${compPct >= 90 ? "#059669" : "#dc2626"};">${compPct.toFixed(1)}%</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:#64748b;">PWRI Map Algebra:</span>
+                <span style="font-size:10px;color:#475569;">Hansen ∩ JRC GFC2020</span>
+              </div>
+            </div>
+            <p style="font-size:10px;color:#475569;margin:0 0 8px 0;line-height:1.35;">${legalText}</p>
+            <button id="oxe-popup-btn" style="width:100%;background:#0f172a;color:#ffffff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:background 0.15s;">
+              Open Due Diligence Suite →
+            </button>
+          </div>
+        `;
+
+        const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 12, maxWidth: "300px" })
+          .setLngLat([lng, lat])
+          .setHTML(html)
+          .addTo(map);
+
+        popupRef.current = popup;
+
+        setTimeout(() => {
+          const btn = document.getElementById("oxe-popup-btn");
+          if (btn) {
+            btn.onclick = () => {
+              setEudrPanelOpen(true);
+              popup.remove();
+            };
+          }
+        }, 50);
+      }
     };
 
     const handleDblClick = (e: maplibregl.MapMouseEvent) => {
@@ -273,9 +477,9 @@ export default function MapCanvas() {
       map.off("dblclick", handleDblClick);
       map.off("mousemove", handleMouseMove);
     };
-  }, [drawingAOI, setActiveGeoJSON, setDrawingAOI, setActivePanel, renderPermanentPolygon]);
+  }, [drawingAOI, activeGeoJSON, ddsHistory, setEudrPanelOpen, setActiveGeoJSON, setDrawingAOI, setActivePanel, renderPermanentPolygon]);
 
-  // ── Sync GeoJSON plot outline (for non-drawing sources like examples/upload) ──
+  // -- Sync GeoJSON plot outline (for non-drawing sources like examples/upload) --
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -287,7 +491,179 @@ export default function MapCanvas() {
     }
   }, [activeGeoJSON, renderPermanentPolygon]);
 
-  // ── Sync raster layers (100% opacity, non-transparent, always under plot lines) ──
+  
+  // -- Sync permanent polygon on compareMap ----------------------------------
+  const syncComparePolygon = useCallback((geojson: object | null) => {
+    const cmp = compareMapRef.current;
+    if (!cmp) return;
+    if (!cmp.isStyleLoaded()) {
+      cmp.once("styledata", () => syncComparePolygon(geojson));
+      return;
+    }
+
+    if (!geojson) {
+      if (cmp.getLayer(PLOT_CASING)) cmp.removeLayer(PLOT_CASING);
+      if (cmp.getLayer(PLOT_LINE)) cmp.removeLayer(PLOT_LINE);
+      if (cmp.getSource(PLOT_SRC)) cmp.removeSource(PLOT_SRC);
+      return;
+    }
+
+    const data: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", geometry: geojson as GeoJSON.Geometry, properties: {} }],
+    };
+
+    const src = cmp.getSource(PLOT_SRC) as maplibregl.GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data);
+    } else {
+      cmp.addSource(PLOT_SRC, { type: "geojson", data });
+      cmp.addLayer({
+        id: PLOT_CASING,
+        type: "line",
+        source: PLOT_SRC,
+        paint: { "line-color": "#000000", "line-width": 5.5, "line-opacity": 0.65 },
+      });
+      cmp.addLayer({
+        id: PLOT_LINE,
+        type: "line",
+        source: PLOT_SRC,
+        paint: { "line-color": "#FFE600", "line-width": 3.5, "line-opacity": 1.0 },
+      });
+    }
+
+    if (cmp.getLayer(PLOT_CASING)) cmp.moveLayer(PLOT_CASING);
+    if (cmp.getLayer(PLOT_LINE)) cmp.moveLayer(PLOT_LINE);
+  }, []);
+
+  // -- Initialize & teardown compareMap --------------------------------------
+  useEffect(() => {
+    if (!compareMode || !compareContainerRef.current || !mapRef.current) {
+      if (compareMapRef.current) {
+        compareMapRef.current.remove();
+        compareMapRef.current = null;
+      }
+      return;
+    }
+
+    const main = mapRef.current;
+    const cmp = new maplibregl.Map({
+      container: compareContainerRef.current,
+      style: BASE_STYLE,
+      center: main.getCenter(),
+      zoom: main.getZoom(),
+      bearing: main.getBearing(),
+      pitch: main.getPitch(),
+      attributionControl: false,
+      interactive: false,
+      fadeDuration: 0,
+      maxTileCacheSize: 500,
+    });
+    compareMapRef.current = cmp;
+
+    const syncCam = () => {
+      if (!compareMapRef.current || !mapRef.current) return;
+      const c = mapRef.current.getCenter();
+      const z = mapRef.current.getZoom();
+      const b = mapRef.current.getBearing();
+      const p = mapRef.current.getPitch();
+      compareMapRef.current.jumpTo({ center: c, zoom: z, bearing: b, pitch: p });
+    };
+
+    main.on("move", syncCam);
+
+    const onStyleReady = () => {
+      syncComparePolygon(activeGeoJSON);
+    };
+    cmp.on("load", onStyleReady);
+    cmp.on("styledata", onStyleReady);
+
+    return () => {
+      main.off("move", syncCam);
+      if (compareMapRef.current) {
+        compareMapRef.current.remove();
+        compareMapRef.current = null;
+      }
+    };
+  }, [compareMode, activeGeoJSON, syncComparePolygon]);
+
+  // -- Sync polygon changes to compareMap if active --
+  useEffect(() => {
+    if (compareMode && compareMapRef.current) {
+      syncComparePolygon(activeGeoJSON);
+    }
+  }, [compareMode, activeGeoJSON, syncComparePolygon]);
+
+  // -- Sync layers on Left Compare Map (Clipped Map) ------------------------
+  useEffect(() => {
+    if (!compareMode) return;
+    const cmp = compareMapRef.current;
+    if (!cmp) return;
+
+    const syncLeft = () => {
+      if (!cmp.isStyleLoaded()) return;
+
+      // 1. Remove layers that aren't the effective left layer
+      const style = cmp.getStyle();
+      if (style && style.layers) {
+        style.layers.forEach((lyr) => {
+          if (lyr.id.startsWith("cmp-lyr-")) {
+            const rawId = lyr.id.replace("cmp-lyr-", "");
+            if (rawId !== effectiveLeftId) {
+              if (cmp.getLayer(lyr.id)) cmp.removeLayer(lyr.id);
+              const srcId = "cmp-src-" + rawId;
+              if (cmp.getSource(srcId)) cmp.removeSource(srcId);
+            }
+          }
+        });
+      }
+
+      // 2. Add or update the effective left layer
+      if (effectiveLeftId !== "basemap") {
+        const leftLayer = layers.find((l) => l.id === effectiveLeftId);
+        if (leftLayer && leftLayer.tileUrl) {
+          const srcId = "cmp-src-" + leftLayer.id;
+          const lyrId = "cmp-lyr-" + leftLayer.id;
+          const targetOpacity = typeof leftLayer.opacity === "number"
+            ? Math.max(0, Math.min(1, leftLayer.opacity))
+            : 1.0;
+
+          const existingSrc = cmp.getSource(srcId) as maplibregl.RasterTileSource | undefined;
+          if (existingSrc && existingSrc.tiles?.[0] !== leftLayer.tileUrl) {
+            if (cmp.getLayer(lyrId)) cmp.removeLayer(lyrId);
+            if (cmp.getSource(srcId)) cmp.removeSource(srcId);
+          }
+
+          if (!cmp.getSource(srcId)) {
+            cmp.addSource(srcId, { type: "raster", tiles: [leftLayer.tileUrl], tileSize: 256 });
+          }
+          if (!cmp.getLayer(lyrId)) {
+            const before = cmp.getLayer(PLOT_CASING) ? PLOT_CASING : undefined;
+            cmp.addLayer({
+              id: lyrId,
+              type: "raster",
+              source: srcId,
+              paint: { "raster-opacity": targetOpacity },
+            }, before);
+          } else {
+            cmp.setPaintProperty(lyrId, "raster-opacity", targetOpacity);
+          }
+        }
+      }
+
+      // Ensure plot border stays on top
+      if (cmp.getLayer(PLOT_CASING)) cmp.moveLayer(PLOT_CASING);
+      if (cmp.getLayer(PLOT_LINE)) cmp.moveLayer(PLOT_LINE);
+    };
+
+    if (cmp.isStyleLoaded()) {
+      syncLeft();
+    } else {
+      cmp.once("styledata", syncLeft);
+    }
+  }, [compareMode, effectiveLeftId, layers]);
+
+  // -- Sync raster layers (dynamic opacity from store, always under plot lines) --
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -310,78 +686,111 @@ export default function MapCanvas() {
 
       // 2. Add, update, or refresh layers with new tile URLs
       layers.forEach(layer => {
-        if (!layer.tileUrl) return;
-        const srcId = `oxe-src-${layer.id}`;
-        const lyrId = `oxe-lyr-${layer.id}`;
+        try {
+          if (!layer.tileUrl) return;
+          const srcId = `oxe-src-${layer.id}`;
+          const lyrId = `oxe-lyr-${layer.id}`;
 
-        const existingSource = map.getSource(srcId) as maplibregl.RasterTileSource | undefined;
-        const currentTileUrl = existingSource?.tiles?.[0];
+          // Clamp opacity to valid [0, 1] range
+          const targetOpacity = typeof layer.opacity === "number"
+            ? Math.max(0, Math.min(1, layer.opacity))
+            : 1.0;
 
-        // If tile URL has changed (e.g. newly drawn polygon analysis), recreate source
-        if (existingSource && currentTileUrl !== layer.tileUrl) {
-          if (map.getLayer(lyrId)) map.removeLayer(lyrId);
-          if (map.getSource(srcId)) map.removeSource(srcId);
-        }
+          const existingSource = map.getSource(srcId) as maplibregl.RasterTileSource | undefined;
+          const currentTileUrl = existingSource?.tiles?.[0];
 
-        if (!map.getSource(srcId)) {
-          map.addSource(srcId, { type: "raster", tiles: [layer.tileUrl], tileSize: 256 });
-        }
-        if (!map.getLayer(lyrId)) {
-          const before = map.getLayer(PLOT_FILL) ? PLOT_FILL : undefined;
-          map.addLayer({ id: lyrId, type: "raster", source: srcId, paint: { "raster-opacity": 1.0 } }, before);
-        }
-        if (map.getLayer(lyrId)) {
-          map.setLayoutProperty(lyrId, "visibility", layer.visible ? "visible" : "none");
-          map.setPaintProperty(lyrId, "raster-opacity", 1.0);
+          // If tile URL has changed (e.g. newly drawn polygon analysis), recreate source
+          if (existingSource && currentTileUrl !== layer.tileUrl) {
+            if (map.getLayer(lyrId)) map.removeLayer(lyrId);
+            if (map.getSource(srcId)) map.removeSource(srcId);
+          }
+
+          if (!map.getSource(srcId)) {
+            map.addSource(srcId, { type: "raster", tiles: [layer.tileUrl], tileSize: 256 });
+          }
+          if (!map.getLayer(lyrId)) {
+            const before = map.getLayer(PLOT_FILL) ? PLOT_FILL : undefined;
+            map.addLayer({ id: lyrId, type: "raster", source: srcId, paint: { "raster-opacity": targetOpacity } }, before);
+          }
+          if (map.getLayer(lyrId)) {
+            const isVisible = (() => {
+              if (!compareMode) return layer.visible;
+              if (effectiveRightId === "basemap") return false;
+              if (effectiveRightId === "all-other") return layer.id !== effectiveLeftId && layer.visible;
+              return layer.id === effectiveRightId;
+            })();
+            map.setLayoutProperty(lyrId, "visibility", isVisible ? "visible" : "none");
+            map.setPaintProperty(lyrId, "raster-opacity", targetOpacity);
+          }
+        } catch (layerErr) {
+          console.warn(`[MapCanvas] Warning syncing layer ${layer.id}:`, layerErr);
         }
       });
 
-      // 3. Guarantee that the yellow plot border is ALWAYS on top of all raster layers
-      if (map.getLayer(PLOT_CASING)) map.moveLayer(PLOT_CASING);
-      if (map.getLayer(PLOT_LINE)) map.moveLayer(PLOT_LINE);
+      // 3. Enforce exact stacking order matching sidebar list:
+      try {
+        const anchor = map.getLayer(PLOT_FILL) ? PLOT_FILL : undefined;
+        for (let i = layers.length - 1; i >= 0; i--) {
+          const lyrId = `oxe-lyr-${layers[i].id}`;
+          if (map.getLayer(lyrId)) {
+            map.moveLayer(lyrId, anchor);
+          }
+        }
+
+        // 4. Guarantee that the yellow plot border is ALWAYS on top of all raster layers
+        if (map.getLayer(PLOT_FILL)) map.moveLayer(PLOT_FILL);
+        if (map.getLayer(PLOT_CASING)) map.moveLayer(PLOT_CASING);
+        if (map.getLayer(PLOT_LINE)) map.moveLayer(PLOT_LINE);
+      } catch (stackErr) {
+        console.warn("[MapCanvas] Warning restacking layers:", stackErr);
+      }
     };
     if (map.isStyleLoaded()) {
       sync();
     } else {
       map.once("styledata", sync);
     }
-  }, [layers]);
+  }, [layers, compareMode, effectiveLeftId, effectiveRightId]);
 
-  // ── flyToBbox ─────────────────────────────────────────────────────────────
+  // -- flyToBbox -------------------------------------------------------------
   const flyToBbox = useCallback((bbox: [number, number, number, number]) => {
-    mapRef.current?.fitBounds(bboxToLngLatBounds(bbox), { padding: 80, maxZoom: 13, duration: 1200 });
+    mapRef.current?.fitBounds(bboxToLngLatBounds(bbox), { padding: 80, maxZoom: 15.5, duration: 1200 });
   }, []);
 
   useEffect(() => {
     (window as Window & { oxeousFlyTo?: typeof flyToBbox }).oxeousFlyTo = flyToBbox;
   }, [flyToBbox]);
 
-  return (
-    <div className="relative w-full h-full">
-      {/* Satellite map fills entire area */}
-      <div ref={containerRef} className="absolute inset-0" />
+  // Automatically fly to activeGeoJSON whenever it changes (MultiPolygon, Polygon, Point)
+  useEffect(() => {
+    if (!activeGeoJSON || drawingAOI) return;
+    const bbox = extractBboxFromGeometry(activeGeoJSON);
+    if (bbox) {
+      flyToBbox(bbox);
+    }
+  }, [activeGeoJSON, drawingAOI, flyToBbox]);
 
-      {/* Draw AOI button — top-right */}
-      <div className="absolute top-3 right-3 z-10">
-        <button
-          onClick={() => {
-            const next = !drawingAOI;
-            setDrawingAOI(next);
-            if (next) {
-              drawPointsRef.current = [];
-              setVertexCount(0);
-              setActiveGeoJSON(null);
-            }
-          }}
-          className={
-            drawingAOI
-              ? "border border-[#315F50] bg-[#315F50] text-white px-3 py-1.5 text-[11px] font-medium rounded-lg shadow-panel"
-              : "border border-[#C8CFD5] bg-[#F4F5F6]/95 text-[#1D2227] px-3 py-1.5 text-[11px] font-medium rounded-lg shadow-panel hover:border-[#7A8791]"
-          }
+  return (
+    <div className="relative w-full h-full bg-[#0c141c]">
+      {/* Satellite map fills entire area with dark fallback tone */}
+      <div ref={containerRef} className="absolute inset-0 bg-[#0c141c]" />
+
+      {/* Synchronized Left Secondary Clipped Map for True Real-Time Layer Comparison */}
+      {compareMode && (
+        <div
+          className="absolute inset-0 pointer-events-none overflow-hidden z-10 select-none"
+          style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
         >
-          {drawingAOI ? "Click map to add vertices · Double-click to finish" : "Draw AOI"}
-        </button>
-      </div>
+          <div ref={compareContainerRef} className="w-full h-full pointer-events-none" />
+        </div>
+      )}
+
+      {/* Real-time Pixel Inspector HUD */}
+      <PixelInspectorHUD />
+
+      {/* Before / After Statutory Baseline vs Disturbance Swipe Slider */}
+      <MapSwipeSlider />
+
 
       {/* Drawing mode instructions */}
       {drawingAOI && (
@@ -397,32 +806,50 @@ export default function MapCanvas() {
       )}
 
       {/* Coordinates HUD & Subtle Attribution */}
-      <CoordDisplay mapRef={mapRef} />
-      <div className="absolute bottom-1 right-12 z-10 text-[9px] text-white/60 pointer-events-none font-sans select-none drop-shadow-sm">
-        ESRI · Maxar · OpenStreetMap · GEE
+
+      {/* Real-time GPS Coordinates HUD - Positioned DIRECTLY ON TOP OF THE KM SCALE BAR (Bottom-Left) */}
+      <div className="absolute bottom-[45px] left-[10px] z-10 pointer-events-auto select-none group">
+        <div
+          title="Click to copy coordinates"
+          onClick={() => {
+            const el = document.getElementById("oxeous-live-coords");
+            if (el?.textContent) {
+              navigator.clipboard?.writeText(el.textContent);
+              const toast = document.getElementById("oxeous-copied-toast");
+              if (toast) {
+                toast.classList.remove("opacity-0", "pointer-events-none");
+                setTimeout(() => toast.classList.add("opacity-0", "pointer-events-none"), 1400);
+              }
+            }
+          }}
+          className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 border border-[#C8CFD5] shadow-xs text-[#343B42] text-[10px] font-mono transition-all hover:bg-white hover:border-[#AAB3BB] hover:shadow-sm cursor-pointer active:scale-95"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#315F50] flex-shrink-0 animate-pulse" />
+          <span id="oxeous-live-coords" className="font-semibold text-[#1D2227] tracking-tight">
+            {Math.abs(viewport.center[1]).toFixed(4)}°{viewport.center[1] >= 0 ? "N" : "S"}, {Math.abs(viewport.center[0]).toFixed(4)}°{viewport.center[0] >= 0 ? "E" : "W"}
+          </span>
+          {/* Hover extra telemetry */}
+          <span className="hidden group-hover:inline-flex items-center gap-1.5 pl-1.5 border-l border-[#C8CFD5] text-[9.5px] text-[#747F88] animate-in fade-in duration-150">
+            <span id="oxeous-live-zoom">Z {viewport.zoom.toFixed(1)}</span>
+            <span className="text-[8.5px] bg-[#E3E7EA] px-1 rounded font-bold text-[#343B42]">WGS84</span>
+          </span>
+          {/* Copy feedback toast */}
+          <span
+            id="oxeous-copied-toast"
+            className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#1D2227] text-white text-[9px] font-sans font-medium px-2 py-0.5 rounded shadow-md opacity-0 pointer-events-none transition-opacity duration-150 whitespace-nowrap"
+          >
+            Copied to clipboard
+          </span>
+        </div>
+      </div>
+
+      <div className="absolute bottom-1 left-36 z-10 pointer-events-none select-none">
+
+        <span className="text-[9px] text-white/70 font-sans drop-shadow-sm">ESRI · Maxar · OpenStreetMap · GEE</span>
       </div>
     </div>
   );
 }
 
-function CoordDisplay({ mapRef }: { mapRef: React.RefObject<maplibregl.Map | null> }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !ref.current) return;
-    const el = ref.current;
-    const fn = (e: maplibregl.MapMouseEvent) => {
-      el.textContent = `${e.lngLat.lat.toFixed(4)}°  ${e.lngLat.lng.toFixed(4)}°`;
-    };
-    map.on("mousemove", fn);
-    return () => { map.off("mousemove", fn); };
-  }, [mapRef]);
-  return (
-    <div
-      ref={ref}
-      className="absolute bottom-12 left-3 z-10 text-[10px] font-mono text-[#747F88] bg-[#F4F5F6]/90 border border-[#C8CFD5] px-2 py-0.5 rounded pointer-events-none shadow-panel"
-    >
-      Hover for coordinates
-    </div>
-  );
-}
+const MapCanvas = memo(MapCanvasComponent);
+export default MapCanvas;

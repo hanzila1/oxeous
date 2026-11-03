@@ -126,13 +126,13 @@ export default function DDSAuditPanel() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-text text-xs truncate">{item.plot.name ?? "—"}</span>
+                      <span className="font-semibold text-text text-xs truncate">{item.plot.name ?? "-"}</span>
                       <span className="text-[10px] text-muted uppercase font-mono px-1.5 py-0.5 rounded bg-bg border border-border flex-shrink-0">
                         {item.plot.country_code}
                       </span>
                     </div>
                     <p className="text-[11px] text-text-2 capitalize">
-                      {item.plot.commodity.replace(/_/g, " ")} · {item.plot.area_ha?.toFixed(1) ?? "—"} ha
+                      {item.plot.commodity.replace(/_/g, " ")} · {item.plot.area_ha?.toFixed(1) ?? "-"} ha
                     </p>
                   </div>
                   <RiskBadge risk={ra.overall_risk} score={ra.risk_score} size="sm" />

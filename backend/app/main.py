@@ -1,5 +1,5 @@
 """
-Oxeous FastAPI application — main entry point.
+Oxeous FastAPI application - main entry point.
 """
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ from .utils.logging import configure_logging
 from .core.granite_client import GraniteClient
 from .api.routes import chat, health, tiles, jobs, export, eudr
 
-# ── Configure logging ─────────────────────────────────────────────────────────
+# -- Configure logging ---------------------------------------------------------
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
-# ── Create tile cache directory ───────────────────────────────────────────────
+# -- Create tile cache directory -----------------------------------------------
 os.makedirs(settings.tile_cache_dir, exist_ok=True)
 
 
@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
-    # ── CORS ──────────────────────────────────────────────────────────────────
+    # -- CORS ------------------------------------------------------------------
     origins = [o.strip() for o in settings.cors_origins.split(",")]
     app.add_middleware(
         CORSMiddleware,
@@ -43,7 +43,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
+    # -- Lifecycle -------------------------------------------------------------
     @app.on_event("startup")
     async def startup() -> None:
         granite = GraniteClient()
@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
         )
         if settings.granite_deployment == "gemini" and not settings.gemini_api_key:
             logger.warning(
-                "GEMINI_API_KEY not set — Gemini explanations will use fallback text. "
+                "GEMINI_API_KEY not set - Gemini explanations will use fallback text. "
                 "Set GEMINI_API_KEY in .env to enable LLM-generated explanations."
             )
 
@@ -64,7 +64,7 @@ def create_app() -> FastAPI:
     async def shutdown() -> None:
         await app.state.granite.aclose()
 
-    # ── Routes ────────────────────────────────────────────────────────────────
+    # -- Routes ----------------------------------------------------------------
     app.include_router(health.router)
     app.include_router(chat.router)
     app.include_router(tiles.router)

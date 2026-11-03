@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "name": "Cote_dIvoire_Duekoue_Cocoa_Agroforestry_Replanting",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "CI-DUEKOUE-REPLANT-2026-04B",
+        "name": "Du\u00e9kou\u00e9 Mature Cocoa Agroforestry Stand (C\u00f4te d'Ivoire)",
+        "commodity": "cocoa",
+        "country_code": "CI",
+        "country_name": "C\u00f4te d'Ivoire",
+        "test_scenario": "ARTICLE 2(5) AGRICULTURAL REPLANTING EXEMPTION: Established cocoa plantation in 2020 (0% statutory forest) undergoing mature tree rejuvenation"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -7.465,
+              6.412
+            ],
+            [
+              -7.452,
+              6.412
+            ],
+            [
+              -7.452,
+              6.424
+            ],
+            [
+              -7.465,
+              6.424
+            ],
+            [
+              -7.465,
+              6.412
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

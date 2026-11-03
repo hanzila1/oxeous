@@ -1,5 +1,5 @@
 """
-EUDR Evaluation Script — Baseline vs Oxeous Agent
+EUDR Evaluation Script - Baseline vs Oxeous Agent
 ==================================================
 Runs 10 standardised test cases through both solutions.
 
@@ -34,7 +34,7 @@ AGENT_URL = "http://localhost:8000/eudr/plots"
 # ── 10 Standardised Test Cases ────────────────────────────────────────────────
 TEST_CASES = [
     {
-        "id": "TC-01", "name": "Amazon soya — satellite-confirmed deforestation 2022",
+        "id": "TC-01", "name": "Amazon soya - satellite-confirmed deforestation 2022",
         "commodity": "soya", "country_code": "BR", "country_name": "Brazil",
         "supplier_claim": "Soya farm operational since 2015. No clearing occurred. Fully certified.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -43,7 +43,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "baseline_trusts_text",
     },
     {
-        "id": "TC-02", "name": "Ghana cocoa — high-risk country",
+        "id": "TC-02", "name": "Ghana cocoa - high-risk country",
         "commodity": "cocoa", "country_code": "GH", "country_name": "Ghana",
         "supplier_claim": "Sustainably managed cocoa farm. No deforestation occurred.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -52,7 +52,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "high_risk_country",
     },
     {
-        "id": "TC-03", "name": "Kalimantan palm oil — peatland deforestation",
+        "id": "TC-03", "name": "Kalimantan palm oil - peatland deforestation",
         "commodity": "palm_oil", "country_code": "ID", "country_name": "Indonesia",
         "supplier_claim": "Palm oil concession established before 2020. All legal.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -61,7 +61,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "peatland_no_tool_detection",
     },
     {
-        "id": "TC-04", "name": "Germany timber — FSC certified, low risk",
+        "id": "TC-04", "name": "Germany timber - FSC certified, low risk",
         "commodity": "wood", "country_code": "DE", "country_name": "Germany",
         "supplier_claim": "FSC certified forest in Bavaria. Managed since 1990.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -70,7 +70,7 @@ TEST_CASES = [
         "expected": "PASS", "challenge": "low_risk_should_pass",
     },
     {
-        "id": "TC-05", "name": "Colombia coffee — deceptive claim, false PASS risk",
+        "id": "TC-05", "name": "Colombia coffee - deceptive claim, false PASS risk",
         "commodity": "coffee", "country_code": "CO", "country_name": "Colombia",
         "supplier_claim": "Small family coffee farm. Land cleared in 2019, no recent clearing.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -79,7 +79,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "deceptive_supplier_claim",
     },
     {
-        "id": "TC-06", "name": "Cerrado Brazil cocoa — small 0.6ha corner cleared 2022",
+        "id": "TC-06", "name": "Cerrado Brazil cocoa - small 0.6ha corner cleared 2022",
         "commodity": "cocoa", "country_code": "BR", "country_name": "Brazil",
         "supplier_claim": "Cocoa agroforestry. Minor land preparation in 2022 on 0.6ha corner only.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -88,7 +88,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "small_clearing_edge_case",
     },
     {
-        "id": "TC-07", "name": "Finland wood — PEFC certified boreal forest",
+        "id": "TC-07", "name": "Finland wood - PEFC certified boreal forest",
         "commodity": "wood", "country_code": "FI", "country_name": "Finland",
         "supplier_claim": "PEFC certified boreal forest. Continuous cover forestry since 1985.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -97,7 +97,7 @@ TEST_CASES = [
         "expected": "PASS", "challenge": "low_risk_should_pass",
     },
     {
-        "id": "TC-08", "name": "Peru coffee — plot overlaps protected area",
+        "id": "TC-08", "name": "Peru coffee - plot overlaps protected area",
         "commodity": "coffee", "country_code": "PE", "country_name": "Peru",
         "supplier_claim": "Coffee grown in highland region. Traditional farming methods.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -106,7 +106,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "protected_area_overlap",
     },
     {
-        "id": "TC-09", "name": "Brazil cattle — Amazon deforestation frontier",
+        "id": "TC-09", "name": "Brazil cattle - Amazon deforestation frontier",
         "commodity": "cattle", "country_code": "BR", "country_name": "Brazil",
         "supplier_claim": "Cattle ranch established 2018. Pasture expansion completed before 2021.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -115,7 +115,7 @@ TEST_CASES = [
         "expected": "FAIL", "challenge": "amazon_frontier",
     },
     {
-        "id": "TC-10", "name": "Austria wood — certified alpine forest",
+        "id": "TC-10", "name": "Austria wood - certified alpine forest",
         "commodity": "wood", "country_code": "AT", "country_name": "Austria",
         "supplier_claim": "FSC and PEFC certified alpine forest since 2001.",
         "geometry": {"type": "Polygon", "coordinates": [[
@@ -127,25 +127,25 @@ TEST_CASES = [
 
 # ── Mock GEE responses (for reproducibility without credentials) ──────────────
 MOCK_GEE_RESPONSES = {
-    # TC-01 Amazon soya (Brazil) — severe 8.2ha Amazon clear-cut
+    # TC-01 Amazon soya (Brazil) - severe 8.2ha Amazon clear-cut
     "TC-01": {"risk_score": 82.4, "has_deforestation": True,  "overlaps_protected": False},
-    # TC-02 Ghana cocoa — high risk country tier + 4.2ha forest loss
+    # TC-02 Ghana cocoa - high risk country tier + 4.2ha forest loss
     "TC-02": {"risk_score": 71.5, "has_deforestation": True,  "overlaps_protected": False},
-    # TC-03 Kalimantan palm oil — 6.8ha peatland disturbance
+    # TC-03 Kalimantan palm oil - 6.8ha peatland disturbance
     "TC-03": {"risk_score": 76.8, "has_deforestation": True,  "overlaps_protected": False},
-    # TC-04 Germany timber — clean FSC certified Bavaria forest
+    # TC-04 Germany timber - clean FSC certified Bavaria forest
     "TC-04": {"risk_score": 0.0,  "has_deforestation": False, "overlaps_protected": False},
-    # TC-05 Colombia coffee — 2.1ha loss despite deceptive supplier claim
+    # TC-05 Colombia coffee - 2.1ha loss despite deceptive supplier claim
     "TC-05": {"risk_score": 58.4, "has_deforestation": True,  "overlaps_protected": False},
-    # TC-06 Cerrado cocoa — small 0.6ha corner cleared in 2022
+    # TC-06 Cerrado cocoa - small 0.6ha corner cleared in 2022
     "TC-06": {"risk_score": 41.2, "has_deforestation": True,  "overlaps_protected": False},
-    # TC-07 Finland wood — clean PEFC certified boreal forest
+    # TC-07 Finland wood - clean PEFC certified boreal forest
     "TC-07": {"risk_score": 0.0,  "has_deforestation": False, "overlaps_protected": False},
-    # TC-08 Peru coffee — overlaps WDPA National Park boundary
+    # TC-08 Peru coffee - overlaps WDPA National Park boundary
     "TC-08": {"risk_score": 45.0, "has_deforestation": False, "overlaps_protected": True},
-    # TC-09 Brazil cattle — massive 14.5ha Amazon frontier clearance
+    # TC-09 Brazil cattle - massive 14.5ha Amazon frontier clearance
     "TC-09": {"risk_score": 89.2, "has_deforestation": True,  "overlaps_protected": False},
-    # TC-10 Austria wood — clean FSC/PEFC certified alpine forest
+    # TC-10 Austria wood - clean FSC/PEFC certified alpine forest
     "TC-10": {"risk_score": 0.0,  "has_deforestation": False, "overlaps_protected": False},
 }
 
@@ -328,37 +328,37 @@ async def run_agent_case(case: dict, mock_gee: bool = False) -> dict:
 def print_improvement_changelog() -> None:
     print("""
 ╔══════════════════════════════════════════════════════════════════════╗
-║              IMPROVEMENT CHANGELOG — Oxeous EUDR Agent               ║
+║              IMPROVEMENT CHANGELOG - Oxeous EUDR Agent               ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ V0 — Baseline (text-only LLM, 30% accuracy)                          ║
+║ V0 - Baseline (text-only LLM, 30% accuracy)                          ║
 ║   Tried: Single Gemini prompt with supplier text + GeoJSON            ║
 ║   Why: Establish minimum viable approach                              ║
 ║   Result: 3/10 correct. 6 UNCERTAIN, 1 critical FALSE PASS (TC-05)   ║
 ║   Problem: LLM trusts supplier claims, no satellite verification      ║
-║   Decision: Add satellite data — cannot rely on text alone            ║
+║   Decision: Add satellite data - cannot rely on text alone            ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ V1 — Hansen GFC only (70% accuracy)                                   ║
+║ V1 - Hansen GFC only (70% accuracy)                                   ║
 ║   Tried: Add Hansen GFC v1.13 deforestation check via GEE             ║
 ║   Why: Hansen is the gold standard for annual forest loss (30m)       ║
 ║   Result: 7/10. Correct on all Amazon/Brazil/Indonesia cases          ║
 ║   Problem: Missed TC-08 (protected area) and some false alarms        ║
 ║   Decision: Add more data layers for richer signal                    ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ V2 — + Forest Typology + WRI Drivers (80% accuracy)                   ║
+║ V2 - + Forest Typology + WRI Drivers (80% accuracy)                   ║
 ║   Tried: Add Forest Typology 2020 + WRI Drivers of Forest Loss 2025   ║
 ║   Why: Distinguish natural forest from plantations; identify cause     ║
 ║   Result: 8/10. Better on edge cases (TC-06 small clearing)           ║
 ║   Problem: Still missing TC-08 protected area; WDPA hardcoded False   ║
 ║   Decision: Replace external WDPA API with GEE native WDPA layer      ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ V3 — + Commodity Maps + NDVI delta (90% accuracy)                     ║
+║ V3 - + Commodity Maps + NDVI delta (90% accuracy)                     ║
 ║   Tried: Add FDP 2025 commodity maps + NASA HLS NDVI change           ║
 ║   Why: Confirm commodity presence; NDVI validates vegetation removal   ║
 ║   Result: 9/10. Added cross-reference of satellite vs supplier claim   ║
-║   Problem: TC-08 still failing — WDPA not real data                   ║
+║   Problem: TC-08 still failing - WDPA not real data                   ║
 ║   Decision: Wire GEE WCMC/WDPA/current/polygons dataset               ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ V4 — + WDPA via GEE (target: 100% accuracy)                           ║
+║ V4 - + WDPA via GEE (target: 100% accuracy)                           ║
 ║   Tried: query_protected_areas() using GEE WCMC/WDPA/current/polygons ║
 ║   Why: TC-08 Peru coffee plot overlaps a protected area               ║
 ║   Result: 10/10 expected (TC-08 now correctly scored >= 20 → FAIL)    ║
@@ -371,11 +371,11 @@ def print_improvement_changelog() -> None:
 # ── Main evaluation runner ────────────────────────────────────────────────────
 
 async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
-    print(f"\nEUDR Evaluation — mode={mode}{'  [MOCK GEE]' if mock_gee else ''}")
+    print(f"\nEUDR Evaluation - mode={mode}{'  [MOCK GEE]' if mock_gee else ''}")
     print("=" * 70)
 
     if mock_gee:
-        print("  ℹ️  Running in mock-gee mode — no GEE credentials required")
+        print("  ℹ️  Running in mock-gee mode - no GEE credentials required")
         print("     Scores are deterministic and match real GEE run results\n")
 
     baseline_results, agent_results = [], []
@@ -391,7 +391,7 @@ async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
             br = await run_baseline_case(case, api_key, mock_mode=(api_key is None))
             baseline_results.append(br)
             status = "✓ CORRECT" if br["correct"] else "✗ WRONG"
-            print(f"  Baseline : {br['decision']:10s} — {status}  ({br['elapsed_ms']}ms)")
+            print(f"  Baseline : {br['decision']:10s} - {status}  ({br['elapsed_ms']}ms)")
 
         if mode in ("agent", "both"):
             ar = await run_agent_case(case, mock_gee=mock_gee)
@@ -399,7 +399,7 @@ async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
             status = "✓ CORRECT" if ar["correct"] else "✗ WRONG"
             score_str = f"score={ar['risk_score']}" if ar["risk_score"] is not None else ""
             pa_str = " | protected_area=True" if "protected_area=True" in ar.get("reason", "") else ""
-            print(f"  Agent    : {ar['decision']:10s} — {status}  {score_str}{pa_str}  ({ar['elapsed_ms']}ms)")
+            print(f"  Agent    : {ar['decision']:10s} - {status}  {score_str}{pa_str}  ({ar['elapsed_ms']}ms)")
 
     # ── Summary table ─────────────────────────────────────────────────────────
     print(f"\n{'=' * 70}")
@@ -415,7 +415,7 @@ async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
         )
         print(f"\nBASELINE (single prompt, no tools)")
         print(f"  Accuracy        : {b_correct}/{len(baseline_results)} = {b_acc:.0f}%")
-        print(f"  False PASSes    : {b_false_pass}  (missed deforestation — critical)")
+        print(f"  False PASSes    : {b_false_pass}  (missed deforestation - critical)")
         print(f"  Satellite data  : NO")
         print(f"  DDS generated   : NO")
 
@@ -427,7 +427,7 @@ async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
             if r["decision"] == "PASS" and TEST_CASES[i]["expected"] == "FAIL"
         )
         a_dds = sum(1 for r in agent_results if r["dds_generated"])
-        print(f"\nAGENT SOLUTION — Oxeous (6 GEE datasets)")
+        print(f"\nAGENT SOLUTION - Oxeous (6 GEE datasets)")
         print(f"  Accuracy        : {a_correct}/{len(agent_results)} = {a_acc:.0f}%")
         print(f"  False PASSes    : {a_false_pass}")
         print(f"  Satellite data  : YES (6 GEE datasets)")

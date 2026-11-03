@@ -1,5 +1,5 @@
 """
-Prithvi Change Detection Tool — submits a background job and returns a job ID.
+Prithvi Change Detection Tool - submits a background job and returns a job ID.
 Actual inference runs in backend/app/prithvi/service.py.
 """
 from __future__ import annotations
@@ -27,10 +27,10 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
     return AnalysisResponse(
         request_id=request_id,
         analysis_type=request.analysis_type,
-        # No tile_url yet — job is async
+        # No tile_url yet - job is async
         statistics={"job_id": job_id, "status": "queued"},
         provenance=DataProvenance(
-            source="IBM–NASA Prithvi-EO-2.0-100M via TerraTorch",
+            source="IBM-NASA Prithvi-EO-2.0-100M via TerraTorch",
             acquisition_dates=[],
             spatial_resolution_m=30,
             cloud_cover_pct=0.0,
@@ -39,7 +39,7 @@ async def run(request: AnalysisRequest, request_id: str) -> AnalysisResponse:
         explanation=(
             "A Prithvi AI analysis job has been queued. "
             "The model will process the area and return a change-detection segmentation mask. "
-            "Results appear on the map when processing is complete (typically 30–90 seconds)."
+            "Results appear on the map when processing is complete (typically 30-90 seconds)."
         ),
         follow_up_suggestions=[
             "While waiting, check NDMI change for the same area",

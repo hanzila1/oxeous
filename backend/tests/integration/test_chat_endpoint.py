@@ -1,4 +1,4 @@
-"""Integration test — FastAPI health + chat endpoint with mocked Granite."""
+"""Integration test - FastAPI health + chat endpoint with mocked Granite."""
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport

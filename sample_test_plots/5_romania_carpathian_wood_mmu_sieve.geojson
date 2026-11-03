@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "name": "Romania_Carpathian_Wood_MMU_Sieve_And_Slope",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "RO-CARP-WOOD-2026-05",
+        "name": "Făgăraș Carpathian Timber Concession (Romania)",
+        "commodity": "wood",
+        "country_code": "RO",
+        "country_name": "Romania",
+        "test_scenario": "Temperate Forest Wood Harvesting + FAO >=0.5 ha Minimum Mapping Unit (MMU) Sieve (0.25 ha micro-gap < 0.5 ha threshold) + Steep Slope SRTM Topographic Physics"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [24.6850, 45.5420],
+            [24.7020, 45.5420],
+            [24.7020, 45.5540],
+            [24.6850, 45.5540],
+            [24.6850, 45.5420]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "name": "Vietnam_Central_Highlands_Coffee",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "VN-DAKLAK-COFFEE-2026-08",
+        "name": "Đắk Lắk Central Highlands Robusta Plantation (Vietnam)",
+        "commodity": "coffee",
+        "country_code": "VN",
+        "country_name": "Vietnam",
+        "test_scenario": "Established Southeast Asian Robusta Coffee Agroforestry Baseline (Article 2(5) Replanting / Clean Agro-Ecological Verification)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [108.0420, 12.6820],
+            [108.0580, 12.6820],
+            [108.0580, 12.6950],
+            [108.0420, 12.6950],
+            [108.0420, 12.6820]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

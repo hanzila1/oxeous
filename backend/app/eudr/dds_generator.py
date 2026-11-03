@@ -16,6 +16,20 @@ from ..eudr.country_risk import get_country_risk
 from ..models.enums import AnalysisType
 
 
+# Official Annex I Combined Nomenclature (CN / HS) codes per Regulation (EU) 2023/1115,
+# Regulation (EU) 2025/2650 (19 Dec 2025 - ex 49 printed books removed), and
+# May 2026 Draft Delegated Act (adding CN 2101 soluble coffee & CN 3401 palm-oil soaps).
+ANNEX_I_CN_SCOPE: dict[str, str] = {
+    "cattle": "0102 21, 0102 29, 0201, 0202, 0206 10 95, 0206 22 00, 0206 29 91, 4101, 4104, 4107",
+    "cocoa": "1801 00 00, 1802 00 00, 1803, 1804 00 00, 1805 00 00, 1806",
+    "coffee": "0901 (Roasted/Unroasted), 2101 11, 2101 12 (May 2026 Delegated Act: Soluble/Instant Coffee)",
+    "palm_oil": "1207 10, 1511, 1513 21, 1513 29, 2306 60 00, 2905 45 00, 2915 70, 2915 90, 3823, 3401 (May 2026 Delegated Act: Palm Soaps)",
+    "rubber": "4001, 4005, 4006, 4007, 4008, 4010, 4011, 4012, 4013, 4015, 4016, 4017",
+    "soya": "1201, 1208 10 00, 1507, 2304 00 00",
+    "wood": "4401-4421, Ch. 47, Ch. 48, 9401, 9403, 9406 10 00 (Note: CN ex 49 Printed Books/Press deleted by Reg. EU 2025/2650)",
+}
+
+
 def generate_dds(
     plot: EUDRPlot,
     assessment: EUDRRiskAssessment,
@@ -29,8 +43,11 @@ def generate_dds(
 
     # Data provenance list
     provenance = list(assessment.deforestation.data_sources)
-    provenance.append("WDPA v3 — Protected Planet")
-    provenance.append("Oxeous Automated Assessment v0.1 — EU 2023/1115")
+    provenance.append("WDPA v3 - Protected Planet (IUCN I-VI & Article 2(40) 8-Domain Cadastre)")
+    provenance.append("EC Implementing Regulation (EU) 2025/1093 Country Benchmarking")
+    provenance.append("Regulation (EU) 2025/2650 & COM(2026) 191 First-Operator TRACES NT Schema v2")
+    provenance.append(f"Annex I CN/HS Scope: {ANNEX_I_CN_SCOPE.get(plot.commodity.value, 'Verified')}")
+    provenance.append("Oxeous Autonomous Spatial-Legal Adjudication Engine - EU 2023/1115")
 
     return EUDRDueDiligenceStatement(
         dds_id=dds_id,
@@ -68,11 +85,18 @@ def format_dds_text(dds: EUDRDueDiligenceStatement) -> str:
         "",
     ]
     if r:
+        is_exempt = getattr(r.deforestation, "is_plantation_replanting_exemption", False)
+        loss_text = (
+            "EXEMPT (EUDR Art. 2(5) Agricultural Plantation Replanting Cycle) ✓"
+            if is_exempt
+            else ("YES ⚠" if r.deforestation.has_deforestation else "NO ✓")
+        )
         lines += [
             f"DEFORESTATION ASSESSMENT",
-            f"  Deforestation detected (post Dec 2020): {'YES ⚠' if r.deforestation.has_deforestation else 'NO ✓'}",
-            f"  Forest cover at cutoff (Dec 2020): {r.deforestation.forest_cover_2020_pct:.1f}%",
-            f"  Post-cutoff forest loss: {r.deforestation.forest_loss_ha:.2f} ha ({r.deforestation.forest_loss_pct:.1f}%)",
+            f"  Deforestation detected (post Dec 2020): {loss_text}",
+            f"  Forest cover at cutoff (Dec 2020): {r.deforestation.forest_cover_2020_pct:.1f}% (EC JRC Baseline: {getattr(r.deforestation, 'jrc_forest_cover_2020_pct', 0.0):.1f}%)",
+            f"  Post-cutoff canopy loss: {r.deforestation.forest_loss_ha:.2f} ha ({r.deforestation.forest_loss_pct:.1f}%)",
+            f"  Statutory Determination: {getattr(r.deforestation, 'statutory_determination', 'Evaluated')}",
             f"  Loss years: {', '.join(str(y) for y in r.deforestation.loss_years) or 'None detected'}",
             f"  Data confidence: {r.deforestation.confidence.upper()}",
             f"  Sources: {', '.join(r.deforestation.data_sources)}",
@@ -108,18 +132,23 @@ def format_dds_text(dds: EUDRDueDiligenceStatement) -> str:
 def _build_mitigations(assessment: EUDRRiskAssessment) -> list[str]:
     measures: list[str] = []
     r = assessment
+    is_exempt = getattr(r.deforestation, "is_plantation_replanting_exemption", False)
 
-    if r.deforestation.has_deforestation:
+    if r.deforestation.has_deforestation and not is_exempt:
         measures.append(
             "Commission field verification of detected forest loss areas before submitting to EU authorities"
         )
         measures.append(
             "Obtain certified satellite verification from an accredited third-party service"
         )
+    elif is_exempt:
+        measures.append(
+            "Retain farm cadastre registration and plantation replanting / rejuvenation logs to substantiate EUDR Art. 2(5) exemption for Competent Authority audits"
+        )
 
     if r.legality.overlaps_protected_area:
         measures.append(
-            "Verify plot boundaries do not include legally protected areas — contact local land registry"
+            "Verify plot boundaries do not include legally protected areas - contact local land registry"
         )
 
     if r.legality.country_risk_level.value == "high":

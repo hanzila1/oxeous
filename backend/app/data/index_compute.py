@@ -1,5 +1,5 @@
 """
-Index computation — NDMI, NDVI, NDWI, NBR formulas.
+Index computation - NDMI, NDVI, NDWI, NBR formulas.
 All functions accept float32 2D NumPy arrays and return float32 arrays.
 Division-by-zero protected by np.errstate.
 """

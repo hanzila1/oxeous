@@ -1,4 +1,4 @@
-"""POST /export — export result as PNG + stats JSON zip."""
+"""POST /export - export result as PNG + stats JSON zip."""
 import io
 import json
 import zipfile
@@ -36,7 +36,7 @@ async def export_result(body: ExportRequest) -> StreamingResponse:
         with open(tile_path, "rb") as f:
             zf.writestr(f"oxeous_{request_id}.png", f.read())
 
-        # Stats JSON (placeholder — full stats stored in cache in production)
+        # Stats JSON (placeholder - full stats stored in cache in production)
         stats_json = json.dumps(
             {"request_id": request_id, "note": "Full statistics available via /chat response."},
             indent=2,

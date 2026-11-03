@@ -18,7 +18,7 @@ try:
     _DISKCACHE_AVAILABLE = True
 except ImportError:
     _DISKCACHE_AVAILABLE = False
-    logger.warning("diskcache not installed — using in-memory cache (not persistent)")
+    logger.warning("diskcache not installed - using in-memory cache (not persistent)")
 
 from ..config import get_settings
 

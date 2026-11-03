@@ -1,5 +1,5 @@
 """
-Trajectory Logger — captures every agent step to a JSON file.
+Trajectory Logger - captures every agent step to a JSON file.
 Required deliverable: agent trajectories showing instructions → tool calls → results.
 """
 from __future__ import annotations

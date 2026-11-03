@@ -1,0 +1,85 @@
+{
+  "type": "FeatureCollection",
+  "name": "CO-CALDAS-COOP-2026",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "CO-CALDAS-COOP-2026",
+        "name": "Chinchina Andean Slope Coffee Cooperative (Caldas, Colombia)",
+        "commodity": "coffee",
+        "country_code": "CO",
+        "country_name": "Colombia",
+        "area_ha": 94.83,
+        "statutory_baseline": "EC JRC GFC2020 (Dec 31, 2020)",
+        "article_reference": "EUDR Art. 3(a) & Art. 9(1)(d) 100% Deforestation-Free Benchmark",
+        "test_scenario": "2 high-altitude coffee parcels following Andean terrain contours. Long-established shade-grown Arabica agroforestry with zero post-cutoff clearing."
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                -75.482,
+                5.382
+              ],
+              [
+                -75.4775,
+                5.3855
+              ],
+              [
+                -75.474,
+                5.383
+              ],
+              [
+                -75.4725,
+                5.3795
+              ],
+              [
+                -75.476,
+                5.377
+              ],
+              [
+                -75.4805,
+                5.378
+              ],
+              [
+                -75.482,
+                5.382
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -75.471,
+                5.388
+              ],
+              [
+                -75.467,
+                5.3905
+              ],
+              [
+                -75.4645,
+                5.3875
+              ],
+              [
+                -75.466,
+                5.384
+              ],
+              [
+                -75.47,
+                5.385
+              ],
+              [
+                -75.471,
+                5.388
+              ]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

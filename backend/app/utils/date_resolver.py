@@ -1,5 +1,5 @@
 """
-DateResolver — converts natural-language temporal references to ISO date ranges.
+DateResolver - converts natural-language temporal references to ISO date ranges.
 """
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def resolve(expression: str, reference: date | None = None) -> tuple[str, str]:
     if m:
         return m.group(1), m.group(2)
 
-    # Single ISO date "YYYY-MM-DD" — treat as a 1-month window ending that date
+    # Single ISO date "YYYY-MM-DD" - treat as a 1-month window ending that date
     m = re.match(r"(\d{4}-\d{2}-\d{2})", expr)
     if m:
         end = date.fromisoformat(m.group(1))

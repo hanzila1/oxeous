@@ -1,5 +1,5 @@
 """
-Prithvi Postprocessor — converts inference mask to GeoTIFF tiles + hotspot GeoJSON.
+Prithvi Postprocessor - converts inference mask to GeoTIFF tiles + hotspot GeoJSON.
 """
 from __future__ import annotations
 

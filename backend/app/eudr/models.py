@@ -1,12 +1,14 @@
-"""EUDR Pydantic models — EU Deforestation Regulation (EU) 2023/1115"""
+"""EUDR Pydantic models - EU Deforestation Regulation (EU) 2023/1115"""
 from __future__ import annotations
 
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
+from .agents.models import SupervisorConsensus
 
-# ─── Enums ────────────────────────────────────────────────────────────────────
+
+# --- Enums --------------------------------------------------------------------
 
 class EUDRCommodity(str, Enum):
     cattle    = "cattle"
@@ -32,7 +34,7 @@ class EUDRCountryRisk(str, Enum):
     high     = "high"
 
 
-# ─── Geometry ─────────────────────────────────────────────────────────────────
+# --- Geometry -----------------------------------------------------------------
 
 class PolygonGeometry(BaseModel):
     type: Literal["Polygon"]
@@ -47,7 +49,7 @@ class PointGeometry(BaseModel):
     coordinates: list[float]
 
 
-# ─── Plot ─────────────────────────────────────────────────────────────────────
+# --- Plot ---------------------------------------------------------------------
 
 class EUDRPlot(BaseModel):
     plot_id: str
@@ -57,6 +59,7 @@ class EUDRPlot(BaseModel):
     country_name: str
     geometry: dict[str, Any]             # GeoJSON geometry object
     area_ha: Optional[float] = None
+    declared_net_mass_kg: Optional[float] = None
     supplier_name: Optional[str] = None
     reference_date: Optional[str] = None
     uploaded_at: str
@@ -72,9 +75,10 @@ class EUDRPlotUploadRequest(BaseModel):
     supplier_name: Optional[str] = None
     reference_date: Optional[str] = None
     area_ha: Optional[float] = None
+    declared_net_mass_kg: Optional[float] = None
 
 
-# ─── Findings ────────────────────────────────────────────────────────────────
+# --- Findings ----------------------------------------------------------------
 
 class DeforestationFinding(BaseModel):
     plot_id: str
@@ -82,15 +86,39 @@ class DeforestationFinding(BaseModel):
     forest_cover_2000_pct: float = 0.0
     pre_cutoff_loss_pct: float = 0.0
     forest_cover_2020_pct: float = 0.0
+    jrc_forest_cover_2020_pct: float = 0.0       # European Commission JRC GFC2020 10m official baseline
     forest_loss_pct: float = 0.0
     forest_loss_ha: float = 0.0
+    radd_alert_pct: float = 0.0                 # Sentinel-1 Radar RADD near-real-time disturbance
     natural_forest_pct: float = 0.0
     dominant_forest_type: str = ""
     dominant_loss_driver: str = ""
     commodity_confirmed: bool = False
     commodity_coverage_pct: float = 0.0
+    is_plantation_replanting_exemption: bool = False
+    statutory_determination: str = ""
+    # -- Pixel-Wise Raster Intersection (PWRI) & Plot Carve-Out Metrics ----------
+    total_parcel_ha: float = 0.0
+    statutory_deforestation_ha: float = 0.0      # True intersection: Post-2020 loss and JRC Forest 2020 (Art. 3(a))
+    plantation_replanting_ha: float = 0.0        # Post-2020 loss in Non-Forest Plantation (Art. 2(5))
+    silviculture_replanting_ha: float = 0.0      # Post-2020 loss in Managed Planted Forest (Art. 2(3)/2(7))
+    is_silviculture_exemption: bool = False      # True if harvesting is lawful rotational silviculture
+    compliant_ha: float = 0.0                    # Compliant agricultural / managed land area
+    spatial_compliance_pct: float = 100.0        # Continuous spatial compliance percentage
+    carveout_eligible_ha: float = 0.0            # Segregation area under EUDR Art. 9 & May 2026 Guidance
+    mmu_filtered_loss_ha: float = 0.0            # Contiguous loss patches >= 0.5 ha (FAO MMU Art. 2(4))
+    mean_elevation_m: float = 0.0                # NASA SRTM 30m mean elevation (m ASL)
+    mean_slope_deg: float = 0.0                  # NASA SRTM 30m mean terrain slope (degrees)
+    perimeter_halo_loss_pct: float = 0.0         # 500m external spatial halo ring disturbance %
+    perimeter_km: float = 0.0                    # Exact WGS84 ellipsoidal geodesic perimeter (km)
+    compactness_index: float = 0.0               # Polsby-Popper parcel shape compactness (0.0-1.0)
+    agro_climatic_biome: str = ""                # Global latitude agro-climatic forest biome
+    intersection_tile_url: Optional[str] = None
+    pwri_classified_tile_url: Optional[str] = None # Live 4-Class Discrete Classified Output Raster Map Tile
+    pwri_3d_breakdown: Optional[dict[str, Any]] = None # Full Tri-Axial Tensor & Legal Map Algebra Metrics
+    sha256_merkle_provenance: Optional[str] = None # Cryptographic proof of the spatial raster tensor
     loss_years: list[int] = Field(default_factory=list)
-    confidence: str = "medium"           # high | medium | low
+    confidence: str = "medium"                  # high | medium | low
     data_sources: list[str] = Field(default_factory=list)
     acquisition_dates: list[str] = Field(default_factory=list)
     ndvi_before: Optional[float] = None
@@ -100,13 +128,15 @@ class DeforestationFinding(BaseModel):
 class LegalityFinding(BaseModel):
     plot_id: str
     overlaps_protected_area: bool = False
+    protected_area_overlap_pct: float = 0.0     # Percentage of plot overlapping protected areas
+    is_strict_protected_area: bool = False      # True if IUCN Category I-IV (Strict Nature Reserve / National Park)
     protected_area_names: list[str] = Field(default_factory=list)
     protected_area_categories: list[str] = Field(default_factory=list)
     country_risk_level: EUDRCountryRisk = EUDRCountryRisk.standard
     issues: list[str] = Field(default_factory=list)
 
 
-# ─── Risk Assessment ─────────────────────────────────────────────────────────
+# --- Risk Assessment ---------------------------------------------------------
 
 class EUDRRiskAssessment(BaseModel):
     plot_id: str
@@ -119,9 +149,10 @@ class EUDRRiskAssessment(BaseModel):
     assessor: str = "oxeous-automated"
     requires_human_review: bool = False
     summary: str = ""
+    multi_agent_consensus: Optional[SupervisorConsensus] = None
 
 
-# ─── Due Diligence Statement ──────────────────────────────────────────────────
+# --- Due Diligence Statement --------------------------------------------------
 
 class EUDRDueDiligenceStatement(BaseModel):
     dds_id: str
@@ -138,7 +169,7 @@ class EUDRDueDiligenceStatement(BaseModel):
     regulation_reference: str = "EU 2023/1115"
 
 
-# ─── Analysis request/response ────────────────────────────────────────────────
+# --- Analysis request/response ------------------------------------------------
 
 class EUDRAnalysisRequest(BaseModel):
     plot: EUDRPlot
@@ -153,7 +184,7 @@ class GEEMapLayer(BaseModel):
     label: str
     tile_url: str                        # MapLibre-compatible XYZ tile URL from GEE
     visible: bool = False
-    opacity: float = 0.75
+    opacity: float = 1.0
     legend: Optional[dict[str, Any]] = None
     dataset: str = ""                    # GEE asset path (provenance)
     layer_type: str = ""                 # e.g. hansen_loss, forest_typology
@@ -166,8 +197,9 @@ class EUDRAnalysisResponse(BaseModel):
     dds: Optional[EUDRDueDiligenceStatement] = None
     tile_url: Optional[str] = None
     deforestation_geojson: Optional[dict[str, Any]] = None
+    carveout_geojson: Optional[dict[str, Any]] = None
     explanation: str
     follow_up_suggestions: list[str] = Field(default_factory=list)
-    # Real GEE satellite map layers — rendered as raster overlays in MapLibre
+    # Real GEE satellite map layers - rendered as raster overlays in MapLibre
     map_layers: list[GEEMapLayer] = Field(default_factory=list)
 

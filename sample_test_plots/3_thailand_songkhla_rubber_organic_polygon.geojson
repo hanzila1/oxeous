@@ -1,0 +1,75 @@
+{
+  "type": "FeatureCollection",
+  "name": "TH-SONGKHLA-RUBBER-2026",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "TH-SONGKHLA-RUBBER-2026",
+        "name": "Songkhla River Basin Rubber Smallholding (Thailand)",
+        "commodity": "rubber",
+        "country_code": "TH",
+        "country_name": "Thailand",
+        "area_ha": 190.4,
+        "statutory_baseline": "EC JRC GFC2020 & Google FDP 2025 Commodity Baseline",
+        "article_reference": "EUDR Art. 2(5) Statutory Agricultural Plantation Replanting Exemption",
+        "test_scenario": "Organic 12-vertex parcel along river drainage curve. Hansen GFC detects canopy thinning post-2020, but Google FDP confirms continuous agricultural rubber crop rotation on pre-2020 plantation land (not deforestation under Art. 2(5))."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              100.505,
+              6.812
+            ],
+            [
+              100.5085,
+              6.816
+            ],
+            [
+              100.513,
+              6.8185
+            ],
+            [
+              100.518,
+              6.8195
+            ],
+            [
+              100.5215,
+              6.817
+            ],
+            [
+              100.5225,
+              6.813
+            ],
+            [
+              100.52,
+              6.8095
+            ],
+            [
+              100.516,
+              6.8075
+            ],
+            [
+              100.512,
+              6.8065
+            ],
+            [
+              100.508,
+              6.8075
+            ],
+            [
+              100.5055,
+              6.8095
+            ],
+            [
+              100.505,
+              6.812
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

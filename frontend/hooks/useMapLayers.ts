@@ -17,7 +17,7 @@ export function useMapLayers() {
         tileUrl: result.tile_url,
         overlayUrl: result.overlay_url,
         visible: true,
-        opacity: 0.85,
+        opacity: 1.0,
         legend: result.legend,
         analysisType: result.analysis_type,
       });

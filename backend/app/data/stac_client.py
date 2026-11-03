@@ -1,5 +1,5 @@
 """
-STAC client — queries NASA LPCLOUD, CMR-STAC, and OPERA STAC endpoints.
+STAC client - queries NASA LPCLOUD, CMR-STAC, and OPERA STAC endpoints.
 """
 from __future__ import annotations
 

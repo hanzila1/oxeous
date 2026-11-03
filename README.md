@@ -24,16 +24,17 @@
 
 ---
 
-## 🏆 Hackathon Deliverables
+## 🏛️ Core Platform Architecture & Research Publications
 
-| Deliverable | Description | File Link |
+| Deliverable | Description | Location / Link |
 | :--- | :--- | :--- |
-| **01. Solution & Changelog** | Complete project code, prompt instructions, and changelog | [`IMPROVEMENT_CHANGELOG.md`](IMPROVEMENT_CHANGELOG.md) |
-| **02. Baseline & Evaluation** | 10-test benchmark comparison matrix, cost & time improvements | [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
-| **03. Hot Take & Failure Modes** | Observed failure modes, lessons learned, and agent insights | [`HOT_TAKE.md`](HOT_TAKE.md) |
-| **04. Reproducibility Guide** | Step-by-step instructions to run in clean environments ($0 cost) | [`REPRODUCTION_GUIDE.md`](REPRODUCTION_GUIDE.md) |
-| **Evaluation Script** | Deterministic CLI benchmark suite (supports mock & live GEE) | [`evaluate.py`](evaluate.py) |
-| **Audit Trajectories** | Verifiable, tamper-evident JSON audit logs for regulators | [`trajectories/`](trajectories/) |
+| **01. Research Whitepaper** | Compile-verified 6-page technical paper & statutory concordance | [`docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf`](docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf) |
+| **02. System Pipeline (Fig. 1)** | End-to-end 4-stage statutory adjudication architecture | [`docs/finals/Figure_1_Full_System_Pipeline.png`](docs/finals/Figure_1_Full_System_Pipeline.png) |
+| **03. PWRI-3D Engine (Fig. 2)** | Pixel-Wise Raster Intersection (Spatial $\times$ Temporal $\times$ Statutory) | [`docs/finals/Figure_2_PWRI_3D_Map_Algebra.png`](docs/finals/Figure_2_PWRI_3D_Map_Algebra.png) |
+| **04. Multi-Agent Constellation (Fig. 3)** | Six-agent deterministic consensus & cryptographic audit ledger | [`docs/finals/Figure_3_Multi_Agent_Architecture.png`](docs/finals/Figure_3_Multi_Agent_Architecture.png) |
+| **05. Mathematical Invariants (Fig. 4)** | Four deterministic decision rules resolving EUDR bottlenecks | [`docs/finals/Figure_4_Mathematical_Foundations_and_Statutory_Invariants.png`](docs/finals/Figure_4_Mathematical_Foundations_and_Statutory_Invariants.png) |
+| **06. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
+| **07. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
 
 ---
 
@@ -200,30 +201,37 @@ Open **`http://localhost:3000`** in your browser to experience the full interact
 
 ```
 oxeous/
-├── evaluate.py                  # Root wrapper for 10-case evaluation benchmark
-├── IMPROVEMENT_CHANGELOG.md     # Detailed 4-stage engineering changelog
-├── HOT_TAKE.md                  # Failure modes, lessons learned, and core insights
-├── REPRODUCTION_GUIDE.md        # Step-by-step reproduction instructions ($0 cost)
-├── package_submission.py        # Automated submission packaging script
+├── evaluate.py                  # CLI benchmark suite (10 standard test cases)
+├── sample_test_plots/           # Verified EUDR multi-polygon and point GeoJSONs
+├── EUDR_Audit_Reports_Portfolio/# Complete multi-biome audit dossiers
 │
-├── backend/                     # FastAPI backend
+├── backend/                     # FastAPI backend & spatial analysis engine
 │   ├── app/
-│   │   ├── eudr/                # EUDR compliance engine & risk formulas
-│   │   ├── tools/eudr/          # 6 Google Earth Engine satellite tools
+│   │   ├── eudr/                # EUDR compliance engine, carve-out studio & yield agent
+│   │   │   ├── agents/          # Six specialized domain agents (A1 to A6 + supervisor)
+│   │   │   ├── carveout_service.py # Topological Shapely 2.0 parcel excision
+│   │   │   ├── dds_generator.py # TRACES NT Due Diligence Statement generator
+│   │   │   └── models.py        # Pydantic schema & compliance models
+│   │   ├── tools/eudr/          # GEE commodity & multi-sensor map-algebra tools
 │   │   └── api/                 # REST & SSE streaming endpoints
 │   └── tests/                   # 500+ unit and integration test suite
 │
 ├── frontend/                    # Next.js 14 web application
 │   ├── components/
-│   │   ├── map/                 # MapLibre GL satellite canvas with zero-fade raster caching
+│   │   ├── map/                 # MapLibre GL satellite canvas with raster tile caching
 │   │   ├── chat/                # Earth Agent conversation panel & FormattedMarkdown
-│   │   └── eudr/                # EUDR compliance dashboard & DDS export
+│   │   └── eudr/                # Compliance dashboard, telemetry & audit modal
 │   └── lib/                     # MapLibre style layers & Zustand global store
 │
-├── evaluation/                  # Standardized 10-test evaluation suite & mock data
 ├── trajectories/                # Immutable JSON audit logs for EU regulators
 └── docs/
-    ├── BASELINE_COMPARISON.md   # Official rubric evaluation matrix & challenging cases
+    ├── finals/                  # Publication-grade figures (Fig 1-4) & Research Whitepaper
+    │   ├── Figure_1_Full_System_Pipeline.*
+    │   ├── Figure_2_PWRI_3D_Map_Algebra.*
+    │   ├── Figure_3_Multi_Agent_Architecture.*
+    │   ├── Figure_4_Mathematical_Foundations_and_Statutory_Invariants.*
+    │   └── Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf
+    ├── BASELINE_COMPARISON.md   # Benchmark evaluation matrix & challenging cases
     ├── hero-banner.png          # Visual hero banner
     └── interface.png            # Web UI screenshot showcase
 ```
@@ -234,5 +242,5 @@ oxeous/
 MIT License — see [`LICENSE`](LICENSE) for details.
 
 <p align="center">
-  <sub>Built for the Frontier Engineering Challenge 2026. Powered by Google Earth Engine and Google Gemini.</sub>
+  <sub>Oxeous — Autonomous Spatial-Legal Intelligence & Mathematical Foundations for EUDR Compliance. Developed by Oxeous Research.</sub>
 </p>
