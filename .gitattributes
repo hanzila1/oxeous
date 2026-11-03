@@ -1,0 +1,13 @@
+# GitHub Linguist Overrides
+# Exclude generated HTML reports, datasets, and docs from language statistics
+# so that the repository correctly reflects Python & TypeScript as primary languages.
+
+*.html linguist-documentation
+*.html -linguist-detectable
+docs/** linguist-documentation
+EUDR_Audit_Reports_Portfolio/** linguist-documentation
+frontend/public/** linguist-vendored
+sample_test_plots/** linguist-documentation
+trajectories/** linguist-documentation
+*.geojson linguist-documentation
+*.svg linguist-documentation
