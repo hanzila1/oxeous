@@ -32,15 +32,14 @@
 | **02. System Pipeline (Fig. 1)** | End-to-end 4-stage statutory adjudication architecture | [`docs/finals/Figure_1_Full_System_Pipeline.png`](docs/finals/Figure_1_Full_System_Pipeline.png) |
 | **03. PWRI-3D Engine (Fig. 2)** | Pixel-Wise Raster Intersection (Spatial $\times$ Temporal $\times$ Statutory) | [`docs/finals/Figure_2_PWRI_3D_Map_Algebra.png`](docs/finals/Figure_2_PWRI_3D_Map_Algebra.png) |
 | **04. Multi-Agent Constellation (Fig. 3)** | Six-agent deterministic consensus & cryptographic audit ledger | [`docs/finals/Figure_3_Multi_Agent_Architecture.png`](docs/finals/Figure_3_Multi_Agent_Architecture.png) |
-| **05. Mathematical Invariants (Fig. 4)** | Four deterministic decision rules resolving EUDR bottlenecks | [`docs/finals/Figure_4_Mathematical_Foundations_and_Statutory_Invariants.png`](docs/finals/Figure_4_Mathematical_Foundations_and_Statutory_Invariants.png) |
-| **06. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
-| **07. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
+| **05. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
+| **06. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
 
 ---
 
 ## 📐 Breakthrough Architecture & Methodological Foundations
 
-Oxeous replaces naive 2D satellite differencing with four deterministic spatial-legal invariants. Below are the core architectural pillars:
+Oxeous replaces naive 2D satellite differencing with three core architectural pillars:
 
 ### 1. End-to-End Autonomous Verification Pipeline (Figure 1)
 > *From operator input (polygon $P$, net mass $m$, commodity $c$) through multi-source evidence extraction, deterministic PWRI-3D map algebra, six-agent consensus gate, to certified EU TRACES NT Due Diligence Statement (TARIC code C716) and cryptographic SHA-256 audit ledger.*
@@ -65,15 +64,6 @@ Oxeous replaces naive 2D satellite differencing with four deterministic spatial-
 
 <p align="center">
   <img src="./docs/finals/Figure_3_Multi_Agent_Architecture.png" alt="Autonomous Multi-Agent Spatial Verification Constellation" width="100%" />
-</p>
-
----
-
-### 4. Mathematical Foundations & Statutory Invariants (Figure 4)
-> *Four deterministic decision rules linking statutory EUR-Lex articles (Articles 2(3)–2(7), 9(1)(d), 10(2)(f), 16(3), 25(2)(a), and TARIC C716) directly to computational geometries and biophysical mass bounds.*
-
-<p align="center">
-  <img src="./docs/finals/Figure_4_Mathematical_Foundations_and_Statutory_Invariants.png" alt="Mathematical Foundations and Statutory Invariants" width="100%" />
 </p>
 
 ---
@@ -146,42 +136,27 @@ Every meaningful iteration followed a deliberate hypothesis, hit a specific tech
 
 ---
 
-## 🛰️ Agent Architecture: 6 Authoritative Satellite Tools
-
-Oxeous executes a parallel, multi-scale Earth Observation pipeline orchestrated directly on Google Earth Engine:
-
-![Oxeous Earth Agent Autonomous Planetary Architecture](./docs/architecture-diagram.png)
-
-1. **Hansen Global Forest Change v1.13 (2025)**: Evaluates baseline canopy and counts exact post-2020 deforestation loss pixels (`lossyear > 20`).
-2. **Nature Trace Natural Forests 2020 (10m)**: Authoritative baseline probability map verifying whether land was natural forest at the December 31, 2020 cutoff.
-3. **Forest Typology 2020 (ForTy)**: Distinguishes primary natural forest from tree plantations and agroforestry.
-4. **WRI / Google DeepMind Drivers of Forest Loss (2001–2025)**: Identifies whether forest loss was driven by permanent commercial agriculture, shifting cultivation, or natural wildfire.
-5. **Forest Data Partnership Commodity Maps (2025)**: Verifies physical presence of declared commodities (oil palm, cocoa, soya).
-6. **WDPA World Database on Protected Areas**: Performs real-time spatial boundary intersection against global national parks and ecological reserves.
-
----
-
-## 🔥 Hot Take & The Main Failure Mode
+## 🔥 Ground Truth Beats Model Size
 
 ### The Main Failure Mode: Text-Trust Greenwashing
 During baseline testing, the most critical failure occurred in **TC-05 (Colombia Coffee)**. The supplier declared:
 > *"Small family coffee farm. Land cleared in 2019, no recent clearing."*
 
-A text-only frontier LLM trusted this statement, parsed the pre-2020 date, and awarded a **PASS**. Under EUDR, this false pass represents a catastrophic legal liability—satellite analysis revealed **2.1 hectares of primary forest bulldozed in 2022**.
+A text-only LLM trusted this statement, parsed the pre-2020 date, and awarded a **PASS**. Under EUDR, this false pass represents a catastrophic legal liability—satellite analysis revealed **2.1 hectares of primary forest bulldozed in 2022**.
 
-### My Hot Take: Ground Truth Beats Model Size
+### Core Philosophy: Sensory Ground Truth
 > **"Text-only LLMs are blind auditors that enable greenwashing. An agent's intelligence in physical-world compliance is bounded by the authority of its sensory tools, not the parameter count of its language model."**
 
-Most compliance startups make the mistake of using LLMs to read supplier PDFs and summarize self-reported declarations. Oxeous flips this upside down: **The satellite sees first. The physical pixels dictate the facts. The LLM's role is strictly to explain the evidence, never to invent it.**
+Most compliance tools make the mistake of using LLMs to read supplier PDFs and summarize self-reported declarations. Oxeous flips this upside down: **The satellite sees first. The physical pixels dictate the facts. The LLM's role is strictly to explain the evidence, never to invent it.**
 
 ---
 
 ## ⚡ Instant Reproduction (Zero-Credential Mock Mode)
 
-Judges can reproduce the complete 10-test evaluation suite comparing **Baseline vs. Agent side-by-side** from a clean environment without any API keys or credentials in under 2 seconds:
+You can reproduce the complete 10-test evaluation suite comparing **Baseline vs. Agent side-by-side** from a clean environment without any API keys or credentials in under 2 seconds:
 
 ```bash
-# 1. Clone the repository (or unzip oxeous_submission.zip)
+# 1. Clone the repository
 git clone https://github.com/hanzila1/oxeous.git
 cd oxeous
 
