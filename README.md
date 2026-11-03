@@ -25,7 +25,7 @@
 
 ---
 
-![Oxeous Interactive Web Application Interface](./docs/interface.png)
+![Oxeous Interactive Web Application Interface](./docs/oxeous-interface.png)
 
 ---
 
