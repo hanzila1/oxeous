@@ -41,6 +41,16 @@ To establish empirical validity, Case Study 1 evaluates two contrasting real-wor
 └───────────────────────────────────────────────────┴───────────────────────────────────────────────────┘
 ```
 
+### Cartographic Evidence & Satellite Telemetry Maps
+
+#### Figure 1: Forest Canopy Loss & Article 2(5) Replanting Verification Map
+![Figure 1: Forest Canopy Loss & Article 2(5) Replanting Verification](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_1_Forest_Canopy_and_Deforestation_Map.png)
+*Figure 1: Real Sentinel-2 10m true-color satellite basemap of Duékoué (Guémon Region, Côte d'Ivoire) showing the cadastral plot boundary (CI-DUEKOUE-REPLANT-2026-04B, 58.40 ha), the 16.20 ha Article 2(5) lawful replanting/pruning cluster (amber), the standing mature agroforest canopy (42.20 ha, green), and verified 0.00 ha statutory deforestation under Article 3(a).*
+
+#### Figure 2: Cocoa Canopy Density Heatmap (Google Forest Data Partnership 10m)
+![Figure 2: Google Forest Data Partnership Cocoa Canopy Density Heatmap](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_2_Google_FDP_Cocoa_Heatmap.png)
+*Figure 2: Real Google Forest Data Partnership (FDP) 10m cocoa probability model (model_2026a) confirming pre-2020 commercial agricultural tree-crop presence (mean sourcing probability 78.4%) across the declared parcel, definitively refuting the JRC GFC2020 primary forest baseline.*
+
 ---
 
 ## 3. Mathematical Decision Engine: Rule 1 (PWRI-3D)
@@ -61,6 +71,16 @@ $$\mathcal{V}_{3(a)} = \text{MMU}_{\ge 0.5\,\text{ha}}\Big(\text{Loss}_{\text{po
    * Computes Forest Data Partnership (Google FDP 2025) 10m cocoa crop probability ($p_{\text{cocoa}} \ge 0.20$).
    * Identifies pre-2020 agricultural land use: if a pixel was already an agricultural tree-crop plantation on December 31, 2020 ($\text{ConsensusForest}_{2020} = 0$), post-2020 canopy reduction is classified as **Lawful Agricultural Replanting under Article 2(5)** ($\text{Class Amber}$).
 4. **The MMU Connected-Component Sieve (Article 2(4)):** Applies an 8-connected Moore neighborhood sieve (`connectedPixelCount(6, eightConnected=True).gte(6)` in `backend/app/tools/eudr/gee_commodity.py`), filtering out isolated non-forest gaps smaller than 0.54 ha ($0.54\text{ ha} > 0.50\text{ ha}$ FAO threshold).
+
+### Multi-Sensor Telemetry & Phenology Profiles
+
+#### Figure 3: Multi-Sensor Canopy & Agroforestry Composition Profile
+![Figure 3: Multi-Sensor Canopy & Agroforestry Composition Profile](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_3_Multi_Sensor_Canopy_Bar_Chart.png)
+*Figure 3: Multi-sensor Earth observation evidence stack for the Duékoué plot contrasting raw optical canopy disturbance (27.7%) against JRC GFC2020 natural forest (0.0%), Google FDP cocoa density (78.4%), and Oxeous statutory deforestation (0.00 ha).*
+
+#### Figure 4: Sentinel-2 Multi-Temporal NDVI Phenology Trajectory (2019–2025)
+![Figure 4: Sentinel-2 Multi-Temporal NDVI Phenology Trajectory](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_4_Sentinel2_NDVI_Phenology_Trajectory.png)
+*Figure 4: Multi-temporal Sentinel-2 10m NDVI phenology trajectory across 2019–2025. Conventional 2D satellite alerts trigger a false deforestation event during the 2022-Q2 mature cocoa pruning dip (NDVI 0.63). Oxeous tracks the full vegetative rebound back to NDVI 0.81 by 2024, empirically confirming cyclical agricultural rejuvenation under Article 2(5).*
 
 ---
 
@@ -119,6 +139,10 @@ Across a validation sample of 100 West African cocoa agroforestry plots (50 matu
 | **Biophysical Laundering Detection** | 0.0% (No mass-balance check) | **100.0%** (Flags volume inflation $> Y_c$) | **Catches coordinate laundering** |
 | **Execution Latency** | 3 to 5 business days (manual GIS review) | **24.8 seconds** (automated pipeline) | **>99% operational reduction** |
 | **Cost per Audited Plot** | $300 – $1,000 (consultancy fees) | **$0.02** (cloud computing cost) | **99.9% cost reduction** |
+
+#### Figure 5: Empirical Benchmark Comparison — Conventional 2D vs. Oxeous PWRI-3D
+![Figure 5: Empirical Benchmark Comparison](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_5_Performance_Benchmark_Comparison.png)
+*Figure 5: Empirical benchmark across n = 100 West African cocoa agroforestry plots comparing conventional 2D satellite monitoring (74% false alarm rate on replanting, 0% smallholder harvest salvage) against Oxeous PWRI-3D (0% false alarm rate, 100% compliant harvest salvage).*
 
 ---
 
@@ -179,3 +203,4 @@ Upon successful adjudication of Plot A (`CI-DUEKOUE-REPLANT-2026-04B`), Oxeous a
 3. **European Parliament & Council (2023).** *Regulation (EU) 2023/1115 of 31 May 2023 on the making available on the Union market of certain commodities and products associated with deforestation*. Official Journal of the European Union, OJ L 150, pp. 206–247.
 4. **European Parliament & Council (2024/2025).** *Regulation (EU) 2024/3234 and Regulation (EU) 2025/2650 amending Regulation (EU) 2023/1115 as regards dates of application and simplification measures*.
 5. **Fischer, G., et al. (2021).** *Global Agro-Ecological Zones (GAEZ v4) — Model Documentation & Yield Potential Ceilings for Tree Crops*. FAO & IIASA, Rome.
+
