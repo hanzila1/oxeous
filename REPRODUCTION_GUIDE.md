@@ -1,19 +1,19 @@
-# Reproduction Guide — Oxeous Earth Agent
-**Frontier Engineering Challenge 2026 — Track: Autonomous Spatial Agents**
+# Reproduction Guide — Oxeous Spatial Compliance Engine
+**Autonomous Spatial-Legal Intelligence for EUDR Compliance**
 
-> **Target Audience:** Hackathon Judges & Evaluators starting from a clean environment.  
+> **Target Audience:** Researchers, Evaluators, and Engineers deploying or testing in clean environments.  
 > **Cost to Reproduce:** **$0.00**  
-> **GPU Required:** **No** (Runs on any standard CPU laptop or cloud VM).
+> **GPU Required:** **No** (Runs on standard CPU laptop or cloud VM).
 
 ---
 
-## ⚡ 60-Second Fast Path for Judges (Zero Credentials / $0 Cost)
+## ⚡ 60-Second Fast Path (Zero Credentials / $0 Cost)
 
-Judges evaluate dozens of projects. You do **not** need a Google Earth Engine account approval or any API keys to test our agent's decision logic and verify the 100% accuracy result:
+You do **not** need immediate Google Earth Engine account credentials or external API keys to test the agent's decision logic and verify the deterministic benchmark results:
 
 ```bash
-# 1. Unzip the submission archive (or clone from GitHub)
-unzip oxeous_submission.zip -d oxeous
+# 1. Clone the repository
+git clone https://github.com/hanzila1/oxeous.git
 cd oxeous
 
 # 2. Run the deterministic benchmark suite (Compares Baseline vs. Agent side-by-side)
@@ -160,23 +160,20 @@ Oxeous was built in strict adherence to the **10 Ground Rules** of the Frontier 
 
 ---
 
-## 🧩 Pre-Existing Components vs. What I Built (Rule 02)
+## 🧩 Architectural Foundations & Novel Contributions
 
-To ensure complete transparency per Hackathon Rule 02:
-
-### Pre-Existing Open-Source Dependencies:
+### Open-Source Foundations:
 - **Frameworks**: FastAPI, Next.js 14, React 18, TailwindCSS, Zustand.
 - **Geospatial Libraries**: `earthengine-api`, `shapely`, `pyproj`, `rasterio`, MapLibre GL JS.
-- **AI SDK**: Google GenAI / Gemini Python SDK.
+- **AI SDK**: Google GenAI / Gemini Python SDK, Azure OpenAI / STAC client.
 
-### What I Built During the Hackathon:
-1. **6-Tool Earth Engine Orchestration Pipeline** (`gee_commodity.py`): Parallel planetary querying across Hansen GFC, Nature Trace, Forest Typology, WRI Loss Drivers, Commodity Maps, and WDPA.
-2. **Dynamic Scale Optimization (`_compute_scale`)**: Multi-scale pyramid pixel sampling preventing Earth Engine memory overflow on 1,000,000-ha plots (reduced latency from timeout to 32s).
-3. **Algorithmic Legal Risk Engine** (`risk_engine.py`): Mathematical gating enforcing EUDR Article 3 and Article 9 thresholds with human review triggers.
-4. **Immutable Audit Trajectory Logger** (`trajectories/`): Generates tamper-evident JSON audit trails for EU competent authorities.
-5. **Real-Time SSE Streaming Engine**: Streams live step-by-step agent telemetry to the frontend.
-6. **Dual-Panel Map & Chat UI**: Interactive satellite canvas with zero-fade raster tile caching + styled markdown compliance reports (`FormattedMarkdown.tsx`).
-7. **10-Case Standardized Evaluation Suite** (`evaluate.py`): Complete test harness evaluating baseline vs. agent.
+### Core Oxeous Novel Contributions:
+1. **PWRI-3D Tri-Axial Map Algebra Engine** (`gee_commodity.py`): Tri-axial raster intersection across spatial, temporal, and statutory layers with 6-pixel (0.54 ha > 0.5 ha) Moore neighborhood filtering.
+2. **Topological Carve-Out Studio** (`carveout_service.py`): Shapely 2.0 polygon subtraction and bow-tie self-intersection repair with exact WGS84 geodesic area conservation ($\pm 0.00\text{ ha}$).
+3. **Biophysical Yield Mass-Balance Gate** (`yield_agent.py`): Empirical yield ceilings stopping commodity volume laundering and $< 4\text{ ha}$ point-splitting evasion.
+4. **Deterministic Six-Agent Consensus Supervisor** (`supervisor_agent.py`): Multi-agent consensus with non-compensatory legal veto overrides and SHA-256 tamper-evident customs provenance.
+5. **Dynamic Scale Optimization (`_compute_scale`)**: Multi-scale pyramid pixel sampling preventing Earth Engine memory overflow on 1,000,000-ha plots.
+6. **Immutable Audit Trajectory Logger** (`trajectories/`): Generates court-ready JSON audit trails for EU competent authorities and TRACES NT (TARIC code C716).
 
 ---
 

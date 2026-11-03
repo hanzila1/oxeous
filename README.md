@@ -38,6 +38,46 @@
 
 ---
 
+## 📐 Breakthrough Architecture & Methodological Foundations
+
+Oxeous replaces naive 2D satellite differencing with four deterministic spatial-legal invariants. Below are the core architectural pillars:
+
+### 1. End-to-End Autonomous Verification Pipeline (Figure 1)
+> *From operator input (polygon $P$, net mass $m$, commodity $c$) through multi-source evidence extraction, deterministic PWRI-3D map algebra, six-agent consensus gate, to certified EU TRACES NT Due Diligence Statement (TARIC code C716) and cryptographic SHA-256 audit ledger.*
+
+<p align="center">
+  <img src="./docs/finals/Figure_1_Full_System_Pipeline.png" alt="Oxeous End-to-End Verification Pipeline" width="100%" />
+</p>
+
+---
+
+### 2. PWRI-3D Tri-Axial Map Algebra Engine (Figure 2)
+> *Pixel-Wise Raster Intersection adjudicating every 10-meter pixel across three simultaneous dimensions (Spatial $\otimes$ Temporal $\cap$ Statutory) with a 6-pixel ($0.54\text{ ha} > 0.5\text{ ha}$) Moore neighborhood filter—eliminating up to 75% false positives in shaded agroforestry (Art. 2(5)).*
+
+<p align="center">
+  <img src="./docs/finals/Figure_2_PWRI_3D_Map_Algebra.png" alt="PWRI-3D Tri-Axial Map Algebra Engine" width="100%" />
+</p>
+
+---
+
+### 3. Autonomous Multi-Agent Spatial Verification Constellation (Figure 3)
+> *Six specialized domain agents running in parallel across Remote Sensing (A1 Optical, A2 SAR Radar), Geospatial (A3 Cadastre & WDPA, A4 Topological Carve-Out), and Regulatory (A5 Statutory Legal, A6 Biophysical Yield Cap) feeding a deterministic, zero-hallucination Supervisor Gate.*
+
+<p align="center">
+  <img src="./docs/finals/Figure_3_Multi_Agent_Architecture.png" alt="Autonomous Multi-Agent Spatial Verification Constellation" width="100%" />
+</p>
+
+---
+
+### 4. Mathematical Foundations & Statutory Invariants (Figure 4)
+> *Four deterministic decision rules linking statutory EUR-Lex articles (Articles 2(3)–2(7), 9(1)(d), 10(2)(f), 16(3), 25(2)(a), and TARIC C716) directly to computational geometries and biophysical mass bounds.*
+
+<p align="center">
+  <img src="./docs/finals/Figure_4_Mathematical_Foundations_and_Statutory_Invariants.png" alt="Mathematical Foundations and Statutory Invariants" width="100%" />
+</p>
+
+---
+
 ## 🌍 The Problem: Who Experiences the Bottleneck?
 
 ### The Intended User

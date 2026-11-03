@@ -1,5 +1,5 @@
-# Oxeous Earth Agent — Baseline Comparison & Value Evaluation
-**Frontier Engineering Challenge 2026 — Track: Autonomous Spatial Agents**
+# Oxeous Spatial Intelligence — Baseline Comparison & Value Evaluation
+**Comparative Evaluation of Autonomous Spatial-Legal Agents vs. Conventional GIS and Naïve AI**
 
 ---
 

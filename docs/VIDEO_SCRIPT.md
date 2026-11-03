@@ -1,5 +1,5 @@
-# Oxeous Earth Agent — 5-Minute Solution Video Script & Sequence
-**Frontier Engineering Challenge 2026 — Deliverable 03 Guide**
+# Oxeous Platform Demonstration & Technical Walkthrough Script
+**Autonomous Spatial-Legal Intelligence for EUDR Compliance**
 
 > **Target Duration:** Exactly 4 to 5 minutes  
 > **Key Rubric Requirements:**

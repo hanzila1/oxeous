@@ -1,5 +1,5 @@
-# Improvement Changelog — Oxeous Earth Agent
-**Frontier Engineering Challenge 2026 — Deliverable 01: Evolution Story**
+# Engineering Evolution & Architectural Changelog — Oxeous
+**Autonomous Spatial-Legal Adjudication Engine for EUDR Compliance**
 
 ---
 
