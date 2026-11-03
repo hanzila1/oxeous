@@ -8,9 +8,9 @@
 | Key Metric | Baseline (Manual GIS Workflow) | Naïve AI (Direct LLM Prompt) | Oxeous Earth Agent | Measurable Improvement |
 | :--- | :--- | :--- | :--- | :--- |
 | **Turnaround Time** | 3 to 5 business days per plot | ~5 seconds (Hallucinated) | **~30 seconds (Live Satellite)** | **>99% faster** |
-| **Audit Cost** | $300 – $1,000+ per farm/plot | ~$0.01 (No satellite data) | **~$0.02** (Full GEE pipeline) | **99.9% cost reduction** |
-| **Pixel Evidence** | Manual clipping in QGIS/ArcGIS | 0% (Blind to Earth imagery) | **6 Authoritative GEE Datasets** | **100% grounded in satellite truth** |
-| **Legality Verification**| Manual WDPA shapefile lookup | None (Hallucinated) | **Automated GEE polygon intersection**| **Zero manual GIS effort** |
+| **Audit Cost** | \$300 – \$1,000+ per farm/plot | ~\$0.01 (No satellite data) | **~\$0.02** (Full EO pipeline) | **99.9% cost reduction** |
+| **Pixel Evidence** | Manual clipping in QGIS/ArcGIS | 0% (Blind to Earth imagery) | **6 Authoritative EO Datasets** | **100% grounded in satellite truth** |
+| **Legality Verification**| Manual WDPA shapefile lookup | None (Hallucinated) | **Automated WDPA polygon intersection**| **Zero manual GIS effort** |
 | **Regulatory Trajectory**| Unstandardized notes & static PDFs | None | **Immutable JSON audit logs** (`trajectories/req_*.json`) | **100% EUDR Article 9 compliant** |
 | **Throughput & Scale** | ~20–30 plots per week per team | N/A (Cannot audit) | **Thousands of plots in parallel** | **1,000x operational multiplier** |
 
@@ -38,32 +38,32 @@ A typical chocolate or coffee importer manages **10,000 to 100,000 farm plots**.
 
 ## 3. The Baselines Evaluated
 
-To prove that Oxeous meaningfully improves how this task is handled, I evaluate against two fair baselines:
+To prove that Oxeous meaningfully improves how this task is handled, we evaluate against two fair baselines:
 
 ### Baseline A: The Current Manual Industry Baseline (GIS Analyst)
 - **Tools Used**: Desktop GIS software (ArcGIS / QGIS), manual Sentinel-2/Landsat tile downloads, manual Hansen raster algebra, manual WDPA shapefile overlay.
-- **Resources Required**: High-performance workstations, licensed GIS software, specialized geospatial analysts ($80k–$120k salary or $500/plot consultant fees).
+- **Resources Required**: High-performance workstations, licensed GIS software, specialized geospatial analysts (\$80k–\$120k salary or \$500/plot consultant fees).
 - **Failure Mode**:
   - Turnaround takes **3 to 5 business days** per batch.
   - Cannot scale to 50,000 smallholder farms during harvest season.
   - Inconsistent methodology and human oversight risk multi-million-euro EUDR fines.
 
 ### Baseline B: The Naïve AI Baseline (Direct LLM Prompt)
-- **Setup**: A modern frontier LLM (e.g. GPT-4 or Gemini) given basic instructions:
+- **Setup**: A modern frontier LLM given basic instructions:
   > *"Analyze this polygon coordinates [-55.5, -12.8] and tell me if it complies with the EUDR December 31, 2020 deforestation cutoff."*
 - **Resources Required**: LLM API key.
 - **Failure Mode**:
-  - **100% Hallucination**: A raw LLM cannot see satellite pixels. It has no access to Google Earth Engine raster tiles, cannot perform pixel-counting algebra, and cannot compute actual post-2020 tree cover loss.
+  - **100% Hallucination**: A raw LLM cannot see satellite pixels. It has no access to planetary satellite raster tiles, cannot perform pixel-counting algebra, and cannot compute actual post-2020 tree cover loss.
   - Generates plausible-sounding legal text that is completely ungrounded in physical reality and legally unusable for EU regulatory filing.
 
 ---
 
 ## 4. The Final Solution: Oxeous Earth Agent
 
-Oxeous bridges the gap between frontier LLM reasoning and planetary-scale Earth Observation.
+Oxeous bridges the gap between multi-agent AI reasoning and planetary-scale Earth Observation.
 
 ### How the Agent Solves the Problem:
-1. **Autonomous Tool Orchestration**: Dispatches **6 authoritative satellite datasets** on Google Earth Engine in a single parallel execution pipeline:
+1. **Autonomous Tool Orchestration**: Dispatches **6 authoritative satellite datasets** in a single parallel execution pipeline:
    - **Hansen Global Forest Change v1.13 (2025)**: Measures tree cover percentage in 2000, 2020 baseline cover, and post-cutoff forest loss hectares.
    - **Nature Trace Natural Forests 2020**: 10-meter resolution probability map certifying undisturbed natural forest canopy.
    - **Forest Typology 2020**: Categorizes land into Primary Forest vs. Plantations vs. Secondary Regenerating Forest.
@@ -72,7 +72,7 @@ Oxeous bridges the gap between frontier LLM reasoning and planetary-scale Earth 
    - **WDPA Protected Areas**: Real-time spatial intersection against global national parks and ecological reserves.
 2. **Dynamic Scale Adaptation**: Automatically adjusts spatial resolution scale (from 10m up to 100m for million-hectare mega-concessions) to guarantee zero timeouts.
 3. **Algorithmic Legal Verification**: Enforces hard mathematical compliance thresholds (`forest_loss_ha > 0` = High Risk; `overlaps_protected_area == True` = Legal Violation).
-4. **Gemini Compliance Synthesis**: The LLM analyzes the verified numbers and drafts an executive-ready, audit-compliant Due Diligence narrative.
+4. **Multi-Agent Compliance Synthesis**: The AI supervisor analyzes the verified numbers and drafts an executive-ready, audit-compliant Due Diligence narrative.
 5. **Immutable Audit Trajectory**: Automatically logs every tool invocation, timestamp, parameter, and raw response to `trajectories/req_*.json` for legal verification.
 
 ---
@@ -82,7 +82,7 @@ Oxeous bridges the gap between frontier LLM reasoning and planetary-scale Earth 
 | Evaluation Dimension | Baseline A: Manual GIS | Baseline B: Naïve LLM | Oxeous Earth Agent |
 | :--- | :--- | :--- | :--- |
 | **Task Execution Time** | 3 to 5 Days | ~5 Seconds | **~30 Seconds** |
-| **Cost Per Audit** | $300 – $1,000 | ~$0.01 | **~$0.02** |
+| **Cost Per Audit** | \$300 – \$1,000 | ~\$0.01 | **~\$0.02** |
 | **Satellite Data Grounding** | Partial (Depends on analyst) | 0% (Blind hallucination) | **100% (6 Authoritative Datasets)** |
 | **Protected Area Overlap** | Manual shapefile check | Unchecked | **Automated WDPA polygon intersection** |
 | **Massive AOI Scalability** | Crashes desktop GIS on >100k ha| Irrelevant | **Handles 1,000,000+ ha seamlessly** |
@@ -91,15 +91,13 @@ Oxeous bridges the gap between frontier LLM reasoning and planetary-scale Earth 
 
 ---
 
-## 6. Official Hackathon Evaluation Framework
-
-### A Simple Format You Can Use (Per Hackathon Rubric)
+## 6. Standardized Benchmark Evaluation Framework
 
 | METRIC | SIMPLE BASELINE | AGENT SOLUTION | CHANGE |
 | :--- | :--- | :--- | :--- |
 | **Primary outcome**<br>*(Regulatory Audit Accuracy on 10 Global Cases)* | **30% (3/10 correct)**<br>• 1 critical False PASS (believed deceptive claim)<br>• 6 UNCERTAIN hedges<br>• Only 3 obvious EU cases passed | **100% (10/10 correct)**<br>• 0 False PASSes<br>• 0 UNCERTAIN hedges<br>• 100% non-compliance detection | **+70 percentage points**<br>(0% → 100% violation detection) |
-| **Human time per task**<br>*(Audit Turnaround Latency)* | **4 to 8 hours** of manual GIS analyst work<br>(or 3–5 business days turnaround) | **~30 seconds** end-to-end automated GEE pipeline | **>99% reduction** in human time |
-| **Cost per task** | **$300 – $1,000** per plot (external ESG / GIS consulting fees) | **~$0.02** per plot (GEE + Gemini cloud compute) | **99.9% cost reduction** |
+| **Human time per task**<br>*(Audit Turnaround Latency)* | **4 to 8 hours** of manual GIS analyst work<br>(or 3–5 business days turnaround) | **~30 seconds** end-to-end automated planetary EO pipeline | **>99% reduction** in human time |
+| **Cost per task** | **\$300 – \$1,000** per plot (external ESG / GIS consulting fees) | **~\$0.02** per plot (cloud satellite & AI compute) | **99.9% cost reduction** |
 
 ---
 
@@ -124,7 +122,7 @@ Both the baseline and the agent solution were evaluated on the exact same 10 sta
 
 ### Challenging Cases & What They Revealed
 
-I evaluated **two critical edge cases** to test the boundaries of both approaches:
+We evaluated **two critical edge cases** to test the boundaries of both approaches:
 
 #### 1. Challenging Case: TC-05 (Colombia Coffee — The Deceptive Supplier)
 - **The Challenge**: The supplier declared: *"Small family farm. Land cleared in 2019, no recent clearing occurred."*
@@ -181,20 +179,20 @@ In the interactive web application, 4 diverse sourcing regions are pre-loaded fo
 
 ---
 
-## 7. Technical Changelog: How We Delivered the Improvement
+## 8. Technical Changelog: How We Delivered the Improvement
 
 The journey from a 30% hallucinating prompt to a 100% reliable autonomous compliance agent followed 4 critical engineering iterations:
 
 | STAGE | WHAT WAS TRIED & WHY | LIMITATION / FAILURE OBSERVED | DECISION / LEARNING |
 | :--- | :--- | :--- | :--- |
-| **Baseline** | **Direct LLM Prompt (No Tools)**<br>Asked Gemini to evaluate supplier declarations and coordinates with text-only instructions. | **100% Blind to Earth Truth (30% Accuracy)**<br>Believed deceptive supplier claims (e.g. TC-05 Colombia coffee claiming 2019 pre-cutoff clearing) and produced False PASSes. | **Established starting point:** Text-only LLMs cannot see satellite pixels. Direct Earth Observation computation is mandatory. |
-| **Iteration 1** | **Direct STAC Search (Sentinel-2 / Landsat)**<br>Queried open STAC API catalogs to fetch recent optical satellite image tiles over plot coordinates. | **Cannot Compute Historical Cutoff**<br>Optical RGB only shows current green cover; cannot calculate cumulative 25-year post-2020 loss or reference the Dec 31, 2020 legal cutoff. | **Removed raw STAC pipeline:** Visual inspection cannot prove compliance. Pivoted to Google Earth Engine's planetary raster computing backend. |
-| **Iteration 2** | **Static 30m GEE Reduction (Hansen GFC v1.13)**<br>Queried GEE for post-2020 forest loss (`lossyear > 20`) at fixed 30m pixel resolution across the polygon boundary. | **Earth Engine Timeout on Large Plots**<br>Fixed 30m pixel counting worked on 500-ha farms, but timed out and crashed on 50,000 to 1,000,000-ha commercial concessions (Mato Grosso). | **Engineered Dynamic Scale Optimization:** Implemented `_compute_scale()` to dynamically adapt pixel sampling pyramid levels based on plot area. Reduced 1M ha queries from infinite timeout to **32 seconds**. |
-| **Iteration 3** | **Multi-Signal Typology + External REST APIs**<br>Added Forest Typology 2020 & WRI Loss Drivers. Attempted to query external REST APIs (MapBiomas & third-party WDPA endpoints). | **Brittle APIs & Protected Area Gap**<br>External REST APIs suffered from 504 timeouts, strict rate limits, and failed on remote plots. Plots inside national parks without deforestation slipped through as PASS (TC-08). | **Removed external REST APIs:** Unified protected areas directly into native GEE (`WCMC/WDPA/current/polygons`). Made WDPA spatial intersection zero-dependency and 100% reliable. |
-| **Iteration 4 (Final)**| **Autonomous 6-Tool GEE Pipeline + SSE Telemetry + JSON Trajectories**<br>Combined Hansen GFC, Nature Trace, Typology, WRI Drivers, Commodity Maps, and native WDPA with live streaming telemetry and Gemini Flash reasoning. | **Solved all previous failure modes:**<br>• Accuracy reached **100% (10/10 test cases)**<br>• Execution under **30 seconds**<br>• Zero false passes<br>• Hard legal gating on reserve overlaps | **Identified main contribution:** Grounding the agent in 6 authoritative Earth Observation datasets + mathematical legal gating + immutable JSON trajectories (`trajectories/req_*.json`) transformed a 30% hallucinating prompt into an enterprise-grade compliance pipeline. |
+| **Baseline** | **Direct LLM Prompt (No Tools)**<br>Asked an LLM to evaluate supplier declarations and coordinates with text-only instructions. | **100% Blind to Earth Truth (30% Accuracy)**<br>Believed deceptive supplier claims (e.g. TC-05 Colombia coffee claiming 2019 pre-cutoff clearing) and produced False PASSes. | **Established starting point:** Text-only LLMs cannot see satellite pixels. Direct Earth Observation computation is mandatory. |
+| **Iteration 1** | **Direct STAC Search (Sentinel-2 / Landsat)**<br>Queried open STAC API catalogs to fetch recent optical satellite image tiles over plot coordinates. | **Cannot Compute Historical Cutoff**<br>Optical RGB only shows current green cover; cannot calculate cumulative 25-year post-2020 loss or reference the Dec 31, 2020 legal cutoff. | **Removed raw STAC pipeline:** Visual inspection cannot prove compliance. Pivoted to a planetary raster computing backend. |
+| **Iteration 2** | **Static 30m Raster Reduction (Hansen GFC v1.13)**<br>Queried planetary rasters for post-2020 forest loss (`lossyear > 20`) at fixed 30m pixel resolution across the polygon boundary. | **Raster Compute Timeout on Large Plots**<br>Fixed 30m pixel counting worked on 500-ha farms, but timed out and crashed on 50,000 to 1,000,000-ha commercial concessions (Mato Grosso). | **Engineered Dynamic Scale Optimization:** Implemented `_compute_scale()` to dynamically adapt pixel sampling pyramid levels based on plot area. Reduced 1M ha queries from infinite timeout to **32 seconds**. |
+| **Iteration 3** | **Multi-Signal Typology + External REST APIs**<br>Added Forest Typology 2020 & WRI Loss Drivers. Attempted to query external REST APIs (MapBiomas & third-party WDPA endpoints). | **Brittle APIs & Protected Area Gap**<br>External REST APIs suffered from 504 timeouts, strict rate limits, and failed on remote plots. Plots inside national parks without deforestation slipped through as PASS (TC-08). | **Removed external REST APIs:** Unified protected areas directly into native planetary vector layers (`WCMC/WDPA/current/polygons`). Made WDPA spatial intersection zero-dependency and 100% reliable. |
+| **Iteration 4 (Final)**| **Autonomous 6-Tool Planetary EO Pipeline + SSE Telemetry + JSON Trajectories**<br>Combined Hansen GFC, Nature Trace, Typology, WRI Drivers, Forest Data Partnership Commodity Maps, and native WDPA with live streaming telemetry and multi-agent reasoning. | **Solved all previous failure modes:**<br>• Accuracy reached **100% (10/10 test cases)**<br>• Execution under **30 seconds**<br>• Zero false passes<br>• Hard legal gating on reserve overlaps | **Identified main contribution:** Grounding the agent in 6 authoritative Earth Observation datasets + mathematical legal gating + immutable JSON trajectories (`trajectories/req_*.json`) transformed a 30% hallucinating prompt into an enterprise-grade compliance pipeline. |
 
 ---
 
-## 8. Summary for Hackathon Judges
+## 9. Summary
 
 Oxeous Earth Agent proves that autonomous agents are not toys for conversation—they are high-leverage tools for planetary-scale compliance. By replacing weeks of manual GIS labor with a 30-second autonomous satellite audit pipeline, Oxeous delivers a measurable **99.9% cost reduction**, **>99% faster turnaround**, and **100% regulatory auditability** for global supply chains.

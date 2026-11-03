@@ -736,10 +736,10 @@ def build_story(styles: dict) -> list:
     story.append(
         Paragraph(
             "<b>Four Clear Pixel Outcomes (Verified in Live Platform):</b> In "
-            f"{code('backend/app/tools/eudr/gee_commodity.py')} (lines 245, 859–946), Google Earth Engine fuses "
+            f"{code('backend/app/tools/eudr/gee_commodity.py')} (lines 245, 859–946), the planetary raster engine fuses "
             f"EC JRC Global Forest Cover 2020 ({code('JRC/GFC2020/V4')}, 10 m) with Nature Trace 2020 natural-forest "
             f"probabilities ({code('p >= 0.45')}), cloud-penetrating Sentinel-1 C-band radar alerts (RADD), "
-            "Hansen GFC v1.12, JRC Tropical Moist Forests, and Google Forest Data Partnership (FDP 2026a) cocoa, "
+            "Hansen GFC v1.12, JRC Tropical Moist Forests, and Forest Data Partnership (FDP 2026a) cocoa, "
             "coffee, palm, and rubber maps. An 8-connected 6-pixel neighborhood filter "
             f"({code('connectedPixelCount(6, True).gte(6)')}, 0.54 ha &gt; 0.5 ha) classifies every pixel into "
             "one of four transparent states: <b>Red (Art. 3(a) Deforestation Violation)</b>, <b>Amber (Art. 2(5) "
@@ -805,7 +805,7 @@ def build_story(styles: dict) -> list:
     story.append(
         Paragraph(
             "<b>Verified Geometry Implementation:</b> Cross-verified in "
-            f"{code('backend/app/eudr/carveout_service.py')} (lines 51–169), Oxeous converts the GEE violation "
+            f"{code('backend/app/eudr/carveout_service.py')} (lines 51–169), Oxeous converts the raster violation "
             f"pixels into vector polygons ({code('reduceToVectors')}), subtracts them using Shapely 2.0 "
             f"({code('orig_poly.difference(loss_union)')}), automatically repairs self-intersecting GPS boundaries "
             f'via {code("make_valid()")}, measures exact WGS84 geodesic hectares via {code("pyproj.Geod")}, '
@@ -1022,7 +1022,7 @@ def build_story(styles: dict) -> list:
             Paragraph("Rule 1: PWRI-3D &amp; ≥ 0.5 ha Filter", styles["td_bold"]),
             Paragraph("backend/app/tools/eudr/gee_commodity.py", styles["td_code"]),
             Paragraph(
-                "Fuses JRC GFC2020 V4, Nature Trace 2020, Sentinel-1 RADD, Hansen &amp; Google FDP crop maps; "
+                "Fuses JRC GFC2020 V4, Nature Trace 2020, Sentinel-1 RADD, Hansen &amp; FDP 2026a crop maps; "
                 "runs 6-pixel Moore MMU sieve (<font name='Consolas' size='7.0'>connectedPixelCount(6, True)</font>).",
                 styles["td"],
             ),
@@ -1180,7 +1180,7 @@ def build_story(styles: dict) -> list:
             Paragraph("<b>Q2: What if someone clears rainforest after 2020 and claims it was farm replanting?</b>", styles["td"]),
             Paragraph(
                 "Rule 1 checks what was on that exact pixel BEFORE 31 December 2020 using JRC GFC2020 V4, Nature "
-                "Trace 2020 natural-forest maps, JRC Tropical Moist Forests, and Google FDP crop masks. It only "
+                "Trace 2020 natural-forest maps, JRC Tropical Moist Forests, and FDP 2026a crop masks. It only "
                 "grants an Article 2(5) exemption if the plot was already a crop plantation in 2020.",
                 styles["td"],
             ),

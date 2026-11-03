@@ -331,7 +331,7 @@ def print_improvement_changelog() -> None:
 ║              IMPROVEMENT CHANGELOG - Oxeous EUDR Agent               ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║ V0 - Baseline (text-only LLM, 30% accuracy)                          ║
-║   Tried: Single Gemini prompt with supplier text + GeoJSON            ║
+║   Tried: Single LLM prompt with supplier text + GeoJSON            ║
 ║   Why: Establish minimum viable approach                              ║
 ║   Result: 3/10 correct. 6 UNCERTAIN, 1 critical FALSE PASS (TC-05)   ║
 ║   Problem: LLM trusts supplier claims, no satellite verification      ║
@@ -427,10 +427,10 @@ async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
             if r["decision"] == "PASS" and TEST_CASES[i]["expected"] == "FAIL"
         )
         a_dds = sum(1 for r in agent_results if r["dds_generated"])
-        print(f"\nAGENT SOLUTION - Oxeous (6 GEE datasets)")
+        print(f"\nAGENT SOLUTION - Oxeous (6 Planetary EO datasets)")
         print(f"  Accuracy        : {a_correct}/{len(agent_results)} = {a_acc:.0f}%")
         print(f"  False PASSes    : {a_false_pass}")
-        print(f"  Satellite data  : YES (6 GEE datasets)")
+        print(f"  Satellite data  : YES (6 Planetary EO datasets)")
         print(f"  DDS generated   : {a_dds}/{len(agent_results)}")
 
     if baseline_results and agent_results:
@@ -471,7 +471,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--live", action="store_true",
-        help="Force live Google Earth Engine execution (requires active GEE auth)"
+        help="Force live Planetary EO execution (requires active GEE auth)"
     )
     args = parser.parse_args()
 

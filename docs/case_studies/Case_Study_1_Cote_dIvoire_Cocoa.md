@@ -24,7 +24,7 @@ However, conventional 2D Earth Observation (EO) satellite compliance tools suffe
 **EUDR Article 2(5)** explicitly establishes that cyclical agricultural replanting, rotational pruning, and shade management on existing agricultural plantations is **statutorily exempt** from the deforestation ban. 
 
 By applying **Rule 1: Pixel-Wise Raster Intersection in Three Dimensions (PWRI-3D)**, Oxeous evaluates every 10-meter pixel across spatial, temporal, and statutory layers simultaneously:
-* **Pre-2020 Baseline (Google FDP 10m Model 2026a):** Confirms mature cocoa presence (78.4% mean probability) prior to December 31, 2020, establishing that the land was already an active agricultural tree-crop plantation.
+* **Pre-2020 Baseline (FDP 10m Model 2026a):** Confirms mature cocoa presence (78.4% mean probability) prior to December 31, 2020, establishing that the land was already an active agricultural tree-crop plantation.
 * **Radar Roughness & Structural Stability (Sentinel-1 C-SAR):** Confirms that soil strata and root systems remained completely undisturbed ($\Delta\gamma^0 > -2.2\text{ dB}$), refuting land conversion or mechanical bulldozing.
 * **Phenology Rebound (Sentinel-2 10m Multi-Temporal):** Tracks vegetative recovery from NDVI 0.63 back to 0.81 within 18 months, verifying biological agricultural renewal.
 * **Protected Area Exemption (WDPA):** Confirms zero overlap (0.00 ha) with the adjacent SODEFOR Gazetted Forest Reserve (WDPA #2284).
@@ -64,9 +64,9 @@ To establish empirical validity, Case Study 1 evaluates a multi-plot smallholder
 ![Plate 1: Multi-Plot Crop Cadastre & Article 2(5) Replanting Adjudication](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_1_Forest_Canopy_and_Deforestation_Map.png)
 *Figure 1: Sentinel-2 10m true-color satellite basemap of the Duékoué sourcing basin (Guémon Region, Côte d'Ivoire). Cadastral boundaries delineate all four smallholder parcels (P-01 to P-04, 96.80 ha total). The 14.00 ha Article 2(5) lawful replanting/pruning areas (amber) are strictly clipped within Plots P-02 and P-04, surrounded by standing mature cocoa agroforest (82.80 ha, green). Zero color bleed occurs outside declared farm cadastre. Verified statutory deforestation: 0.00 ha (0.00%).*
 
-#### Plate 2: Commodity Canopy Probability (Google Forest Data Partnership 10m)
+#### Plate 2: Commodity Canopy Probability (Forest Data Partnership 10m)
 ![Plate 2: Commodity Canopy Probability](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_2_Google_FDP_Cocoa_Heatmap.png)
-*Figure 2: Google Forest Data Partnership (FDP) 10m cocoa probability model (model_2026a) strictly clipped to the 4 cooperative cadastral boundaries. High-density commercial cocoa matrix ($p \ge 0.65$, mean 78.4%) is verified across the smallholder holdings, confirming established pre-2020 agricultural tree-crop status and refuting the JRC GFC2020 natural forest misclassification.*
+*Figure 2: Forest Data Partnership (FDP) 10m cocoa probability model (model_2026a) strictly clipped to the 4 cooperative cadastral boundaries. High-density commercial cocoa matrix ($p \ge 0.65$, mean 78.4%) is verified across the smallholder holdings, confirming established pre-2020 agricultural tree-crop status and refuting the JRC GFC2020 natural forest misclassification.*
 
 ---
 
@@ -85,7 +85,7 @@ $$\mathcal{V}_{3(a)} = \text{MMU}_{\ge 0.5\,\text{ha}}\Big(\text{Loss}_{\text{po
 1. **Layer 1 (Spatial Evidence):** Fuses optical Sentinel-2 MSI (10m L2A) with cloud-penetrating Sentinel-1 C-band synthetic aperture radar (SAR) backscatter disturbance (RADD alerts, $\Delta\gamma^0_{\text{VV/VH}} < -2.5\text{ dB}$).
 2. **Layer 2 (Temporal Baseline):** Fuses EC JRC GFC2020 V4 (10m) with Nature Trace 2020 natural forest probability ($p \ge 0.45$) to construct a consensus forest baseline $\text{Forest}_{2020}$.
 3. **Layer 3 (Statutory Land-Use Ontologies):**
-   * Computes Forest Data Partnership (Google FDP 2025) 10m cocoa crop probability ($p_{\text{cocoa}} \ge 0.20$).
+   * Computes Forest Data Partnership (FDP 2025) 10m cocoa crop probability ($p_{\text{cocoa}} \ge 0.20$).
    * Identifies pre-2020 agricultural land use: if a pixel was already an agricultural tree-crop plantation on December 31, 2020 ($\text{ConsensusForest}_{2020} = 0$), post-2020 canopy reduction is classified as **Lawful Agricultural Replanting under Article 2(5)** ($\text{Class Amber}$).
 4. **The MMU Connected-Component Sieve (Article 2(4)):** Applies an 8-connected Moore neighborhood sieve (`connectedPixelCount(6, eightConnected=True).gte(6)` in `backend/app/tools/eudr/gee_commodity.py`), filtering out isolated non-forest gaps smaller than 0.54 ha ($0.54\text{ ha} > 0.50\text{ ha}$ FAO threshold).
 
@@ -93,7 +93,7 @@ $$\mathcal{V}_{3(a)} = \text{MMU}_{\ge 0.5\,\text{ha}}\Big(\text{Loss}_{\text{po
 
 #### Figure 3: Multi-Sensor Canopy & Agroforestry Composition Profile
 ![Figure 3: Multi-Sensor Canopy & Agroforestry Composition Profile](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_3_Multi_Sensor_Canopy_Bar_Chart.png)
-*Figure 3: Multi-sensor Earth observation evidence stack for the Duékoué cooperative sourcing batch (96.80 ha) contrasting raw optical canopy disturbance (14.5% / 14.00 ha pruned in Plots P-02 and P-04) against JRC GFC2020 natural forest (0.0%), Google FDP cocoa density (78.4%), and Oxeous statutory deforestation (0.00 ha).*
+*Figure 3: Multi-sensor Earth observation evidence stack for the Duékoué cooperative sourcing batch (96.80 ha) contrasting raw optical canopy disturbance (14.5% / 14.00 ha pruned in Plots P-02 and P-04) against JRC GFC2020 natural forest (0.0%), FDP cocoa density (78.4%), and Oxeous statutory deforestation (0.00 ha).*
 
 #### Figure 4: Sentinel-2 Multi-Temporal NDVI Phenology Trajectory (2019–2025)
 ![Figure 4: Sentinel-2 Multi-Temporal NDVI Phenology Trajectory](Case_Study_1_Cote_dIvoire_Cocoa/figures/Figure_4_Sentinel2_NDVI_Phenology_Trajectory.png)
@@ -113,7 +113,7 @@ $$\mathcal{V}_{3(a)} = \text{MMU}_{\ge 0.5\,\text{ha}}\Big(\text{Loss}_{\text{po
   * *Impact:* All 70,500 kg of compliant cocoa is rejected at European ports because standard GIS portals reject entire batches containing flagged plots.
 * **Oxeous PWRI-3D Engine Execution:**
   * $\text{Total Cooperative Area } (A_{\text{total}}):$ $96.80\text{ ha}$ across 4 registered smallholder parcels.
-  * $\text{Consensus 2020 Natural Forest:}$ $0.00\text{ ha}$ ($0.0\%$ — verified agricultural cocoa tree-crop land use prior to Dec 31, 2020 via Google FDP Cocoa Map & Sentinel-2 phenology).
+  * $\text{Consensus 2020 Natural Forest:}$ $0.00\text{ ha}$ ($0.0\%$ — verified agricultural cocoa tree-crop land use prior to Dec 31, 2020 via FDP Cocoa Map & Sentinel-2 phenology).
   * $\text{Raw Post-2020 Canopy Disturbance:}$ $14.00\text{ ha}$ (P-02: 7.80 ha; P-04: 6.20 ha).
   * $\text{Class Amber (Article 2(5) Agricultural Replanting):}$ **$14.00\text{ ha}$** (Lawful cyclical tree renewal).
   * $\text{Class Red (Article 3(a) Deforestation Violation):}$ **$0.00\text{ ha}$** ($0.0\%$).

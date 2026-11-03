@@ -243,7 +243,7 @@ ax1 = fig.add_subplot(gs[0, 0])
 decorate_scientific_map(ax1, fig1_rgb, "(a) Sentinel-2 10m L2A & Article 2(5) Replanting Cadastre", mode="cadastre")
 
 ax2 = fig.add_subplot(gs[0, 1])
-decorate_scientific_map(ax2, fig2_rgb, "(b) Google FDP 10m Cocoa Probability Model (Strictly Clipped)", mode="cocoa")
+decorate_scientific_map(ax2, fig2_rgb, "(b) Forest Data Partnership (FDP 10m) Cocoa Probability (Clipped)", mode="cocoa")
 
 # Shared Scientific Legend at bottom (Clean Academic Style, Zero Grey Box Clutter)
 legend_elements = [
@@ -264,7 +264,7 @@ print(f"  -> Saved {journal_fig1_path}")
 # Also save individual Figure 1 and Figure 2 for standalone markdown compatibility
 for fname, img_obj, ttl, m in [
     ("Figure_1_Forest_Canopy_and_Deforestation_Map.png", fig1_rgb, "(a) Sentinel-2 10m L2A & Article 2(5) Replanting Cadastre", "cadastre"),
-    ("Figure_2_Google_FDP_Cocoa_Heatmap.png", fig2_rgb, "(b) Google FDP 10m Cocoa Probability Model (Strictly Clipped)", "cocoa")
+    ("Figure_2_Google_FDP_Cocoa_Heatmap.png", fig2_rgb, "(b) Forest Data Partnership (FDP 10m) Cocoa Probability (Clipped)", "cocoa")
 ]:
     f_single, ax_s = plt.subplots(figsize=(6.5, 5.2), dpi=200)
     f_single.patch.set_facecolor("#ffffff")

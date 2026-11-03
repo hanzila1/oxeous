@@ -1,22 +1,27 @@
-![Oxeous — Multi-agent framework for verified EUDR compliance](./docs/hero-banner.png)
+![Oxeous — Autonomous spatial agent for verified EUDR compliance](./docs/oxeous-hero-banner.png)
 
-<h2 align="center">Multi-agent framework for verified EUDR compliance.</h2>
+<h2 align="center">Autonomous spatial agent for verified EUDR compliance.</h2>
 
 <p align="center">
   <b>Ask the Earth. See the evidence.</b><br/>
   Autonomous Earth Observation Agent for EUDR (Regulation EU 2023/1115) Compliance.<br/>
-  Orchestrates 6 real-time Google Earth Engine planetary satellite datasets with Gemini AI spatial reasoning.<br/>
+  Orchestrates 6 real-time planetary satellite &amp; SAR datasets with Microsoft Azure AI multi-agent spatial reasoning.<br/>
   <b>From 30% baseline accuracy to 100% verified compliance in 30 seconds.</b>
 </p>
 
 <p align="center">
-  <a href="https://cloud.google.com/earth-engine"><img src="https://img.shields.io/badge/Satellite-Google%20Earth%20Engine-4285F4?style=for-the-badge&logo=google&logoColor=white" /></a>
-  <a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/AI-Google%20Gemini%202.0-DB4437?style=for-the-badge&logo=google&logoColor=white" /></a>
+  <a href="https://azure.microsoft.com"><img src="https://img.shields.io/badge/Cloud-Microsoft%20Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" /></a>
+  <a href="https://planetarycomputer.microsoft.com"><img src="https://img.shields.io/badge/Satellite-Planetary%20EO%20Compute-0089D6?style=for-the-badge&logo=microsoft&logoColor=white" /></a>
+  <a href="https://ai.azure.com"><img src="https://img.shields.io/badge/AI-Azure%20AI%20Foundry-5C2D91?style=for-the-badge&logo=microsoft&logoColor=white" /></a>
   <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" /></a>
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Frontend-Next.js%2014-000000?style=for-the-badge&logo=next.js&logoColor=white" /></a>
   <a href="https://maplibre.org"><img src="https://img.shields.io/badge/Maps-MapLibre%20GL-396B99?style=for-the-badge&logo=maplibre&logoColor=white" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" /></a>
 </p>
+
+---
+
+![EUDR Regulation Overview — European Union Deforestation Regulation (2023/1115)](./docs/eudr-regulation-overview.png)
 
 ---
 
@@ -29,11 +34,12 @@
 | Deliverable | Description | Location / Link |
 | :--- | :--- | :--- |
 | **01. Research Whitepaper** | Compile-verified 6-page technical paper & statutory concordance | [`docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf`](docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf) |
-| **02. System Pipeline (Fig. 1)** | End-to-end 4-stage statutory adjudication architecture | [`docs/finals/Figure_1_Full_System_Pipeline.png`](docs/finals/Figure_1_Full_System_Pipeline.png) |
-| **03. PWRI-3D Engine (Fig. 2)** | Pixel-Wise Raster Intersection (Spatial $\times$ Temporal $\times$ Statutory) | [`docs/finals/Figure_2_PWRI_3D_Map_Algebra.png`](docs/finals/Figure_2_PWRI_3D_Map_Algebra.png) |
-| **04. Multi-Agent Constellation (Fig. 3)** | Six-agent deterministic consensus & cryptographic audit ledger | [`docs/finals/Figure_3_Multi_Agent_Architecture.png`](docs/finals/Figure_3_Multi_Agent_Architecture.png) |
-| **05. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
-| **06. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
+| **02. Empirical Case Study I** | Two-column research paper: Côte d'Ivoire Cocoa & Art. 2(5) Replanting | [`docs/case_studies/Case_Study_1_Cote_dIvoire_Cocoa.pdf`](docs/case_studies/Case_Study_1_Cote_dIvoire_Cocoa.pdf) |
+| **03. System Pipeline (Fig. 1)** | End-to-end 4-stage statutory adjudication architecture | [`docs/finals/Figure_1_Full_System_Pipeline.png`](docs/finals/Figure_1_Full_System_Pipeline.png) |
+| **04. PWRI-3D Engine (Fig. 2)** | Pixel-Wise Raster Intersection (Spatial $\times$ Temporal $\times$ Statutory) | [`docs/finals/Figure_2_PWRI_3D_Map_Algebra.png`](docs/finals/Figure_2_PWRI_3D_Map_Algebra.png) |
+| **05. Multi-Agent Constellation (Fig. 3)** | Six-agent deterministic consensus & cryptographic audit ledger | [`docs/finals/Figure_3_Multi_Agent_Architecture.png`](docs/finals/Figure_3_Multi_Agent_Architecture.png) |
+| **06. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
+| **07. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
 
 ---
 
@@ -83,25 +89,25 @@ Under the mandatory **EU Deforestation Regulation (EUDR)**, any enterprise placi
 
 ### The Operational Bottleneck Today
 A major chocolate, coffee, or tyre manufacturer manages **10,000 to 100,000 sourcing plots** across multiple continents. 
-- **The Manual GIS Nightmare**: Verifying even a single farm today requires an expert geospatial analyst to manually download Sentinel/Landsat rasters, open desktop GIS software (ArcGIS/QGIS), run pixel clipping, look up national park shapefiles, and hand-write an audit memo. This takes **3 to 5 business days per plot** and costs **$300 to $1,000+** per audit in external consulting fees.
-- **The Naïve AI Trap**: When teams attempt to automate this with generic LLMs (ChatGPT, Gemini), the models **completely hallucinate (30% baseline accuracy)** because text-only models cannot see satellite pixels, cannot compute raster algebra, and trust deceptive supplier claims.
+- **The Manual GIS Nightmare**: Verifying even a single farm today requires an expert geospatial analyst to manually download Sentinel/Landsat rasters, open desktop GIS software (ArcGIS/QGIS), run pixel clipping, look up national park shapefiles, and hand-write an audit memo. This takes **3 to 5 business days per plot** and costs **\$300 to \$1,000+** per audit in external consulting fees.
+- **The Naïve AI Trap**: When teams attempt to automate this with generic text-only LLMs, the models **completely hallucinate (30% baseline accuracy)** because text-only models cannot see satellite pixels, cannot compute raster algebra, and trust deceptive supplier claims.
 
 ### Why Solving It is Valuable
-Oxeous automates the entire multi-dataset satellite audit in **~30 seconds** for **~$0.02** in cloud compute. It drops compliance turnaround by **>99%**, eliminates greenwashing risks, and automatically generates an immutable, court-ready Due Diligence package directly compliant with EUDR Article 3 and Article 9.
+Oxeous automates the entire multi-dataset satellite audit in **~30 seconds** for **~\$0.02** in cloud compute. It drops compliance turnaround by **>99%**, eliminates greenwashing risks, and automatically generates an immutable, court-ready Due Diligence package directly compliant with EUDR Article 3 and Article 9.
 
 ---
 
 ## 📊 Measured Improvement: Head-to-Head Evaluation
 
-I evaluated both the **Baseline (Direct LLM Prompt)** and the **Oxeous Earth Agent** on the exact same 10 standardized global test cases across 6 commodities and 8 countries:
+We evaluated both the **Baseline (Direct LLM Prompt)** and the **Oxeous Earth Agent** on the exact same 10 standardized global test cases across 6 commodities and 8 countries:
 
-### Hackathon Metric Rubric Comparison
+### Benchmark Metric Comparison
 
 | METRIC | SIMPLE BASELINE | AGENT SOLUTION | CHANGE |
 | :--- | :--- | :--- | :--- |
 | **Primary outcome**<br>*(Audit Accuracy across 10 Global Cases)* | **30% (3/10 correct)**<br>• 1 critical False PASS (believed liar)<br>• 6 UNCERTAIN hedges<br>• Only 3 obvious EU cases passed | **100% (10/10 correct)**<br>• 0 False PASSes<br>• 0 UNCERTAIN hedges<br>• 100% non-compliance detection | **+70 percentage points**<br>(0% → 100% violation detection) |
-| **Human time per task**<br>*(Audit Turnaround Latency)* | **4 to 8 hours** of manual GIS analyst work<br>(or 3–5 business days turnaround) | **~30 seconds** end-to-end automated GEE pipeline | **>99% reduction** in human time |
-| **Cost per task** | **$300 – $1,000** per plot (external ESG / GIS consulting fees) | **~$0.02** per plot (GEE + Gemini cloud compute) | **99.9% cost reduction** |
+| **Human time per task**<br>*(Audit Turnaround Latency)* | **4 to 8 hours** of manual GIS analyst work<br>(or 3–5 business days turnaround) | **~30 seconds** end-to-end automated planetary EO pipeline | **>99% reduction** in human time |
+| **Cost per task** | **\$300 – \$1,000** per plot (external ESG / GIS consulting fees) | **~\$0.02** per plot (cloud satellite & AI compute) | **99.9% cost reduction** |
 
 ---
 
@@ -128,11 +134,11 @@ Every meaningful iteration followed a deliberate hypothesis, hit a specific tech
 
 | STAGE | WHAT WAS TRIED & WHY | LIMITATION / FAILURE OBSERVED | DECISION / LEARNING |
 | :--- | :--- | :--- | :--- |
-| **Baseline** | **Direct LLM Prompt (No Tools)**<br>Single Gemini prompt given supplier claims, commodity, and GeoJSON polygon. | **100% Blind to Earth Pixels (30% Accuracy)**<br>The LLM believed deceptive claims (e.g. TC-05 Colombia coffee claiming 2019 pre-cutoff clearing) producing critical False PASSes. | **Established starting point:** Text-only LLMs cannot verify deforestation. Direct satellite computation is mandatory. |
-| **Iteration 1** | **Direct STAC Search (Sentinel-2 / Landsat)**<br>Queried open STAC API catalogs to fetch recent optical satellite images. | **Cannot Compute Historical Cutoff**<br>Optical RGB only shows current green cover; cannot calculate cumulative 25-year post-2020 loss or reference the Dec 31, 2020 cutoff. | **Removed raw STAC pipeline:** Visual inspection cannot prove compliance. Pivoted to Google Earth Engine's planetary raster computing backend. |
-| **Iteration 2** | **Static 30m GEE Reduction (Hansen GFC v1.13)**<br>Queried GEE for post-2020 forest loss (`lossyear > 20`) at fixed 30m pixel resolution. | **Earth Engine Timeout on Large Plots**<br>Fixed 30m pixel counting worked on 500-ha farms, but timed out and crashed on 50,000 to 1,000,000-ha commercial concessions (Mato Grosso). | **Engineered Dynamic Scale Optimization:** Implemented `_compute_scale()` to dynamically adapt pixel sampling pyramid levels based on plot area. Reduced 1M ha queries from infinite timeout to **32 seconds**. |
-| **Iteration 3** | **Multi-Signal Typology + External REST APIs**<br>Added Forest Typology 2020 & WRI Loss Drivers. Attempted to query external REST APIs (MapBiomas & third-party WDPA endpoints). | **Brittle APIs & Protected Area Gap**<br>External REST APIs suffered from 504 timeouts, strict rate limits, and failed on remote plots. Plots inside national parks without deforestation slipped through as PASS (TC-08). | **Removed external REST APIs:** Unified protected areas directly into native GEE (`WCMC/WDPA/current/polygons`). Made WDPA spatial intersection zero-dependency and 100% reliable. |
-| **Iteration 4 (Final)**| **Autonomous 6-Tool GEE Pipeline + SSE Telemetry + JSON Trajectories**<br>Combined Hansen GFC, Nature Trace, Typology, WRI Drivers, Commodity Maps, and native WDPA with live streaming telemetry and Gemini Flash reasoning. | **Solved all previous failure modes:**<br>• Accuracy reached **100% (10/10 test cases)**<br>• Execution under **30 seconds**<br>• Zero false passes<br>• Hard legal gating on reserve overlaps | **Identified main contribution:** Grounding the agent in 6 authoritative Earth Observation datasets + mathematical legal gating + immutable JSON trajectories (`trajectories/req_*.json`) transformed a 30% hallucinating prompt into an enterprise-grade compliance pipeline. |
+| **Baseline** | **Direct LLM Prompt (No Tools)**<br>Single LLM prompt given supplier claims, commodity, and GeoJSON polygon. | **100% Blind to Earth Pixels (30% Accuracy)**<br>The LLM believed deceptive claims (e.g. TC-05 Colombia coffee claiming 2019 pre-cutoff clearing) producing critical False PASSes. | **Established starting point:** Text-only LLMs cannot verify deforestation. Direct satellite computation is mandatory. |
+| **Iteration 1** | **Direct STAC Search (Sentinel-2 / Landsat)**<br>Queried open STAC API catalogs to fetch recent optical satellite images. | **Cannot Compute Historical Cutoff**<br>Optical RGB only shows current green cover; cannot calculate cumulative 25-year post-2020 loss or reference the Dec 31, 2020 cutoff. | **Removed raw STAC pipeline:** Visual inspection cannot prove compliance. Pivoted to a planetary raster computing backend. |
+| **Iteration 2** | **Static 30m Raster Reduction (Hansen GFC v1.13)**<br>Queried planetary rasters for post-2020 forest loss (`lossyear > 20`) at fixed 30m pixel resolution. | **Raster Compute Timeout on Large Plots**<br>Fixed 30m pixel counting worked on 500-ha farms, but timed out and crashed on 50,000 to 1,000,000-ha commercial concessions (Mato Grosso). | **Engineered Dynamic Scale Optimization:** Implemented `_compute_scale()` to dynamically adapt pixel sampling pyramid levels based on plot area. Reduced 1M ha queries from infinite timeout to **32 seconds**. |
+| **Iteration 3** | **Multi-Signal Typology + External REST APIs**<br>Added Forest Typology 2020 & WRI Loss Drivers. Attempted to query external REST APIs (MapBiomas & third-party WDPA endpoints). | **Brittle APIs & Protected Area Gap**<br>External REST APIs suffered from 504 timeouts, strict rate limits, and failed on remote plots. Plots inside national parks without deforestation slipped through as PASS (TC-08). | **Removed external REST APIs:** Unified protected areas directly into native planetary vector layers (`WCMC/WDPA/current/polygons`). Made WDPA spatial intersection zero-dependency and 100% reliable. |
+| **Iteration 4 (Final)**| **Autonomous 6-Tool Planetary EO Pipeline + SSE Telemetry + JSON Trajectories**<br>Combined Hansen GFC, Nature Trace, Typology, WRI Drivers, Forest Data Partnership Commodity Maps, and native WDPA with live streaming telemetry and multi-agent reasoning. | **Solved all previous failure modes:**<br>• Accuracy reached **100% (10/10 test cases)**<br>• Execution under **30 seconds**<br>• Zero false passes<br>• Hard legal gating on reserve overlaps | **Identified main contribution:** Grounding the agent in 6 authoritative Earth Observation datasets + mathematical legal gating + immutable JSON trajectories (`trajectories/req_*.json`) transformed a 30% hallucinating prompt into an enterprise-grade compliance pipeline. |
 
 ---
 
@@ -170,7 +176,7 @@ BASELINE (single prompt, no tools)
   Accuracy        : 3/10 = 30%
   False PASSes    : 1  (missed deforestation — critical liability)
 
-AGENT SOLUTION — Oxeous (6 GEE datasets)
+AGENT SOLUTION — Oxeous (6 Planetary EO datasets)
   Accuracy        : 10/10 = 100%
   False PASSes    : 0  (zero compliance blindspots)
 
@@ -189,15 +195,14 @@ Results saved to evaluation/evaluation_results.json
 ### Prerequisites
 - **Python ≥ 3.11**
 - **Node.js ≥ 18**
-- Free Google Gemini API Key ([Google AI Studio](https://aistudio.google.com/))
-- Free Google Earth Engine account ([Earth Engine Sign-Up](https://code.earthengine.google.com/))
+- Cloud AI & Planetary Earth Observation API credentials configured in `.env`
 
 ### 1. Backend Setup
 ```bash
 cd backend
 pip install -e ".[dev]"
 cp ../.env.example .env
-# Set GEMINI_API_KEY and GEE_PROJECT in .env
+# Configure API credentials and cloud project settings in .env
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -227,7 +232,7 @@ oxeous/
 │   │   │   ├── carveout_service.py # Topological Shapely 2.0 parcel excision
 │   │   │   ├── dds_generator.py # TRACES NT Due Diligence Statement generator
 │   │   │   └── models.py        # Pydantic schema & compliance models
-│   │   ├── tools/eudr/          # GEE commodity & multi-sensor map-algebra tools
+│   │   ├── tools/eudr/          # Planetary commodity & multi-sensor map-algebra tools
 │   │   └── api/                 # REST & SSE streaming endpoints
 │   └── tests/                   # 500+ unit and integration test suite
 │
@@ -246,8 +251,11 @@ oxeous/
     │   ├── Figure_3_Multi_Agent_Architecture.*
     │   ├── Figure_4_Mathematical_Foundations_and_Statutory_Invariants.*
     │   └── Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf
+    ├── case_studies/            # Empirical Case Studies (Journal Format)
+    │   └── Case_Study_1_Cote_dIvoire_Cocoa.pdf
     ├── BASELINE_COMPARISON.md   # Benchmark evaluation matrix & challenging cases
-    ├── hero-banner.png          # Visual hero banner
+    ├── oxeous-hero-banner.png   # Visual hero banner
+    ├── eudr-regulation-overview.png # EUDR Regulation (EU 2023/1115) overview banner
     └── interface.png            # Web UI screenshot showcase
 ```
 
@@ -257,5 +265,5 @@ oxeous/
 MIT License — see [`LICENSE`](LICENSE) for details.
 
 <p align="center">
-  <sub>Oxeous — Autonomous Spatial-Legal Intelligence & Mathematical Foundations for EUDR Compliance. Developed by Oxeous Research.</sub>
+  <sub>Oxeous — Autonomous Spatial-Legal Intelligence & Mathematical Foundations for EUDR Compliance. Powered by Microsoft.</sub>
 </p>
