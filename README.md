@@ -252,7 +252,8 @@ oxeous/
     │   ├── Figure_4_Mathematical_Foundations_and_Statutory_Invariants.*
     │   └── Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf
     ├── case_studies/            # Empirical Case Studies (Journal Format)
-    │   └── Case_Study_1_Cote_dIvoire_Cocoa.pdf
+    │   ├── Case_Study_1_Cote_dIvoire_Cocoa.pdf
+    │   └── Case_Study_2_Brazil_Mato_Grosso_Soya.pdf
     ├── BASELINE_COMPARISON.md   # Benchmark evaluation matrix & challenging cases
     ├── oxeous-hero-banner.png   # Visual hero banner
     ├── eudr-regulation-overview.png # EUDR Regulation (EU 2023/1115) overview banner
