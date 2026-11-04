@@ -141,7 +141,7 @@ for oy, a, b, c in ((Y1, "Spatial / spectral", "dimension", "10 m pixels"), (Y2,
 def call(x1, y1, x2, y2, lines, anchor):
     Ln(x1, y1, x2, y2, GREY, .8)
     for i, s in enumerate(lines): T(x2 + (2 if anchor == "start" else -2), y2 + 11 + i * 11, s, 10, a=anchor, fill=LINE, maxw=130, halo=True)
-call(OX - 68, 173, OX - 82, 185, ["EC JRC GFC2020 V4", "Sentinel-2 Nature Trace", "Google FDP crop models"], "end")
+call(OX - 68, 173, OX - 82, 185, ["EC JRC GFC2020 V4", "Sentinel-2 Nature Trace", "Forest Data Partnership (FDP) crop models"], "end")
 call(OX + 68, 173, OX + 80, 185, ["Sentinel-1 RADD SAR", "Copernicus GLO-30 (30 m)"], "start")
 for k, segs in enumerate(([("T", 0), ("current", 1), (" · 2021–25", 0)], [("T", 0), ("cutoff", 1), (" · Dec 2020", 0)], [("T", 0), ("0", 1), (" · 2000 baseline", 0)])):
     y = Y2 + N * CH + 14 * k + 2.5
@@ -166,7 +166,7 @@ R(ex, ey, EW, EH, "#F1F5F9", LINE, 1.2, 5)
 T(ex + EW / 2, ey + 36, "PWRI-3D", 14, True, "middle"); T(ex + EW / 2, ey + 52, "Consensus map-algebra", 11, a="middle", maxw=EW - 10)
 T(ex + EW / 2, ey + 65, "engine", 11, a="middle")
 T(ex + EW / 2, ey - 17, "Tensor product", 10.5, a="middle", fill=GREY)
-T(ex + EW / 2, ey + EH + 16, "Runs in Google Earth Engine", 10, a="middle", fill=GREY); T(ex + EW / 2, ey + EH + 28, "10 m nominal grid · WGS84", 10, a="middle", fill=GREY)
+T(ex + EW / 2, ey + EH + 16, "Runs in Planetary EO Compute", 10, a="middle", fill=GREY); T(ex + EW / 2, ey + EH + 28, "10 m nominal grid · WGS84", 10, a="middle", fill=GREY)
 for k, kind in enumerate(("x", "x", "cap")):
     cx = ex + 37.5 + 37.5 * k
     o.append(f'<circle cx="{cx}" cy="{ey}" r="9" fill="#fff" stroke="{LINE}" stroke-width="1.2"/>')

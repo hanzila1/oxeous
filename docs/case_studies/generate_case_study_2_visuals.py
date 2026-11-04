@@ -42,7 +42,7 @@ def geo_to_px(lon, lat):
     return px, py
 
 s2_raw_path = os.path.join(OUT_DIR, "raw_s2_sinop_real_fields.png")
-scratch_tile = r"C:/Users/hanzi/.gemini/antigravity/brain/957c6739-6730-41cf-836c-8751fa1bacfc/scratch/test_sinop_fields.png"
+scratch_tile = r"scratch/test_sinop_fields.png"
 
 if os.path.exists(scratch_tile) and not os.path.exists(s2_raw_path):
     shutil.copy2(scratch_tile, s2_raw_path)

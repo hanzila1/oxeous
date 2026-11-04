@@ -42,8 +42,8 @@ def geo_to_px(lon, lat):
 s2_raw_path = os.path.join(OUT_DIR, "raw_s2_riau_palm.png")
 fdp_raw_path = os.path.join(OUT_DIR, "raw_fdp_riau_palm.png")
 
-scratch_s2 = r"C:/Users/hanzi/.gemini/antigravity/brain/957c6739-6730-41cf-836c-8751fa1bacfc/scratch/test_riau_palm_s2.png"
-scratch_fdp = r"C:/Users/hanzi/.gemini/antigravity/brain/957c6739-6730-41cf-836c-8751fa1bacfc/scratch/test_riau_palm_fdp.png"
+scratch_s2 = r"scratch/test_riau_palm_s2.png"
+scratch_fdp = r"scratch/test_riau_palm_fdp.png"
 
 if os.path.exists(scratch_s2) and not os.path.exists(s2_raw_path):
     shutil.copy2(scratch_s2, s2_raw_path)

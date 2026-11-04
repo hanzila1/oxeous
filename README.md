@@ -123,10 +123,10 @@ We evaluated both the **Baseline (Direct LLM Prompt)** and the **Oxeous Earth Ag
 | **TC-03** | 🇮🇩 Indonesia Palm Oil (Peatland clearing)| **FAIL** | UNCERTAIN ❌ | **FAIL (76.8 Risk)** ✅ | Match |
 | **TC-04** | 🇩🇪 Germany Wood (Bavaria FSC Forest) | **PASS** | **PASS** ✅ | **PASS (0.0 Risk)** ✅ | Match |
 | **TC-05** | 🇨🇴 Colombia Coffee (**Deceptive Claim**) | **FAIL** | **FALSE PASS** ❌ *(believed claim)*| **FAIL (58.4 Risk)** ✅ | **Caught Lie** |
-| **TC-06** | 🇧🇷 Brazil Cocoa (**0.6ha Small Corner**)| **FAIL** | UNCERTAIN ❌ | **FAIL (48.2 Risk)** ✅ | **Caught Edge Case** |
+| **TC-06** | 🇧🇷 Brazil Cocoa (**0.6ha Small Corner**)| **FAIL** | UNCERTAIN ❌ | **FAIL (41.2 Risk)** ✅ | **Caught Edge Case** |
 | **TC-07** | 🇫🇮 Finland Wood (Boreal PEFC Forest) | **PASS** | **PASS** ✅ | **PASS (0.0 Risk)** ✅ | Match |
-| **TC-08** | 🇵🇪 Peru Coffee (**Protected Area Overlap**)| **FAIL** | **FALSE PASS** ❌ *(no loss)* | **FAIL (100.0 Hard Overlap)** ✅| **Caught Illegal Boundary** |
-| **TC-09** | 🇧🇷 Brazil Cattle (Amazon pasture) | **FAIL** | UNCERTAIN ❌ | **FAIL (89.1 Risk)** ✅ | Match |
+| **TC-08** | 🇵🇪 Peru Coffee (**Protected Area Overlap**)| **FAIL** | **FALSE PASS** ❌ *(no loss)* | **FAIL (45.0 + Hard PA Veto)** ✅| **Caught Illegal Boundary** |
+| **TC-09** | 🇧🇷 Brazil Cattle (Amazon pasture) | **FAIL** | UNCERTAIN ❌ | **FAIL (89.2 Risk)** ✅ | Match |
 | **TC-10** | 🇦🇹 Austria Wood (Alpine FSC Forest) | **PASS** | **PASS** ✅ | **PASS (0.0 Risk)** ✅ | Match |
 
 ---

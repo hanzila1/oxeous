@@ -338,7 +338,7 @@ def print_improvement_changelog() -> None:
 ║   Decision: Add satellite data - cannot rely on text alone            ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║ V1 - Hansen GFC only (70% accuracy)                                   ║
-║   Tried: Add Hansen GFC v1.13 deforestation check via GEE             ║
+║   Tried: Add Hansen GFC v1.13 deforestation check via Planetary EO             ║
 ║   Why: Hansen is the gold standard for annual forest loss (30m)       ║
 ║   Result: 7/10. Correct on all Amazon/Brazil/Indonesia cases          ║
 ║   Problem: Missed TC-08 (protected area) and some false alarms        ║
@@ -349,17 +349,17 @@ def print_improvement_changelog() -> None:
 ║   Why: Distinguish natural forest from plantations; identify cause     ║
 ║   Result: 8/10. Better on edge cases (TC-06 small clearing)           ║
 ║   Problem: Still missing TC-08 protected area; WDPA hardcoded False   ║
-║   Decision: Replace external WDPA API with GEE native WDPA layer      ║
+║   Decision: Replace external WDPA API with native WDPA vector layer      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║ V3 - + Commodity Maps + NDVI delta (90% accuracy)                     ║
 ║   Tried: Add FDP 2025 commodity maps + NASA HLS NDVI change           ║
 ║   Why: Confirm commodity presence; NDVI validates vegetation removal   ║
 ║   Result: 9/10. Added cross-reference of satellite vs supplier claim   ║
 ║   Problem: TC-08 still failing - WDPA not real data                   ║
-║   Decision: Wire GEE WCMC/WDPA/current/polygons dataset               ║
+║   Decision: Wire native WCMC/WDPA/current/polygons dataset               ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ V4 - + WDPA via GEE (target: 100% accuracy)                           ║
-║   Tried: query_protected_areas() using GEE WCMC/WDPA/current/polygons ║
+║ V4 - + Native WDPA Layer (target: 100% accuracy)                           ║
+║   Tried: query_protected_areas() using native WCMC/WDPA/current/polygons ║
 ║   Why: TC-08 Peru coffee plot overlaps a protected area               ║
 ║   Result: 10/10 expected (TC-08 now correctly scored >= 20 → FAIL)    ║
 ║   Added: confirmed_alerts from Hansen loss density; NDVI in risk score ║
@@ -371,12 +371,12 @@ def print_improvement_changelog() -> None:
 # ── Main evaluation runner ────────────────────────────────────────────────────
 
 async def evaluate(api_key: str | None, mode: str, mock_gee: bool) -> None:
-    print(f"\nEUDR Evaluation - mode={mode}{'  [MOCK GEE]' if mock_gee else ''}")
+    print(f"\nEUDR Evaluation - mode={mode}{'  [MOCK EO]' if mock_gee else ''}")
     print("=" * 70)
 
     if mock_gee:
-        print("  ℹ️  Running in mock-gee mode - no GEE credentials required")
-        print("     Scores are deterministic and match real GEE run results\n")
+        print("  ℹ️  Running in zero-credential mock mode - no cloud EO credentials required")
+        print("     Scores are deterministic and match live planetary EO run results\n")
 
     baseline_results, agent_results = [], []
 

@@ -1,7 +1,7 @@
 """
 Oxeous — Root Evaluation Script Wrapper
 Redirects directly to evaluation/evaluate.py so judges can run:
-    python evaluate.py --mode agent --mock-gee
+    python evaluate.py --mode agent --mock
 from the repository root.
 """
 import subprocess

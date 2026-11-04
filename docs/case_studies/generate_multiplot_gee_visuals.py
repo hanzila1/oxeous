@@ -6,7 +6,7 @@ Styled strictly as scientific journal plates (Remote Sensing of Environment / IS
   • Pure white backgrounds, crisp black coordinate frames, exterior lat/lon ticks
   • Zero UI dashboard bars, zero opaque pill boxes blocking parcel interiors
   • Generates both individual figures (Figure_1..5) and cohesive multi-panel journal plates:
-      - Journal_Fig1_Cartographic_Plate.png: (a) Sentinel-2 Cadastre & Art. 2(5) Replanting, (b) Clipped Google FDP 10m Cocoa Probability
+      - Journal_Fig1_Cartographic_Plate.png: (a) Sentinel-2 Cadastre & Art. 2(5) Replanting, (b) Clipped Forest Data Partnership (FDP) 10m Cocoa Probability
       - Journal_Fig2_Telemetry_and_Benchmark.png: (a) NDVI Phenology 2019-2025, (b) Multi-Sensor Layer Profile, (c) 100-Plot Benchmark
 """
 
