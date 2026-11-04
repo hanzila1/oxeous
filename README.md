@@ -33,7 +33,7 @@
 
 | Deliverable | Description | Location / Link |
 | :--- | :--- | :--- |
-| **01. Research Whitepaper** | Compile-verified 6-page technical paper & statutory concordance | [`docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf`](docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf) |
+| **01. Research Whitepaper** | Compile-verified 4-page two-column research paper & 4-biome synthesis | [`docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf`](docs/finals/Oxeous_Research_Paper_Mathematical_Foundations_EUDR.pdf) |
 | **02. Empirical Case Study I** | Two-column research paper: Côte d'Ivoire Cocoa & Art. 2(5) Replanting | [`docs/case_studies/Case_Study_1_Cote_dIvoire_Cocoa.pdf`](docs/case_studies/Case_Study_1_Cote_dIvoire_Cocoa.pdf) |
 | **03. Empirical Case Study II** | Two-column research paper: Mato Grosso Soya Carve-Out & Yield Cap | [`docs/case_studies/Case_Study_2_Brazil_Mato_Grosso_Soya.pdf`](docs/case_studies/Case_Study_2_Brazil_Mato_Grosso_Soya.pdf) |
 | **04. Empirical Case Study III** | Two-column research paper: Riau Inti–Plasma Palm Oil & Peatland Gate | [`docs/case_studies/Case_Study_3_Indonesia_Riau_Palm_Oil.pdf`](docs/case_studies/Case_Study_3_Indonesia_Riau_Palm_Oil.pdf) |
