@@ -37,11 +37,12 @@
 | **02. Empirical Case Study I** | Two-column research paper: Côte d'Ivoire Cocoa & Art. 2(5) Replanting | [`docs/case_studies/Case_Study_1_Cote_dIvoire_Cocoa.pdf`](docs/case_studies/Case_Study_1_Cote_dIvoire_Cocoa.pdf) |
 | **03. Empirical Case Study II** | Two-column research paper: Mato Grosso Soya Carve-Out & Yield Cap | [`docs/case_studies/Case_Study_2_Brazil_Mato_Grosso_Soya.pdf`](docs/case_studies/Case_Study_2_Brazil_Mato_Grosso_Soya.pdf) |
 | **04. Empirical Case Study III** | Two-column research paper: Riau Inti–Plasma Palm Oil & Peatland Gate | [`docs/case_studies/Case_Study_3_Indonesia_Riau_Palm_Oil.pdf`](docs/case_studies/Case_Study_3_Indonesia_Riau_Palm_Oil.pdf) |
-| **05. System Pipeline (Fig. 1)** | End-to-end 4-stage statutory adjudication architecture | [`docs/finals/Figure_1_Full_System_Pipeline.png`](docs/finals/Figure_1_Full_System_Pipeline.png) |
-| **06. PWRI-3D Engine (Fig. 2)** | Pixel-Wise Raster Intersection (Spatial $\times$ Temporal $\times$ Statutory) | [`docs/finals/Figure_2_PWRI_3D_Map_Algebra.png`](docs/finals/Figure_2_PWRI_3D_Map_Algebra.png) |
-| **07. Multi-Agent Constellation (Fig. 3)** | Six-agent deterministic consensus & cryptographic audit ledger | [`docs/finals/Figure_3_Multi_Agent_Architecture.png`](docs/finals/Figure_3_Multi_Agent_Architecture.png) |
-| **08. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
-| **09. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
+| **05. Empirical Case Study IV** | Two-column research paper: Huila Shade-Coffee Zoca & Deceptive Claim Gate | [`docs/case_studies/Case_Study_4_Colombia_Huila_Coffee.pdf`](docs/case_studies/Case_Study_4_Colombia_Huila_Coffee.pdf) |
+| **06. System Pipeline (Fig. 1)** | End-to-end 4-stage statutory adjudication architecture | [`docs/finals/Figure_1_Full_System_Pipeline.png`](docs/finals/Figure_1_Full_System_Pipeline.png) |
+| **07. PWRI-3D Engine (Fig. 2)** | Pixel-Wise Raster Intersection (Spatial $\times$ Temporal $\times$ Statutory) | [`docs/finals/Figure_2_PWRI_3D_Map_Algebra.png`](docs/finals/Figure_2_PWRI_3D_Map_Algebra.png) |
+| **08. Multi-Agent Constellation (Fig. 3)** | Six-agent deterministic consensus & cryptographic audit ledger | [`docs/finals/Figure_3_Multi_Agent_Architecture.png`](docs/finals/Figure_3_Multi_Agent_Architecture.png) |
+| **09. Benchmark Evaluation Suite** | Deterministic CLI benchmark suite & 10-test matrix | [`evaluate.py`](evaluate.py) & [`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) |
+| **10. Audit Trajectories & Sample Plots** | Immutable JSON audit logs & verified global GeoJSON plots | [`trajectories/`](trajectories/) & [`sample_test_plots/`](sample_test_plots/) |
 
 ---
 
@@ -256,7 +257,8 @@ oxeous/
     ├── case_studies/            # Empirical Case Studies (Journal Format)
     │   ├── Case_Study_1_Cote_dIvoire_Cocoa.pdf
     │   ├── Case_Study_2_Brazil_Mato_Grosso_Soya.pdf
-    │   └── Case_Study_3_Indonesia_Riau_Palm_Oil.pdf
+    │   ├── Case_Study_3_Indonesia_Riau_Palm_Oil.pdf
+    │   └── Case_Study_4_Colombia_Huila_Coffee.pdf
     ├── BASELINE_COMPARISON.md   # Benchmark evaluation matrix & challenging cases
     ├── oxeous-hero-banner.png   # Visual hero banner
     ├── eudr-regulation-overview.png # EUDR Regulation (EU 2023/1115) overview banner
