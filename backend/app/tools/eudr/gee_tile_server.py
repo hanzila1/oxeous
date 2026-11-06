@@ -531,7 +531,7 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
     try:
         import ee
         hansen = ee.Image("UMD/hansen/global_forest_change_2025_v1_13")
-        treecover = hansen.select("treecover2000")
+        treecover = hansen.select("treecover2000").unmask(0).resample("bilinear")
         lossyear  = hansen.select("lossyear")
         loss      = hansen.select("loss")
         post_cutoff = lossyear.gt(20).And(loss.eq(1)).And(treecover.gte(30))
@@ -563,9 +563,9 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
         except Exception:
             pass
 
-        statutory_raw = post_cutoff.And(consensus_forest_2020)
-        statutory_deforest = statutory_raw.selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
-        replanting = post_cutoff.And(consensus_forest_2020.Not())
+        sieve_30m = post_cutoff.And(consensus_forest_2020).selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+        statutory_deforest = consensus_forest_2020.And(post_cutoff).And(sieve_30m)
+        replanting = consensus_forest_2020.Not().And(post_cutoff)
 
         wc_map = ee.ImageCollection("ESA/WorldCover/v200").first().select("Map").unmask(0)
         non_agronomic = (
@@ -823,7 +823,7 @@ def get_sentinel2_timelapse(
         # Pre-prepare Hansen GFC + Consensus 2020 Forest (JRC V4 ∪ Nature Trace 2020) + RADD
         # Must match gee_commodity.py 100% so Timelapse Pinpoint Red/Amber pixels are identical to PWRI-3D!
         hansen_img = ee.Image("UMD/hansen/global_forest_change_2025_v1_13")
-        tc_2000 = hansen_img.select("treecover2000").unmask(0)
+        tc_2000 = hansen_img.select("treecover2000").unmask(0).resample("bilinear")
         ly_band = hansen_img.select("lossyear").unmask(0)
         l_band = hansen_img.select("loss").unmask(0)
         jrc_forest = ee.Image("JRC/GFC2020/V4").select("Map").unmask(0).eq(1)
@@ -899,10 +899,11 @@ def get_sentinel2_timelapse(
                     cum_loss = ly_band.gt(20).And(ly_band.lte(ly_code)).And(l_band.eq(1)).And(tc_2000.gte(30))
                     if yr >= 2025:
                         cum_loss = cum_loss.Or(radd_alert_img)
-                    cum_stat_raw = cum_loss.And(consensus_forest_2020)
-                    cum_stat_mmu = cum_stat_raw.selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
-                    cum_stat_loss = _clip_image(cum_stat_mmu, bbox, geometry)
-                    cum_replant_loss = _clip_image(cum_loss.And(consensus_forest_2020.Not()), bbox, geometry)
+                    sieve_30m = cum_loss.And(consensus_forest_2020).selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+                    cum_stat_10m = consensus_forest_2020.And(cum_loss).And(sieve_30m)
+                    cum_replant_10m = consensus_forest_2020.Not().And(cum_loss)
+                    cum_stat_loss = _clip_image(cum_stat_10m, bbox, geometry)
+                    cum_replant_loss = _clip_image(cum_replant_10m, bbox, geometry)
 
                     replant_overlay = ee.Image(1).updateMask(cum_replant_loss).visualize(palette=["#F2A91F"], opacity=0.78)
                     stat_overlay = ee.Image(1).updateMask(cum_stat_loss).visualize(palette=["#D93C4A"], opacity=0.85)

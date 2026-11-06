@@ -836,10 +836,10 @@ async def run_full_gee_assessment(
         region = _to_ee_geometry(geometry, bbox)
         if region is None:
             region = ee.Geometry.Rectangle([bbox[0], bbox[1], bbox[2], bbox[3]])
-        eff_scale = _compute_scale(bbox, base_scale=30)
+        eff_scale = _compute_scale(bbox, base_scale=10)
 
         hansen_img = ee.Image("UMD/hansen/global_forest_change_2025_v1_13")
-        tc_img = hansen_img.select("treecover2000").unmask(0)
+        tc_img = hansen_img.select("treecover2000").unmask(0).resample("bilinear")
         ly_img = hansen_img.select("lossyear").unmask(0)
         l_img  = hansen_img.select("loss").unmask(0)
         post_cutoff_optical_img = ly_img.gt(20).And(l_img.eq(1)).And(tc_img.gte(30))
@@ -883,10 +883,11 @@ async def run_full_gee_assessment(
         ).mosaic().select("B0").unmask(0).divide(250.0).gte(0.45)
         consensus_forest_2020_img = jrc_forest_img.Or(nat_forest_2020_img)
 
-        # Dimension 3 Statutory Legal Ontologies (5-Class Map Algebra):
+        # Dimension 3 Statutory Legal Ontologies (5-Class Map Algebra anchored to 10m native projection):
+        # Put 10m consensus_forest_2020_img on the left-hand side so all outputs preserve true 10m pixel boundaries!
         # Class 1: Exempt Agricultural Replanting (EUDR Art. 2(5))
-        replanting_img = post_cutoff_img.And(consensus_forest_2020_img.Not())
-        statutory_candidate_img = post_cutoff_img.And(consensus_forest_2020_img)
+        replanting_img = consensus_forest_2020_img.Not().And(post_cutoff_img)
+        statutory_candidate_img = consensus_forest_2020_img.And(post_cutoff_img)
 
         # Class 2: Exempt Sustainable Silviculture (EUDR Art. 2(3)/2(7))
         # Rotational timber harvesting in managed commercial planted forests without land-use conversion.
@@ -907,7 +908,9 @@ async def run_full_gee_assessment(
 
         # Class 3: Statutory Deforestation Violation (EUDR Art. 3(a))
         # Applies FAO >= 0.5 ha Minimum Mapping Unit (MMU) Connected-Component Spatial Sieve (Art. 2(4))
-        mmu_deforest_img = statutory_deforest_raw_img.selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+        # while preserving the 10m left-hand projection of statutory_deforest_raw_img!
+        sieve_30m = post_cutoff_img.And(consensus_forest_2020_img).selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+        mmu_deforest_img = statutory_deforest_raw_img.And(sieve_30m)
         statutory_deforest_img = mmu_deforest_img
 
         # Class 4: Non-Agronomic / Urban / Water / No-Data (ESA WorldCover 10m v200)
@@ -1008,15 +1011,16 @@ async def run_full_gee_assessment(
             except Exception:
                 loss_vector_features = []
 
-        # Discrete 5-Class Classified Output Raster (PWRI-3D v4 standard):
+        # Discrete 5-Class Classified Output Raster (PWRI-3D v4 standard · 10m native projection):
         # 0 = Clean Compliant Land (#2E9E6F, Green)
         # 1 = Exempt Agricultural Replanting Art. 2(5) (#F2A91F, Amber)
         # 2 = Exempt Sustainable Silviculture Art. 2(3)/2(7) (#3B82C4, Blue)
         # 3 = Statutory Deforestation Violation Art. 3(a) (#D93C4A, Red)
         # 4 = Non-Agronomic / Urban / Water / No-Data (#64748B, Slate Grey)
         try:
+            base_10m_zero = jrc_forest_img.multiply(0)
             classified_raster = (
-                ee.Image(0)
+                base_10m_zero
                 .where(non_agronomic_img.gt(0), 4)
                 .where(replanting_img.gt(0), 1)
                 .where(silviculture_img.gt(0), 2)
