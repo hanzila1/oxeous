@@ -487,8 +487,11 @@ function MapCanvasComponent() {
       const run = () => {
         try {
           const isLight = basemapMode === "light";
-          if (m.getLayer("carto-light")) {
-            m.setLayoutProperty("carto-light", "visibility", isLight ? "visible" : "none");
+          if (m.getLayer("esri-light-base")) {
+            m.setLayoutProperty("esri-light-base", "visibility", isLight ? "visible" : "none");
+          }
+          if (m.getLayer("esri-light-labels")) {
+            m.setLayoutProperty("esri-light-labels", "visibility", isLight ? "visible" : "none");
           }
           if (m.getLayer("esri-satellite")) {
             m.setLayoutProperty("esri-satellite", "visibility", isLight ? "none" : "visible");

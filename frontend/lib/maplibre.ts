@@ -26,28 +26,56 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       attribution: "Esri, HERE, Garmin",
       maxzoom: 19,
     },
-    "carto-light": {
+    "esri-light-base": {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
       ],
       tileSize: 256,
-      attribution: "OpenStreetMap, CARTO",
-      maxzoom: 19,
+      attribution: "Esri, HERE, Garmin",
+      maxzoom: 16,
+    },
+    "esri-light-labels": {
+      type: "raster",
+      tiles: [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Esri, HERE, Garmin",
+      maxzoom: 16,
     },
   },
   layers: [
     {
-      id: "carto-light",
+      id: "clean-white-bg",
+      type: "background",
+      paint: {
+        "background-color": "#F8FAF9",
+      },
+    },
+    {
+      id: "esri-light-base",
       type: "raster",
-      source: "carto-light",
+      source: "esri-light-base",
       layout: {
         visibility: "none",
       },
       paint: {
-        "raster-opacity": 1,
+        "raster-opacity": 0.85,
+        "raster-brightness-min": 0.35,
+        "raster-fade-duration": 150,
+      },
+    },
+    {
+      id: "esri-light-labels",
+      type: "raster",
+      source: "esri-light-labels",
+      layout: {
+        visibility: "none",
+      },
+      paint: {
+        "raster-opacity": 0.9,
         "raster-fade-duration": 150,
       },
     },
