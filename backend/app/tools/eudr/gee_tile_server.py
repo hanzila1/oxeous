@@ -814,9 +814,14 @@ def get_sentinel2_timelapse(
                     mask = scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
                     return img.updateMask(mask)
 
-                clean_col = col.filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 45)).map(_mask_s2_clouds)
-                # Fallback to unmasked median if tropical cloud cover leaves empty pixels
-                fallback_img = col.median()
+                # Sort by lowest cloud cover and take top 12 cleanest scenes for fast 10m median composite
+                clean_col = (
+                    col.filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 40))
+                    .sort("CLOUDY_PIXEL_PERCENTAGE")
+                    .limit(12)
+                    .map(_mask_s2_clouds)
+                )
+                fallback_img = col.sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median()
                 composite = clean_col.median().unmask(fallback_img)
 
                 # Strict clip inside the plot polygon so timelapse sticks inside the plot on the map
@@ -838,8 +843,8 @@ def get_sentinel2_timelapse(
                         framed_rgb = ee.ImageCollection([bg_rgb.byte(), fg_rgb.byte()]).mosaic()
                         rgb_thumb_url = framed_rgb.getThumbURL({
                             "region": thumb_region,
-                            "dimensions": 420,
-                            "format": "png",
+                            "dimensions": 360,
+                            "format": "jpg",
                         })
 
                         bg_nir = composite.visualize(**nir_vis_params).multiply(0.32)
@@ -847,8 +852,8 @@ def get_sentinel2_timelapse(
                         framed_nir = ee.ImageCollection([bg_nir.byte(), fg_nir.byte()]).mosaic()
                         nir_thumb_url = framed_nir.getThumbURL({
                             "region": thumb_region,
-                            "dimensions": 420,
-                            "format": "png",
+                            "dimensions": 360,
+                            "format": "jpg",
                         })
                     except Exception:
                         pass

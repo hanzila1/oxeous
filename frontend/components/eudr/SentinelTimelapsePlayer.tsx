@@ -17,9 +17,16 @@ import {
 import { cn } from "@/lib/utils";
 import { getMap } from "@/components/map/MapCanvas";
 import { extractBboxFromGeometry } from "@/lib/maplibre";
+import { useStore } from "@/lib/store";
 import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE_CANDIDATES = [
+  process.env.NEXT_PUBLIC_API_URL,
+  "http://127.0.0.1:8000",
+  "http://localhost:8000",
+  "http://127.0.0.1:8001",
+  "http://localhost:8001",
+].filter((v, idx, arr) => Boolean(v) && arr.indexOf(v) === idx) as string[];
 
 interface TimelapseFrame {
   year: number;
@@ -41,9 +48,13 @@ const DEFAULT_YEARS = [2020, 2021, 2022, 2023, 2024, 2025];
 export default function SentinelTimelapsePlayer({ result }: Props) {
   const { plot, risk_assessment: ra } = result;
   const def = ra.deforestation;
+  const { activeGeoJSON } = useStore();
 
   const [frames, setFrames] = useState<TimelapseFrame[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadStepYear, setLoadStepYear] = useState(2020);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -134,38 +145,73 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
     [clearMapTimelapseLayers]
   );
 
-  // Fetch 10m Sentinel-2 annual composites on demand
+  // Fetch 10m Sentinel-2 annual composites on demand with live year-by-year progress
   const loadTimelapse = async (autoPlay = true) => {
     if (loading) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/eudr/timelapse`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          geometry: plot.geometry,
-          years: DEFAULT_YEARS,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.frames) && data.frames.length > 0) {
-          setFrames(data.frames);
-          setLoaded(true);
-          setActiveIndex(0);
-          if (autoPlay) setIsPlaying(true);
+    const geom = plot.geometry ?? activeGeoJSON;
+    if (!geom) {
+      setErrorMsg("Plot geometry not found. Select or draw a plot first.");
+      return;
+    }
 
-          // Fly map smoothly to focus on the plot polygon
-          if (plot.geometry) {
-            const bbox = extractBboxFromGeometry(plot.geometry as object);
-            const flyFn = (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo;
-            if (bbox && flyFn) flyFn(bbox);
+    setLoading(true);
+    setErrorMsg(null);
+    setLoadProgress(12);
+    setLoadStepYear(2020);
+
+    const progInterval = setInterval(() => {
+      setLoadProgress((prev) => {
+        const next = Math.min(94, prev + 8);
+        const yrIdx = Math.min(5, Math.floor((next / 95) * 6));
+        setLoadStepYear(DEFAULT_YEARS[yrIdx] ?? 2025);
+        return next;
+      });
+    }, 650);
+
+    try {
+      let data: { frames?: TimelapseFrame[] } | null = null;
+      let lastErr = "";
+
+      for (const base of API_BASE_CANDIDATES) {
+        try {
+          const res = await fetch(`${base}/eudr/timelapse`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              geometry: geom,
+              years: DEFAULT_YEARS,
+            }),
+          });
+          if (res.ok) {
+            data = await res.json();
+            break;
+          } else {
+            lastErr = `HTTP ${res.status}`;
           }
+        } catch (e) {
+          lastErr = e instanceof Error ? e.message : "Network error";
         }
+      }
+
+      if (data && Array.isArray(data.frames) && data.frames.length > 0) {
+        setLoadProgress(100);
+        setFrames(data.frames);
+        setLoaded(true);
+        setActiveIndex(0);
+        if (autoPlay) setIsPlaying(true);
+
+        // Fly map smoothly to focus on the plot polygon
+        const bbox = extractBboxFromGeometry(geom as object);
+        const flyFn = (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo;
+        if (bbox && flyFn) flyFn(bbox);
+      } else {
+        setErrorMsg(`Could not load 10m Sentinel-2 cube (${lastErr || "No frames returned"}).`);
       }
     } catch (err) {
       console.warn("Sentinel-2 timelapse fetch error:", err);
+      setErrorMsg("Failed to stream Sentinel-2 timelapse cube.");
     } finally {
+      clearInterval(progInterval);
       setLoading(false);
     }
   };
@@ -304,42 +350,89 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
 
       {/* Main Player Body */}
       {!loaded ? (
-        <div className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-[#19332A] text-white p-5 border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="space-y-1.5 text-center sm:text-left">
-            <div className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-emerald-300 bg-emerald-950/70 border border-emerald-700/50 px-2.5 py-0.5 rounded-full">
-              <Sparkles className="w-3 h-3" />
-              <span>On-Demand 10m Multi-Temporal Verification</span>
+        <div className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-[#19332A] text-white p-5 border border-slate-700 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1.5 text-center sm:text-left">
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-emerald-300 bg-emerald-950/70 border border-emerald-700/50 px-2.5 py-0.5 rounded-full">
+                <Sparkles className="w-3 h-3" />
+                <span>On-Demand 10m Multi-Temporal Verification</span>
+              </div>
+              <h5 className="text-sm font-bold text-white">
+                Verify Plot Canopy History Year-by-Year (Dec 2020 Cutoff → 2025)
+              </h5>
+              <p className="text-[11px] text-slate-300 max-w-md leading-relaxed">
+                Streams 6 annual cloud-masked 10m Sentinel-2 composites clipped strictly inside{" "}
+                <span className="text-amber-300 font-semibold">
+                  {(plot.area_ha ?? 10).toFixed(1)} ha
+                </span>{" "}
+                plot geometry—animating both here and live on the main satellite map.
+              </p>
             </div>
-            <h5 className="text-sm font-bold text-white">
-              Verify Plot Canopy History Year-by-Year (Dec 2020 Cutoff → 2025)
-            </h5>
-            <p className="text-[11px] text-slate-300 max-w-md leading-relaxed">
-              Streams 6 annual cloud-masked 10m Sentinel-2 composites clipped strictly inside{" "}
-              <span className="text-amber-300 font-semibold">
-                {(plot.area_ha ?? 10).toFixed(1)} ha
-              </span>{" "}
-              plot geometry—animating both here and live on the main satellite map.
-            </p>
+
+            <button
+              type="button"
+              onClick={() => loadTimelapse(true)}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[12px] shadow-md transition-all cursor-pointer flex-shrink-0 disabled:opacity-75"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Synthesizing {loadStepYear} ({loadProgress}%)...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>Play 10m Plot Timelapse</span>
+                </>
+              )}
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => loadTimelapse(true)}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[12px] shadow-md transition-all cursor-pointer flex-shrink-0 disabled:opacity-60"
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Building 6-Year 10m Cube...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-current" />
-                <span>Play 10m Plot Timelapse</span>
-              </>
-            )}
-          </button>
+          {/* Live 6-Year Sentinel-2 Synthesis Progress Bar */}
+          {loading && (
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-between text-[10.5px] font-mono text-emerald-300">
+                <span>
+                  Cloud-masking & clipping 10m Sentinel-2 L2A composite for <strong>{loadStepYear}</strong>...
+                </span>
+                <span className="font-bold">{loadProgress}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-950/80 rounded-full overflow-hidden border border-emerald-500/30">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-300 rounded-full"
+                  style={{ width: `${loadProgress}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-6 gap-1 pt-0.5">
+                {DEFAULT_YEARS.map((yr) => {
+                  const done = yr < loadStepYear;
+                  const active = yr === loadStepYear;
+                  return (
+                    <div
+                      key={yr}
+                      className={cn(
+                        "text-center py-1 rounded text-[9.5px] font-mono border transition-all",
+                        done
+                          ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-200 font-bold"
+                          : active
+                          ? "bg-amber-500/25 border-amber-400 text-amber-200 font-bold animate-pulse"
+                          : "bg-white/5 border-white/10 text-slate-400"
+                      )}
+                    >
+                      {yr} {done ? "✓" : active ? "⋯" : ""}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div className="p-2.5 rounded-lg bg-rose-950/80 border border-rose-500/50 text-rose-200 text-[11px] font-mono">
+              ⚠ {errorMsg}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -552,3 +645,4 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
     </div>
   );
 }
+

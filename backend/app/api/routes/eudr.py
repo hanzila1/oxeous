@@ -836,7 +836,7 @@ async def get_plot_traces_nt_xml(plot_id: str) -> Response:
 
 
 @router.post("/timelapse")
-async def get_plot_sentinel_timelapse(body: dict[str, Any]) -> dict[str, Any]:
+async def get_plot_sentinel_timelapse(request: Request):
     """
     On-demand 10m Sentinel-2 annual time-series timelapse (2020 Cutoff -> 2025)
     strictly clipped inside the submitted plot geometry.
@@ -844,6 +844,7 @@ async def get_plot_sentinel_timelapse(body: dict[str, Any]) -> dict[str, Any]:
     from ...eudr.analysis_engine import _geometry_to_bbox
     from ...tools.eudr.gee_tile_server import get_sentinel2_timelapse
 
+    body = await request.json()
     geometry = body.get("geometry")
     if not geometry:
         raise HTTPException(status_code=400, detail="Missing plot geometry")
