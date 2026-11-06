@@ -28,6 +28,7 @@ import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
 import { useStore, type ActiveLayer } from "@/lib/store";
 import RiskBadge from "./RiskBadge";
 import SpatialAnalyticsDeck from "./SpatialAnalyticsDeck";
+import SentinelTimelapsePlayer from "./SentinelTimelapsePlayer";
 import AgentConstellationRing from "./AgentConstellationRing";
 import {
   EULogoSeal,
@@ -38,7 +39,9 @@ import {
   May2026CarveIcon,
   OverviewGridIcon,
   AnalyticsDeckIcon,
+  SentinelTimelapseIcon,
   SensorStackIcon,
+  ComplianceShieldIcon,
   DossierIcon,
   DownloadDDSIcon,
   AuditPlotIcon,
@@ -80,6 +83,12 @@ const MULTI_SENSOR_TABS = [
     icon: AnalyticsDeckIcon,
   },
   {
+    id: "timelapse" as const,
+    label: "Timelapse",
+    tip: "10m Sentinel-2 plot time-series (2020–2025)",
+    icon: SentinelTimelapseIcon,
+  },
+  {
     id: "overview" as const,
     label: "Overview",
     tip: "Executive findings & timeline",
@@ -101,7 +110,7 @@ const MULTI_SENSOR_TABS = [
     id: "legality" as const,
     label: "Legality & DDS",
     tip: "Protected reserves & TRACES NT filing",
-    icon: ShieldCheck,
+    icon: ComplianceShieldIcon,
   },
 ];
 
@@ -192,7 +201,7 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
     } finally { setExporting(false); }
   }
 
-  const [viewTab, setViewTab] = useState<"charts" | "overview" | "pwri" | "layers" | "legality">("charts");
+  const [viewTab, setViewTab] = useState<"charts" | "timelapse" | "overview" | "pwri" | "layers" | "legality">("charts");
   const [legalityDetailsOpen, setLegalityDetailsOpen] = useState(false);
   const [art240Open, setArt240Open] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -712,6 +721,13 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
           {viewTab === "charts" && (
             <div className="p-3 bg-slate-50/50">
               <SpatialAnalyticsDeck result={result} compact />
+            </div>
+          )}
+
+          {/* Tab: 10m Sentinel-2 Multi-Temporal Timelapse (2020-2025) */}
+          {viewTab === "timelapse" && (
+            <div className="p-3 bg-[#F4F5F6]">
+              <SentinelTimelapsePlayer result={result} />
             </div>
           )}
 

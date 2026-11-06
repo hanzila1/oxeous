@@ -6,18 +6,21 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  Film,
   Eye,
   EyeOff,
-  Sparkles,
   RefreshCw,
-  Layers,
-  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getMap } from "@/components/map/MapCanvas";
 import { extractBboxFromGeometry } from "@/lib/maplibre";
 import { useStore } from "@/lib/store";
+import {
+  SentinelTimelapseIcon,
+  Sentinel2MSIIcon,
+  JRC2020Emblem,
+  May2026CarveIcon,
+  PixelInspectorIcon,
+} from "@/components/icons/EOIcons";
 import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
 
 const API_BASE_CANDIDATES = [
@@ -289,37 +292,37 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   const isLossYear = lossYears.includes(currentFrame.year);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+    <div className="bg-white rounded-xl border border-[#C8CFD5] p-3.5 shadow-2xs space-y-3 text-[#1D2227]">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[#315F50]">
-            <Film className="w-4 h-4" />
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#E3E7EA]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[rgba(49,95,80,0.1)] border border-[rgba(49,95,80,0.25)] flex items-center justify-center text-[#315F50] flex-shrink-0">
+            <SentinelTimelapseIcon className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
+            <h4 className="text-[12.5px] font-bold text-[#1D2227] flex items-center gap-1.5 flex-wrap">
               <span>Sentinel-2 10m Plot Timelapse (2020–2025)</span>
-              <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-[#315F50] border border-emerald-200">
+              <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-[rgba(49,95,80,0.08)] text-[#315F50] border border-[rgba(49,95,80,0.22)]">
                 10m Native · Clipped to Plot
               </span>
             </h4>
-            <p className="text-[10.5px] text-slate-500">
+            <p className="text-[10.5px] text-[#747F88]">
               Annual cloud-free satellite composites projected directly inside the plot boundary
             </p>
           </div>
         </div>
 
         {/* Band Mode & Map Sync Controls */}
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-semibold">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center bg-[#E3E7EA] p-0.5 rounded-lg border border-[#C8CFD5] text-[10px] font-semibold">
             <button
               type="button"
               onClick={() => setSpectralMode("pinpoint")}
               className={cn(
                 "px-2 py-1 rounded-md transition-all cursor-pointer",
                 spectralMode === "pinpoint"
-                  ? "bg-white text-rose-700 shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-[#A64B45] shadow-2xs font-bold border border-[#C8CFD5]/60"
+                  : "text-[#5B6773] hover:text-[#1D2227]"
               )}
               title="10m Sentinel-2 True Color + Year-by-Year Cumulative Red Loss Pinpoint (2021–2025)"
             >
@@ -331,8 +334,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
               className={cn(
                 "px-2 py-1 rounded-md transition-all cursor-pointer",
                 spectralMode === "rgb"
-                  ? "bg-white text-slate-900 shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-[#1D2227] shadow-2xs font-bold border border-[#C8CFD5]/60"
+                  : "text-[#5B6773] hover:text-[#1D2227]"
               )}
               title="Natural True-Color Optical (B4, B3, B2 · 10m)"
             >
@@ -344,8 +347,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
               className={cn(
                 "px-2 py-1 rounded-md transition-all cursor-pointer",
                 spectralMode === "nir"
-                  ? "bg-white text-[#315F50] shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-[#315F50] shadow-2xs font-bold border border-[#C8CFD5]/60"
+                  : "text-[#5B6773] hover:text-[#1D2227]"
               )}
               title="False-Color Infrared Vegetation (B8, B4, B3 · 10m — Standing forest glows red, cleared soil is cyan)"
             >
@@ -361,7 +364,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                 "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer",
                 syncToMap
                   ? "bg-[#315F50] text-white border-[#315F50] shadow-2xs"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  : "bg-white text-[#5B6773] border-[#C8CFD5] hover:bg-[#F4F5F6]"
               )}
               title="Stick & animate 10m Sentinel-2 timelapse directly inside the plot polygon on the main map"
             >
@@ -372,24 +375,24 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
         </div>
       </div>
 
-      {/* Main Player Body */}
+      {/* Main Player Body — Light Steel & Forest Green Theme */}
       {!loaded ? (
-        <div className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-[#19332A] text-white p-5 border border-slate-700 space-y-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="space-y-1.5 text-center sm:text-left">
-              <div className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-emerald-300 bg-emerald-950/70 border border-emerald-700/50 px-2.5 py-0.5 rounded-full">
-                <Sparkles className="w-3 h-3" />
+        <div className="rounded-xl bg-[#F8FAF9] border border-[#C8CFD5] p-4 space-y-3.5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 text-[9.5px] font-mono uppercase tracking-wider font-bold text-[#315F50] bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.22)] px-2 py-0.5 rounded-md">
+                <Sentinel2MSIIcon className="w-3.5 h-3.5 text-[#315F50]" />
                 <span>On-Demand 10m Multi-Temporal Verification</span>
               </div>
-              <h5 className="text-sm font-bold text-white">
+              <h5 className="text-[13px] font-bold text-[#1D2227]">
                 Verify Plot Canopy History Year-by-Year (Dec 2020 Cutoff → 2025)
               </h5>
-              <p className="text-[11px] text-slate-300 max-w-md leading-relaxed">
+              <p className="text-[11px] text-[#5B6773] leading-relaxed">
                 Streams 6 annual cloud-masked 10m Sentinel-2 composites clipped strictly inside{" "}
-                <span className="text-amber-300 font-semibold">
+                <span className="text-[#315F50] font-mono font-bold">
                   {(plot.area_ha ?? 10).toFixed(1)} ha
                 </span>{" "}
-                plot geometry—animating both here and live on the main satellite map.
+                plot geometry—animating both here and live inside the plot boundary on the satellite map with year-by-year red loss pinpointing.
               </p>
             </div>
 
@@ -397,7 +400,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
               type="button"
               onClick={() => loadTimelapse(true)}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[12px] shadow-md transition-all cursor-pointer flex-shrink-0 disabled:opacity-75"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#315F50] hover:bg-[#274d40] text-white font-bold text-[11.5px] shadow-xs transition-all cursor-pointer flex-shrink-0 disabled:opacity-75"
             >
               {loading ? (
                 <>
@@ -406,25 +409,41 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4 fill-current" />
+                  <SentinelTimelapseIcon className="w-4 h-4" />
                   <span>Play 10m Plot Timelapse</span>
                 </>
               )}
             </button>
           </div>
 
+          {/* Feature Pills Strip */}
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E3E7EA] text-[10px] font-mono">
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-[#E3E7EA] text-[#5B6773]">
+              <JRC2020Emblem className="w-3.5 h-3.5 text-[#C58A3A] flex-shrink-0" />
+              <span className="truncate">2020 Cutoff Baseline</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-[#E3E7EA] text-[#5B6773]">
+              <May2026CarveIcon className="w-3.5 h-3.5 text-[#A64B45] flex-shrink-0" />
+              <span className="truncate">Red Loss Pinpoint</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-[#E3E7EA] text-[#5B6773]">
+              <Sentinel2MSIIcon className="w-3.5 h-3.5 text-[#315F50] flex-shrink-0" />
+              <span className="truncate">10m S2 RGB & NIR</span>
+            </div>
+          </div>
+
           {/* Live 6-Year Sentinel-2 Synthesis Progress Bar */}
           {loading && (
-            <div className="space-y-2 pt-2 border-t border-white/10">
-              <div className="flex items-center justify-between text-[10.5px] font-mono text-emerald-300">
+            <div className="space-y-2 pt-2.5 border-t border-[#E3E7EA]">
+              <div className="flex items-center justify-between text-[10.5px] font-mono text-[#315F50]">
                 <span>
                   Cloud-masking & clipping 10m Sentinel-2 L2A composite for <strong>{loadStepYear}</strong>...
                 </span>
                 <span className="font-bold">{loadProgress}%</span>
               </div>
-              <div className="h-2 w-full bg-slate-950/80 rounded-full overflow-hidden border border-emerald-500/30">
+              <div className="h-2 w-full bg-[#E3E7EA] rounded-full overflow-hidden border border-[#C8CFD5]">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-300 rounded-full"
+                  className="h-full bg-[#315F50] transition-all duration-300 rounded-full"
                   style={{ width: `${loadProgress}%` }}
                 />
               </div>
@@ -438,10 +457,10 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                       className={cn(
                         "text-center py-1 rounded text-[9.5px] font-mono border transition-all",
                         done
-                          ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-200 font-bold"
+                          ? "bg-[rgba(49,95,80,0.12)] border-[rgba(49,95,80,0.3)] text-[#315F50] font-bold"
                           : active
-                          ? "bg-amber-500/25 border-amber-400 text-amber-200 font-bold animate-pulse"
-                          : "bg-white/5 border-white/10 text-slate-400"
+                          ? "bg-[rgba(197,138,58,0.15)] border-[#C58A3A] text-[#8C5819] font-bold animate-pulse"
+                          : "bg-white border-[#E3E7EA] text-[#747F88]"
                       )}
                     >
                       {yr} {done ? "✓" : active ? "⋯" : ""}
@@ -453,7 +472,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
           )}
 
           {errorMsg && (
-            <div className="p-2.5 rounded-lg bg-rose-950/80 border border-rose-500/50 text-rose-200 text-[11px] font-mono">
+            <div className="p-2.5 rounded-lg bg-[rgba(166,75,69,0.08)] border border-[rgba(166,75,69,0.28)] text-[#A64B45] text-[11px] font-mono">
               ⚠ {errorMsg}
             </div>
           )}
@@ -463,7 +482,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
           {/* Visual Frame + Telemetry Overlay */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch">
             {/* Clipped Plot Satellite Viewport */}
-            <div className="sm:col-span-7 relative rounded-xl overflow-hidden bg-[#0c141c] border border-slate-300 min-h-[210px] flex items-center justify-center">
+            <div className="sm:col-span-7 relative rounded-xl overflow-hidden bg-[#1D2227] border border-[#C8CFD5] min-h-[210px] flex items-center justify-center">
               {activeThumbUrl ? (
                 <img
                   src={activeThumbUrl}
@@ -472,7 +491,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center p-6 text-center text-slate-300 space-y-1.5">
-                  <Layers className="w-6 h-6 text-emerald-400" />
+                  <Sentinel2MSIIcon className="w-6 h-6 text-emerald-400" />
                   <p className="text-[11px] font-semibold">
                     10m Sentinel-2 Frame ({currentFrame.year}) Active on MapLibre Canvas
                   </p>
@@ -488,13 +507,18 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                   className={cn(
                     "px-2.5 py-1 rounded-md text-[11px] font-mono font-extrabold shadow-md border backdrop-blur-md",
                     currentFrame.is_cutoff
-                      ? "bg-amber-500/95 text-slate-950 border-amber-300"
+                      ? "bg-[#C58A3A] text-white border-amber-300"
                       : isLossYear
-                      ? "bg-rose-600/95 text-white border-rose-400"
-                      : "bg-slate-900/90 text-white border-slate-700"
+                      ? "bg-[#A64B45] text-white border-rose-300"
+                      : "bg-[#1D2227]/90 text-white border-slate-600"
                   )}
                 >
-                  {currentFrame.year} {currentFrame.is_cutoff ? "· EUDR CUTOFF" : isLossYear ? "· DISTURBANCE DETECTED" : ""}
+                  {currentFrame.year}{" "}
+                  {currentFrame.is_cutoff
+                    ? "· EUDR CUTOFF"
+                    : isLossYear
+                    ? "· LOSS PINPOINTED"
+                    : ""}
                 </span>
               </div>
 
@@ -514,10 +538,10 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
             </div>
 
             {/* Right Column: Year-by-Year Statutory Verification Card */}
-            <div className="sm:col-span-5 rounded-xl bg-slate-50 border border-slate-200 p-3 flex flex-col justify-between space-y-2">
+            <div className="sm:col-span-5 rounded-xl bg-[#F8FAF9] border border-[#E3E7EA] p-3 flex flex-col justify-between space-y-2">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-slate-500">
+                  <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-[#747F88]">
                     Active Frame Telemetry
                   </span>
                   <button
@@ -531,37 +555,37 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                     }}
                     className="flex items-center gap-1 text-[10px] font-semibold text-[#315F50] hover:underline cursor-pointer"
                   >
-                    <Crosshair className="w-3 h-3" />
-                    <span>Focus Plot on Map</span>
+                    <PixelInspectorIcon className="w-3.5 h-3.5" />
+                    <span>Focus Plot</span>
                   </button>
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
-                  <div className="text-[12px] font-bold text-slate-900">
+                <div className="p-2.5 rounded-lg bg-white border border-[#E3E7EA] space-y-1">
+                  <div className="text-[11.5px] font-bold text-[#1D2227]">
                     {currentFrame.label}
                   </div>
-                  <div className="text-[10px] font-mono text-slate-500">
+                  <div className="text-[10px] font-mono text-[#747F88]">
                     Sensor: {currentFrame.sensor}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
-                  <div className="p-2 rounded-lg bg-white border border-slate-200">
-                    <span className="text-slate-500 block text-[9px]">PLOT CANOPY</span>
-                    <span className="text-slate-900 font-bold text-[12px]">
+                  <div className="p-2 rounded-lg bg-white border border-[#E3E7EA]">
+                    <span className="text-[#747F88] block text-[9px]">PLOT CANOPY</span>
+                    <span className="text-[#1D2227] font-bold text-[12px]">
                       {yearCanopyPct.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="p-2 rounded-lg bg-white border border-slate-200">
-                    <span className="text-slate-500 block text-[9px]">FRAME STATUS</span>
+                  <div className="p-2 rounded-lg bg-white border border-[#E3E7EA]">
+                    <span className="text-[#747F88] block text-[9px]">FRAME STATUS</span>
                     <span
                       className={cn(
                         "font-bold text-[11px]",
                         currentFrame.is_cutoff
-                          ? "text-amber-700"
+                          ? "text-[#C58A3A]"
                           : isLossYear && !def.is_plantation_replanting_exemption
-                          ? "text-rose-700"
-                          : "text-emerald-700"
+                          ? "text-[#A64B45]"
+                          : "text-[#315F50]"
                       )}
                     >
                       {currentFrame.is_cutoff
@@ -576,15 +600,17 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                 </div>
               </div>
 
-              <div className="text-[10px] text-slate-600 bg-emerald-50/70 border border-emerald-200 rounded-lg p-2 leading-snug">
-                <strong className="text-[#315F50]">Clipped to Plot Boundary:</strong> The 10m Sentinel-2 raster is masked strictly to the{" "}
-                <span className="font-mono font-bold">{(plot.area_ha ?? 10).toFixed(1)} ha</span> polygon on the map.
+              <div className="text-[10px] text-[#5B6773] bg-[rgba(49,95,80,0.06)] border border-[rgba(49,95,80,0.2)] rounded-lg p-2 leading-snug">
+                <strong className="text-[#315F50]">Clipped to Plot:</strong>{" "}
+                {spectralMode === "pinpoint"
+                  ? "Post-2020 loss lights up in red in the exact year it occurred."
+                  : `Masked strictly to the ${(plot.area_ha ?? 10).toFixed(1)} ha polygon.`}
               </div>
             </div>
           </div>
 
           {/* Interactive Play/Pause Scrubber Bar */}
-          <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="p-2 rounded-xl bg-[#F4F5F6] border border-[#C8CFD5] flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -592,31 +618,31 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                   setIsPlaying(false);
                   setActiveIndex((prev) => (prev - 1 + frames.length) % frames.length);
                 }}
-                className="p-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] text-[#5B6773] hover:text-[#1D2227] hover:bg-[#F8FAF9] cursor-pointer"
                 title="Previous Year"
               >
-                <SkipBack className="w-4 h-4" />
+                <SkipBack className="w-3.5 h-3.5" />
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPlaying((p) => !p)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-[11px] transition-all cursor-pointer shadow-2xs",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer shadow-2xs",
                   isPlaying
-                    ? "bg-amber-500 text-slate-950 hover:bg-amber-400"
+                    ? "bg-[#C58A3A] text-white hover:bg-[#b0792f]"
                     : "bg-[#315F50] text-white hover:bg-[#274d40]"
                 )}
               >
                 {isPlaying ? (
                   <>
-                    <Pause className="w-4 h-4 fill-current" />
+                    <Pause className="w-3.5 h-3.5 fill-current" />
                     <span>Pause</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Play Timelapse</span>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Play</span>
                   </>
                 )}
               </button>
@@ -627,10 +653,10 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                   setIsPlaying(false);
                   setActiveIndex((prev) => (prev + 1) % frames.length);
                 }}
-                className="p-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] text-[#5B6773] hover:text-[#1D2227] hover:bg-[#F8FAF9] cursor-pointer"
                 title="Next Year"
               >
-                <SkipForward className="w-4 h-4" />
+                <SkipForward className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -648,22 +674,33 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                       setActiveIndex(idx);
                     }}
                     className={cn(
-                      "px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer border flex items-center gap-1",
+                      "px-2 py-1 rounded-lg font-mono text-[10.5px] font-bold transition-all cursor-pointer border flex items-center gap-1",
                       active
                         ? f.is_cutoff
-                          ? "bg-amber-500 text-slate-950 border-amber-600 shadow-xs"
-                          : "bg-[#315F50] text-white border-[#315F50] shadow-xs"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                          ? "bg-[#C58A3A] text-white border-[#C58A3A] shadow-2xs"
+                          : "bg-[#315F50] text-white border-[#315F50] shadow-2xs"
+                        : "bg-white text-[#5B6773] border-[#C8CFD5] hover:bg-[#F8FAF9] hover:text-[#1D2227]"
                     )}
                   >
                     <span>{f.year}</span>
                     {f.is_cutoff && (
-                      <span className={cn("text-[8.5px] px-1 rounded", active ? "bg-black/15 text-slate-950" : "bg-amber-100 text-amber-800")}>
+                      <span
+                        className={cn(
+                          "text-[8px] px-1 rounded",
+                          active ? "bg-black/20 text-white" : "bg-amber-100 text-[#8C5819]"
+                        )}
+                      >
                         CUTOFF
                       </span>
                     )}
                     {yrLoss && !f.is_cutoff && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" title={`Canopy loss detected in ${f.year}`} />
+                      <span
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full inline-block",
+                          active ? "bg-rose-300" : "bg-[#A64B45]"
+                        )}
+                        title={`Canopy loss detected in ${f.year}`}
+                      />
                     )}
                   </button>
                 );
@@ -675,4 +712,3 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
     </div>
   );
 }
-

@@ -188,45 +188,45 @@ export default function SpatialAnalyticsDeck({ result, compact = false }: Props)
 
       {/* -- Top Header / Quick Summary Strip (Standalone Modal Only) -- */}
       {!compact && (
-<div className={cn(
-        "bg-white rounded-xl border border-[#C8CFD5] text-[#1D2227] shadow-xs flex justify-between gap-3",
-        compact ? "p-3 flex-col" : "p-4 flex-col sm:flex-row sm:items-center"
-      )}>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#315F50]/10 text-[#315F50] border border-[#315F50]/20">
-              PWRI-3D ANALYTICS
-            </span>
-            <span className="text-[11px] text-[#747F88] font-medium">
-              Statutory Forest & Commodity Space
-            </span>
+        <div className={cn(
+          "bg-white rounded-xl border border-[#C8CFD5] text-[#1D2227] shadow-xs flex justify-between gap-3",
+          compact ? "p-3 flex-col" : "p-4 flex-col sm:flex-row sm:items-center"
+        )}>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#315F50]/10 text-[#315F50] border border-[#315F50]/20">
+                PWRI-3D ANALYTICS
+              </span>
+              <span className="text-[11px] text-[#747F88] font-medium">
+                Statutory Forest & Commodity Space
+              </span>
+            </div>
+            <h3 className="text-base font-bold tracking-tight text-[#1D2227] flex items-center gap-1.5 capitalize">
+              {plot.commodity.replace(/_/g, " ")} · {plot.country_name}
+            </h3>
+            <p className="text-[11px] text-[#747F88] font-mono">
+              {totalParcelHa.toFixed(1)} ha total parcel · Cutoff Reference 31 DEC 2020
+            </p>
           </div>
-          <h3 className="text-base font-bold tracking-tight text-[#1D2227] flex items-center gap-1.5 capitalize">
-            {plot.commodity.replace(/_/g, " ")} · {plot.country_name}
-          </h3>
-          <p className="text-[11px] text-[#747F88] font-mono">
-            {totalParcelHa.toFixed(1)} ha total parcel · Cutoff Reference 31 DEC 2020
-          </p>
-        </div>
 
-        <div className={cn("flex items-center gap-3", compact ? "w-full justify-between pt-2 border-t border-[#E3E7EA]" : "")}>
-          <div className="bg-[#F4F5F6] rounded-lg px-3 py-1.5 border border-[#C8CFD5] text-right">
-            <p className="text-[9.5px] uppercase tracking-wider text-[#747F88] font-medium">
-              {isNonCompliantVerdict ? "Salvageable (Post-Carve-Out)" : "Verified Clean Area"}
-            </p>
-            <p className={cn("text-lg font-bold font-mono", isNonCompliantVerdict ? "text-[#A64B45]" : "text-[#315F50]")}>
-              {isNonCompliantVerdict ? `${statutoryDeforestationHa.toFixed(1)} ha Loss (${compliancePct.toFixed(1)}% Clean)` : `${compliancePct.toFixed(1)}% Compliant`}
-            </p>
+          <div className={cn("flex items-center gap-3", compact ? "w-full justify-between pt-2 border-t border-[#E3E7EA]" : "")}>
+            <div className="bg-[#F4F5F6] rounded-lg px-3 py-1.5 border border-[#C8CFD5] text-right">
+              <p className="text-[9.5px] uppercase tracking-wider text-[#747F88] font-medium">
+                {isNonCompliantVerdict ? "Salvageable (Post-Carve-Out)" : "Verified Clean Area"}
+              </p>
+              <p className={cn("text-lg font-bold font-mono", isNonCompliantVerdict ? "text-[#A64B45]" : "text-[#315F50]")}>
+                {isNonCompliantVerdict ? `${statutoryDeforestationHa.toFixed(1)} ha Loss (${compliancePct.toFixed(1)}% Clean)` : `${compliancePct.toFixed(1)}% Compliant`}
+              </p>
+            </div>
+            <button
+              onClick={handleExportCleanGeoJSON}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#315F50] hover:bg-[#274d40] text-white font-semibold text-[11px] transition-all shadow-xs cursor-pointer whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Clean GeoJSON</span>
+            </button>
           </div>
-          <button
-            onClick={handleExportCleanGeoJSON}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#315F50] hover:bg-[#274d40] text-white font-semibold text-[11px] transition-all shadow-xs cursor-pointer whitespace-nowrap"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Clean GeoJSON</span>
-          </button>
         </div>
-      </div>
       )}
 
       {/* -- 1. Interactive Land Partition Donut & Flow --------------- */}
@@ -570,7 +570,7 @@ export default function SpatialAnalyticsDeck({ result, compact = false }: Props)
       </div>
 
       {/* -- 1B. Sentinel-2 10m Plot Time-Series Timelapse (2020-2025) -- */}
-      <SentinelTimelapsePlayer result={result} />
+      {!compact && <SentinelTimelapsePlayer result={result} />}
 
       {/* -- 2. Multi-Decadal 25-Year Canopy Timeline (2000-2025) ----- */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
@@ -783,119 +783,119 @@ export default function SpatialAnalyticsDeck({ result, compact = false }: Props)
         </div>
       ) : (
         <>
-{/* -- 3. Multi-Sensor Consensus Matrix & Confidence Meter ----- */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-emerald-700" />
-            <h4 className="text-[13px] font-bold text-slate-800">
-              Multi-Sensor Statutory Consensus Matrix
-            </h4>
+          {/* -- 3. Multi-Sensor Consensus Matrix & Confidence Meter ----- */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-emerald-700" />
+                <h4 className="text-[13px] font-bold text-slate-800">
+                  Multi-Sensor Statutory Consensus Matrix
+                </h4>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold">
+                Consensus Confidence: 99.2%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <ConsensusCard
+                title="EC JRC GFC2020 (EU Baseline)"
+                resolution="10m"
+                provenance="European Commission Joint Research Centre"
+                metric={def.jrc_forest_cover_2020_pct && def.jrc_forest_cover_2020_pct > 0 ? `${def.jrc_forest_cover_2020_pct.toFixed(1)}% Forest` : "Verified Baseline"}
+                status="PASS"
+                detail="Official statutory cutoff benchmark reference as mandated under EU 2023/1115 Art. 2."
+              />
+              <ConsensusCard
+                title="Hansen Global Forest Change v1.13"
+                resolution="30m"
+                provenance="University of Maryland / Google Earth Engine"
+                metric={statutoryDeforestationHa > 0 ? `${statutoryDeforestationHa.toFixed(1)} ha Loss` : "0.0 ha Loss"}
+                status={statutoryDeforestationHa > 0 ? "REVIEW" : "PASS"}
+                detail="Continuous annual loss detection cross-checked against statutory forest mask."
+              />
+              <ConsensusCard
+                title="Google Forest Data Partnership"
+                resolution="10m"
+                provenance="Google / WRI / USAID"
+                metric={def.commodity_confirmed ? `Confirmed (${(def.commodity_coverage_pct ?? 0).toFixed(1)}%)` : "Crop Detected"}
+                status="PASS"
+                detail="AI commodity canopy probability verifying agricultural land tenure & replanting."
+              />
+              <ConsensusCard
+                title="Sentinel-1 RADD All-Weather Radar"
+                resolution="10m"
+                provenance="WUR / WRI / ESA Copernicus"
+                metric={(def.radd_alert_pct ?? 0) > 0 ? `${(def.radd_alert_pct ?? 0).toFixed(1)}% Disturbance` : "All-Weather Clear ✓"}
+                status={(def.radd_alert_pct ?? 0) > 0 ? "REVIEW" : "PASS"}
+                detail="Cloud-penetrating C-band SAR radar surveillance without optical atmospheric interference."
+              />
+            </div>
           </div>
-          <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold">
-            Consensus Confidence: 99.2%
-          </span>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          <ConsensusCard
-            title="EC JRC GFC2020 (EU Baseline)"
-            resolution="10m"
-            provenance="European Commission Joint Research Centre"
-            metric={def.jrc_forest_cover_2020_pct && def.jrc_forest_cover_2020_pct > 0 ? `${def.jrc_forest_cover_2020_pct.toFixed(1)}% Forest` : "Verified Baseline"}
-            status="PASS"
-            detail="Official statutory cutoff benchmark reference as mandated under EU 2023/1115 Art. 2."
-          />
-          <ConsensusCard
-            title="Hansen Global Forest Change v1.13"
-            resolution="30m"
-            provenance="University of Maryland / Google Earth Engine"
-            metric={statutoryDeforestationHa > 0 ? `${statutoryDeforestationHa.toFixed(1)} ha Loss` : "0.0 ha Loss"}
-            status={statutoryDeforestationHa > 0 ? "REVIEW" : "PASS"}
-            detail="Continuous annual loss detection cross-checked against statutory forest mask."
-          />
-          <ConsensusCard
-            title="Google Forest Data Partnership"
-            resolution="10m"
-            provenance="Google / WRI / USAID"
-            metric={def.commodity_confirmed ? `Confirmed (${(def.commodity_coverage_pct ?? 0).toFixed(1)}%)` : "Crop Detected"}
-            status="PASS"
-            detail="AI commodity canopy probability verifying agricultural land tenure & replanting."
-          />
-          <ConsensusCard
-            title="Sentinel-1 RADD All-Weather Radar"
-            resolution="10m"
-            provenance="WUR / WRI / ESA Copernicus"
-            metric={(def.radd_alert_pct ?? 0) > 0 ? `${(def.radd_alert_pct ?? 0).toFixed(1)}% Disturbance` : "All-Weather Clear ✓"}
-            status={(def.radd_alert_pct ?? 0) > 0 ? "REVIEW" : "PASS"}
-            detail="Cloud-penetrating C-band SAR radar surveillance without optical atmospheric interference."
-          />
-        </div>
-      </div>
+          {/* -- 4. May 2026 Segregation & Carve-Out Action Hub ---------- */}
+          <div className="bg-slate-50 border border-amber-200/80 rounded-xl p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-amber-700" />
+                <h4 className="text-[13px] font-bold text-amber-950">
+                  May 2026 Simplification Protocol: Plot Segregation & Carve-Out Hub
+                </h4>
+              </div>
+              <span className="text-[10px] font-mono text-amber-900 bg-amber-100/80 border border-amber-300 px-2 py-0.5 rounded font-bold">
+                EC Segregation Active
+              </span>
+            </div>
 
-      {/* -- 4. May 2026 Segregation & Carve-Out Action Hub ---------- */}
-      <div className="bg-slate-50 border border-amber-200/80 rounded-xl p-4 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Scissors className="w-4 h-4 text-amber-700" />
-            <h4 className="text-[13px] font-bold text-amber-950">
-              May 2026 Simplification Protocol: Plot Segregation & Carve-Out Hub
-            </h4>
-          </div>
-          <span className="text-[10px] font-mono text-amber-900 bg-amber-100/80 border border-amber-300 px-2 py-0.5 rounded font-bold">
-            EC Segregation Active
-          </span>
-        </div>
-
-        <p className="text-[11px] text-slate-700 leading-relaxed">
-          Under the European Commission&apos;s <strong>May 2026 Implementation Guidance</strong>, operators are no longer required to forfeit entire multi-hectare production plots if isolated pixel clearance occurred. By delisting the statutory deforestation zone, the verified clean polygon is instantly certified for European customs entry.
-        </p>
-
-        {/* Action Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-          <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-            <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-medium">Original Parcel</p>
-            <p className="text-base font-bold font-mono text-slate-800 mt-1">
-              {totalParcelHa.toFixed(1)} ha
+            <p className="text-[11px] text-slate-700 leading-relaxed">
+              Under the European Commission&apos;s <strong>May 2026 Implementation Guidance</strong>, operators are no longer required to forfeit entire multi-hectare production plots if isolated pixel clearance occurred. By delisting the statutory deforestation zone, the verified clean polygon is instantly certified for European customs entry.
             </p>
-            <p className="text-[10px] text-slate-500 mt-0.5">Total registered boundary</p>
-          </div>
 
-          <div className="bg-white p-3 rounded-lg border border-rose-200 shadow-2xs">
-            <p className="text-[9.5px] uppercase tracking-wider text-rose-600 font-medium">Excised Violation</p>
-            <p className="text-base font-bold font-mono text-rose-700 mt-1">
-              {statutoryDeforestationHa.toFixed(1)} ha
-            </p>
-            <p className="text-[10px] text-rose-600/80 mt-0.5">Art. 3(a) non-compliant zone</p>
-          </div>
+            {/* Action Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-medium">Original Parcel</p>
+                <p className="text-base font-bold font-mono text-slate-800 mt-1">
+                  {totalParcelHa.toFixed(1)} ha
+                </p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Total registered boundary</p>
+              </div>
 
-          <div className="bg-white p-3 rounded-lg border border-emerald-300 shadow-2xs">
-            <p className="text-[9.5px] uppercase tracking-wider text-emerald-700 font-medium">Segregated Export Volume</p>
-            <p className="text-base font-bold font-mono text-emerald-700 mt-1">
-              {compliantHa.toFixed(1)} ha (100% Clean)
-            </p>
-            <p className="text-[10px] text-emerald-600 mt-0.5">TRACES NT DDS eligible</p>
-          </div>
-        </div>
+              <div className="bg-white p-3 rounded-lg border border-rose-200 shadow-2xs">
+                <p className="text-[9.5px] uppercase tracking-wider text-rose-600 font-medium">Excised Violation</p>
+                <p className="text-base font-bold font-mono text-rose-700 mt-1">
+                  {statutoryDeforestationHa.toFixed(1)} ha
+                </p>
+                <p className="text-[10px] text-rose-600/80 mt-0.5">Art. 3(a) non-compliant zone</p>
+              </div>
 
-        {/* Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-600">
-              Status: <strong className="text-emerald-700">Eligible for Immediate Carve-Out</strong>
-            </span>
+              <div className="bg-white p-3 rounded-lg border border-emerald-300 shadow-2xs">
+                <p className="text-[9.5px] uppercase tracking-wider text-emerald-700 font-medium">Segregated Export Volume</p>
+                <p className="text-base font-bold font-mono text-emerald-700 mt-1">
+                  {compliantHa.toFixed(1)} ha (100% Clean)
+                </p>
+                <p className="text-[10px] text-emerald-600 mt-0.5">TRACES NT DDS eligible</p>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-600">
+                  Status: <strong className="text-emerald-700">Eligible for Immediate Carve-Out</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportCleanGeoJSON}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#315F50] hover:bg-[#274d40] text-white font-semibold text-[11px] transition-all shadow-xs cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Compliant Polygon (.geojson)</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportCleanGeoJSON}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#315F50] hover:bg-[#274d40] text-white font-semibold text-[11px] transition-all shadow-xs cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download Compliant Polygon (.geojson)</span>
-            </button>
-          </div>
-        </div>
-      </div>
         </>
       )}
 

@@ -364,6 +364,25 @@ export function AnalyticsDeckIcon(props: IconProps) {
   );
 }
 
+/** Sentinel-2 multi-temporal timelapse: stacked annual frames with a play prism & timeline ticks. */
+export function SentinelTimelapseIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      {/* Back stacked temporal frame (2020 cutoff reference) */}
+      <path d="M6.5 3.5h12A2 2 0 0 1 20.5 5.5v9.5" opacity="0.55" />
+      {/* Front active parcel frame */}
+      <rect x="3.5" y="6.5" width="14" height="11" rx="2.2" fill="currentColor" fillOpacity={TINT} />
+      {/* Play triangle inside parcel viewport */}
+      <path d="M9 9.7l4.2 2.3L9 14.3z" fill="currentColor" stroke="none" />
+      {/* Multi-year timeline scrubber bar & ticks below */}
+      <path d="M3.5 20.5h17" />
+      <circle cx="6.5" cy="20.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="20.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="20.5" r="1.1" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
 /** Overview grid (summary tab). */
 export function OverviewGridIcon(props: IconProps) {
   return (
