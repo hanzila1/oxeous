@@ -5,19 +5,21 @@ import {
   ComplianceShieldIcon,
   AgentSparkIcon,
   LayerStackIcon,
+  SentinelTimelapseIcon,
 } from "@/components/icons/EOIcons";
 import { cn } from "@/lib/utils";
 import { useStore, type SidePanelType } from "@/lib/store";
 
 const NAV_ITEMS: { id: SidePanelType; icon: React.ComponentType<{ className?: string }>; label: string; desc: string }[] = [
-  { id: null,     icon: SatelliteGlobeIcon,   label: "Map",     desc: "Satellite view" },
-  { id: "eudr",   icon: ComplianceShieldIcon, label: "EUDR",    desc: "Compliance" },
-  { id: "chat",   icon: AgentSparkIcon,       label: "Agent",   desc: "Spatial AI" },
-  { id: "layers", icon: LayerStackIcon,       label: "Layers",  desc: "Raster layers" },
+  { id: null,        icon: SatelliteGlobeIcon,    label: "Map",       desc: "Satellite view" },
+  { id: "eudr",      icon: ComplianceShieldIcon,  label: "EUDR",      desc: "Compliance" },
+  { id: "chat",      icon: AgentSparkIcon,        label: "Agent",     desc: "Spatial AI" },
+  { id: "layers",    icon: LayerStackIcon,        label: "Layers",    desc: "Raster layers" },
+  { id: "timelapse", icon: SentinelTimelapseIcon, label: "Timelapse", desc: "10m Time-series" },
 ];
 
 export default function NavigationRail() {
-  const { eudrPanelOpen, setEudrPanelOpen, rightPanel, setRightPanel } = useStore();
+  const { eudrPanelOpen, setEudrPanelOpen, rightPanel, setRightPanel, setEudrAuditTab } = useStore();
 
   const handleNav = (id: SidePanelType) => {
     if (id === "eudr") {
@@ -26,6 +28,9 @@ export default function NavigationRail() {
       setRightPanel(rightPanel === "chat" ? null : "chat");
     } else if (id === "layers") {
       setRightPanel(rightPanel === "layers" ? null : "layers");
+    } else if (id === "timelapse") {
+      setEudrAuditTab("timelapse");
+      setRightPanel(rightPanel === "timelapse" ? null : "timelapse");
     } else if (id === null) {
       // Map view toggle
       if (eudrPanelOpen || rightPanel) {
@@ -54,6 +59,8 @@ export default function NavigationRail() {
               ? rightPanel === "chat"
               : id === "layers"
               ? rightPanel === "layers"
+              : id === "timelapse"
+              ? rightPanel === "timelapse"
               : !eudrPanelOpen && !rightPanel;
           return (
             <button

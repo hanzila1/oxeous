@@ -4,6 +4,7 @@ import {
   BenchmarkFlagIcon,
   DrawParcelIcon,
   SwipeCompareIcon,
+  SentinelTimelapseIcon,
   DossierIcon,
   PixelInspectorIcon,
 } from "@/components/icons/EOIcons";
@@ -277,6 +278,9 @@ export default function TopFloatingBar() {
     setCompareMode,
     pixelInspectorOpen,
     setPixelInspectorOpen,
+    rightPanel,
+    setRightPanel,
+    setEudrAuditTab,
   } = useStore();
 
   useEffect(() => {
@@ -420,7 +424,27 @@ export default function TopFloatingBar() {
         </span>
       </button>
 
-      {/* 5. Pixel Inspector Toggle */}
+      {/* 5. 10m Sentinel-2 Plot Timelapse Toggle */}
+      <button
+        onClick={() => {
+          setEudrAuditTab("timelapse");
+          setRightPanel(rightPanel === "timelapse" ? null : "timelapse");
+        }}
+        aria-label={rightPanel === "timelapse" ? "Close Plot Timelapse" : "10m Sentinel-2 Plot Timelapse (2020–2025)"}
+        className={cn(
+          "group relative p-2.5 rounded-lg transition-all cursor-pointer border",
+          rightPanel === "timelapse"
+            ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
+            : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
+        )}
+      >
+        <SentinelTimelapseIcon className="w-5 h-5 text-[#315F50]" />
+        <span className="oxe-tip" data-side="left">
+          Plot Timelapse <small>10m S2 video (2020–2025)</small>
+        </span>
+      </button>
+
+      {/* 6. Pixel Inspector Toggle */}
       <button
         onClick={() => setPixelInspectorOpen(!pixelInspectorOpen)}
         aria-label={pixelInspectorOpen ? "Close Pixel Inspector" : "Spatial Pixel Inspector"}

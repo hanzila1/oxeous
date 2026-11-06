@@ -6,6 +6,7 @@ import MapCanvas from "@/components/map/MapCanvas";
 import NavigationRail from "@/components/ui/NavigationRail";
 import ConversationPanel from "@/components/chat/ConversationPanel";
 import LayerSidebar from "@/components/layers/LayerSidebar";
+import TimelapseSidebar from "@/components/layers/TimelapseSidebar";
 import EUDRDashboard from "@/components/eudr/EUDRDashboard";
 import ProgressOverlay from "@/components/ui/ProgressOverlay";
 import TopFloatingBar from "@/components/ui/TopFloatingBar";
@@ -104,6 +105,15 @@ function AppShell() {
             aria-hidden={shownRightPanel !== "layers"}
           >
             <LayerSidebar onClose={() => setRightPanel(null)} />
+          </div>
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200 ease-panel",
+              shownRightPanel === "timelapse" ? "opacity-100 z-10" : "opacity-0 pointer-events-none"
+            )}
+            aria-hidden={shownRightPanel !== "timelapse"}
+          >
+            <TimelapseSidebar onClose={() => setRightPanel(null)} />
           </div>
         </div>
       </div>

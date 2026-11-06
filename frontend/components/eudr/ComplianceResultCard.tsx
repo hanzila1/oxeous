@@ -201,11 +201,18 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
     } finally { setExporting(false); }
   }
 
-  const [viewTab, setViewTab] = useState<"charts" | "timelapse" | "overview" | "pwri" | "layers" | "legality">("charts");
   const [legalityDetailsOpen, setLegalityDetailsOpen] = useState(false);
   const [art240Open, setArt240Open] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const { layers, updateLayer, setActiveDossier, setActiveAnalyticsResult, eudrPanelExpanded } = useStore();
+  const {
+    layers,
+    updateLayer,
+    setActiveDossier,
+    setActiveAnalyticsResult,
+    eudrPanelExpanded,
+    eudrAuditTab: viewTab,
+    setEudrAuditTab: setViewTab,
+  } = useStore();
 
   const handleToggleLayer = (key: string) => {
     const layer = findMatchingLayer(layers, key);

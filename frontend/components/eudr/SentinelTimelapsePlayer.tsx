@@ -31,7 +31,7 @@ const API_BASE_CANDIDATES = [
   "http://localhost:8001",
 ].filter((v, idx, arr) => Boolean(v) && arr.indexOf(v) === idx) as string[];
 
-interface TimelapseFrame {
+export interface TimelapseFrame {
   year: number;
   label: string;
   is_cutoff: boolean;
@@ -45,29 +45,42 @@ interface TimelapseFrame {
 }
 
 interface Props {
-  result: EUDRAnalysisResponse;
+  result?: EUDRAnalysisResponse | null;
 }
 
 const DEFAULT_YEARS = [2020, 2021, 2022, 2023, 2024, 2025];
 
-export default function SentinelTimelapsePlayer({ result }: Props) {
-  const { plot, risk_assessment: ra } = result;
-  const def = ra.deforestation;
-  const { activeGeoJSON } = useStore();
+// Shared cache across sidebar & EUDR tab instances so switching tabs keeps the 6-year cube active
+let cachedGeomSignature = "";
+let cachedFrames: TimelapseFrame[] = [];
 
-  const [frames, setFrames] = useState<TimelapseFrame[]>([]);
+export default function SentinelTimelapsePlayer({ result }: Props) {
+  const { activeGeoJSON, ddsHistory } = useStore();
+  const effectiveResult = result ?? ddsHistory[0] ?? null;
+
+  const plotGeom = effectiveResult?.plot?.geometry ?? activeGeoJSON ?? null;
+  const geomSig = plotGeom ? JSON.stringify(plotGeom).slice(0, 180) : "";
+
+  const areaHa = effectiveResult?.plot?.area_ha ?? 100.0;
+  const def = effectiveResult?.risk_assessment?.deforestation;
+
+  const [frames, setFrames] = useState<TimelapseFrame[]>(() =>
+    geomSig && geomSig === cachedGeomSignature ? cachedFrames : []
+  );
   const [loading, setLoading] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadStepYear, setLoadStepYear] = useState(2020);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState<boolean>(() =>
+    Boolean(geomSig && geomSig === cachedGeomSignature && cachedFrames.length > 0)
+  );
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [spectralMode, setSpectralMode] = useState<"pinpoint" | "rgb" | "nir">("pinpoint");
   const [syncToMap, setSyncToMap] = useState(true);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Clean up MapLibre timelapse layers when unmounting or disabling map sync
+  // Clean up MapLibre timelapse layers when disabling map sync or changing plots
   const clearMapTimelapseLayers = useCallback(() => {
     const map = getMap();
     if (!map) return;
@@ -158,9 +171,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   // Fetch 10m Sentinel-2 annual composites on demand with live year-by-year progress
   const loadTimelapse = async (autoPlay = true) => {
     if (loading) return;
-    const geom = plot.geometry ?? activeGeoJSON;
-    if (!geom) {
-      setErrorMsg("Plot geometry not found. Select or draw a plot first.");
+    if (!plotGeom) {
+      setErrorMsg("Select a benchmark plot or draw an AOI polygon on the map first.");
       return;
     }
 
@@ -188,7 +200,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              geometry: geom,
+              geometry: plotGeom,
               years: DEFAULT_YEARS,
             }),
           });
@@ -205,13 +217,15 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
 
       if (data && Array.isArray(data.frames) && data.frames.length > 0) {
         setLoadProgress(100);
+        cachedGeomSignature = geomSig;
+        cachedFrames = data.frames;
         setFrames(data.frames);
         setLoaded(true);
         setActiveIndex(0);
         if (autoPlay) setIsPlaying(true);
 
         // Fly map smoothly to focus on the plot polygon
-        const bbox = extractBboxFromGeometry(geom as object);
+        const bbox = extractBboxFromGeometry(plotGeom as object);
         const flyFn = (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo;
         if (bbox && flyFn) flyFn(bbox);
       } else {
@@ -247,16 +261,19 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
     syncFramesToMap(frames, activeIndex, spectralMode, syncToMap);
   }, [loaded, frames, activeIndex, spectralMode, syncToMap, syncFramesToMap]);
 
-  // Cleanup on unmount or plot change
+  // Reset only when the plot geometry actually changes
   useEffect(() => {
+    if (geomSig && geomSig === cachedGeomSignature && cachedFrames.length > 0) {
+      setFrames(cachedFrames);
+      setLoaded(true);
+      return;
+    }
     setFrames([]);
     setLoaded(false);
     setIsPlaying(false);
     setActiveIndex(0);
-    return () => {
-      clearMapTimelapseLayers();
-    };
-  }, [plot.plot_id, clearMapTimelapseLayers]);
+    clearMapTimelapseLayers();
+  }, [geomSig, clearMapTimelapseLayers]);
 
   const currentFrame = frames[activeIndex] ?? {
     year: DEFAULT_YEARS[activeIndex] ?? 2020,
@@ -280,9 +297,9 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
       : currentFrame.nir_thumb_url;
 
   // Estimate year-specific canopy cover % for HUD readout
-  const cutoff2020Cover = Number(def.forest_cover_2020_pct ?? 80);
-  const postLossPct = Number(def.forest_loss_pct ?? 0);
-  const lossYears = def.loss_years ?? [];
+  const cutoff2020Cover = Number(def?.forest_cover_2020_pct ?? 85);
+  const postLossPct = Number(def?.forest_loss_pct ?? 0);
+  const lossYears = def?.loss_years ?? [];
   const getYearCanopyPct = (yr: number) => {
     if (yr <= 2020) return cutoff2020Cover;
     const progress = Math.min(1, (yr - 2020) / 5);
@@ -390,7 +407,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
               <p className="text-[11px] text-[#5B6773] leading-relaxed">
                 Streams 6 annual cloud-masked 10m Sentinel-2 composites clipped strictly inside{" "}
                 <span className="text-[#315F50] font-mono font-bold">
-                  {(plot.area_ha ?? 10).toFixed(1)} ha
+                  {areaHa.toFixed(1)} ha
                 </span>{" "}
                 plot geometry—animating both here and live inside the plot boundary on the satellite map with year-by-year red loss pinpointing.
               </p>
@@ -547,8 +564,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      if (plot.geometry) {
-                        const bbox = extractBboxFromGeometry(plot.geometry as object);
+                      if (plotGeom) {
+                        const bbox = extractBboxFromGeometry(plotGeom as object);
                         const flyFn = (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo;
                         if (bbox && flyFn) flyFn(bbox);
                       }
@@ -583,7 +600,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                         "font-bold text-[11px]",
                         currentFrame.is_cutoff
                           ? "text-[#C58A3A]"
-                          : isLossYear && !def.is_plantation_replanting_exemption
+                          : isLossYear && !def?.is_plantation_replanting_exemption
                           ? "text-[#A64B45]"
                           : "text-[#315F50]"
                       )}
@@ -591,7 +608,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                       {currentFrame.is_cutoff
                         ? "Baseline Ref"
                         : isLossYear
-                        ? def.is_plantation_replanting_exemption
+                        ? def?.is_plantation_replanting_exemption
                           ? "Replanting"
                           : "Canopy Loss"
                         : "Stable"}
@@ -604,7 +621,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                 <strong className="text-[#315F50]">Clipped to Plot:</strong>{" "}
                 {spectralMode === "pinpoint"
                   ? "Post-2020 loss lights up in red in the exact year it occurred."
-                  : `Masked strictly to the ${(plot.area_ha ?? 10).toFixed(1)} ha polygon.`}
+                  : `Masked strictly to the ${areaHa.toFixed(1)} ha polygon.`}
               </div>
             </div>
           </div>

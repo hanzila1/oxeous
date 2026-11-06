@@ -6,7 +6,8 @@ import type {
   EUDRAnalysisResponse,
 } from "@oxeous/shared-types";
 
-export type SidePanelType = "eudr" | "chat" | "layers" | "audit" | null;
+export type SidePanelType = "eudr" | "chat" | "layers" | "timelapse" | "audit" | null;
+export type EudrAuditTabType = "charts" | "timelapse" | "overview" | "pwri" | "layers" | "legality";
 
 export interface ActiveLayer {
   id: string;
@@ -39,7 +40,7 @@ interface ChatMessage {
   error?: string;
 }
 
-export type RightPanelType = "chat" | "layers" | null;
+export type RightPanelType = "chat" | "layers" | "timelapse" | null;
 
 interface OxeousState {
   // Navigation & Panels (Simultaneous EUDR + Right Panel)
@@ -47,6 +48,8 @@ interface OxeousState {
   setEudrPanelOpen: (open: boolean) => void;
   rightPanel: RightPanelType;
   setRightPanel: (panel: RightPanelType) => void;
+  eudrAuditTab: EudrAuditTabType;
+  setEudrAuditTab: (tab: EudrAuditTabType) => void;
 
   // Legacy activePanel compatibility
   activePanel: SidePanelType;
@@ -176,13 +179,16 @@ export const useStore = create<OxeousState>((set) => ({
   rightPanel: "chat",
   setRightPanel: (panel) => set({ rightPanel: panel }),
 
+  eudrAuditTab: "charts",
+  setEudrAuditTab: (tab) => set({ eudrAuditTab: tab }),
+
   activePanel: "chat",
   setActivePanel: (panel) =>
     set((s) => {
       if (panel === "eudr") {
         return { eudrPanelOpen: !s.eudrPanelOpen, activePanel: !s.eudrPanelOpen ? "eudr" : null };
       }
-      if (panel === "chat" || panel === "layers") {
+      if (panel === "chat" || panel === "layers" || panel === "timelapse") {
         const nextRight = s.rightPanel === panel ? null : panel;
         return { rightPanel: nextRight, activePanel: nextRight };
       }
