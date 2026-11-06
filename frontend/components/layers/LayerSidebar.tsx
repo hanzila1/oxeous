@@ -31,6 +31,13 @@ import {
 
 // Class-based legends for categorical datasets
 const CLASS_LEGENDS: Record<string, Array<{ label: string; color: string }>> = {
+  intersection: [
+    { label: "Clean Compliant Land (Art. 3a)", color: "#2E9E6F" },
+    { label: "Plantation Replanting (Art. 2(5) Exempt)", color: "#F2A91F" },
+    { label: "Sustainable Silviculture (Art. 2(3) Exempt)", color: "#3B82C4" },
+    { label: "Statutory Deforestation (Art. 3a Violation)", color: "#D93C4A" },
+    { label: "Non-Agronomic / Urban / Water / No-Data", color: "#64748B" },
+  ],
   hansen_loss: [
     { label: "Standing Forest Baseline (Dec 2020)", color: "#315F50" },
     { label: "Post-2020 Forest Loss (EUDR Art. 3(a) Violation)", color: "#F04444" },

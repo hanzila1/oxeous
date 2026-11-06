@@ -39,3 +39,4 @@ To adjudicate Batch `CO-HUILA-CAFE-2026`, Oxeous executes all three deterministi
    $$Y_{\text{implied}} = \frac{M_{\text{green}}}{A_{\text{WGS84}}(P'_{\text{coop}})} = \frac{138.4\text{ t}}{74.80\text{ ha}} = 1.85\text{ t ha}^{-1}\text{ yr}^{-1} \le Y_c$$
 
 ![Figure 2](Case_Study_4_Colombia_Huila_Coffee/figures/Journal_Fig2_Coffee_Telemetry_and_Benchmark.png)
+

@@ -517,10 +517,14 @@ def get_protected_areas_tiles(bbox: tuple[float, float, float, float] | None = N
 
 def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None = None, geometry: dict | None = None) -> dict[str, Any]:
     """
-    Pixel-Wise Raster Intersection (PWRI):
-    Multi-sensor spatial intersection between post-2020 Hansen loss and JRC GFC2020 V4 statutory forest:
-      - Crimson Red (#E63946): Statutory Deforestation (EUDR Art. 3(a) violation on standing 2020 forest)
+    Pixel-Wise Raster Intersection (PWRI-3D 5-Class Partition):
+    Multi-sensor spatial intersection between post-2020 Hansen loss, JRC GFC2020 V4 statutory forest,
+    and ESA WorldCover 10m non-agronomic mask:
+      - Emerald Green (#2E9E6F): Verified Clean Export Land (Art. 3(a) Compliant)
       - Amber (#FFB703): Agricultural Plantation Replanting / Crop Rotation (EUDR Art. 2(5) exempt)
+      - Royal Blue (#3B82C4): Sustainable Commercial Silviculture Rotation (EUDR Art. 2(3)/2(7) exempt)
+      - Crimson Red (#E63946): Statutory Deforestation (EUDR Art. 3(a) violation on standing 2020 forest)
+      - Slate Grey (#64748B): Non-Agronomic / Urban / Water / No-Data (Excluded from agricultural capacity)
     """
     if not _init():
         return {"available": False}
@@ -538,7 +542,14 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
         statutory_deforest = post_cutoff.And(jrc_forest)
         replanting = post_cutoff.And(jrc_forest.Not())
 
+        wc_map = ee.ImageCollection("ESA/WorldCover/v200").first().select("Map").unmask(0)
+        non_agronomic = (
+            wc_map.eq(50).Or(wc_map.eq(60)).Or(wc_map.eq(70)).Or(wc_map.eq(80))
+            .And(jrc_forest.Not()).And(post_cutoff.Not())
+        )
+
         inter_vis = ee.ImageCollection([
+            ee.Image(1).updateMask(non_agronomic).visualize(palette=['#64748B']),
             ee.Image(1).updateMask(replanting).visualize(palette=['#FFB703']),
             ee.Image(1).updateMask(statutory_deforest).visualize(palette=['#E63946']),
         ]).mosaic()
@@ -548,13 +559,16 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
         return {
             "available": bool(url),
             "tile_url": url,
-            "label": "PWRI · Statutory Deforestation Intersection (EUDR Core)",
-            "dataset": "UMD/hansen/global_forest_change_2025_v1_13 ∩ JRC/GFC2020/V4",
+            "label": "PWRI-3D · 5-Class Statutory Land Partition (10m)",
+            "dataset": "UMD/hansen/global_forest_change_2025_v1_13 ∩ JRC/GFC2020/V4 ∩ ESA/WorldCover/v200",
             "legend": {
-                "title": "Raster Intersection (PWRI)",
+                "title": "PWRI-3D 5-Class Land Partition",
                 "classes": [
-                    {"label": "Statutory Deforestation (Art. 3a Violation)", "color": "#E63946"},
+                    {"label": "Clean Compliant Land (Art. 3a)", "color": "#2E9E6F"},
                     {"label": "Plantation Replanting (Art. 2(5) Exempt)", "color": "#FFB703"},
+                    {"label": "Sustainable Silviculture (Art. 2(3) Exempt)", "color": "#3B82C4"},
+                    {"label": "Statutory Deforestation (Art. 3a Violation)", "color": "#E63946"},
+                    {"label": "Non-Agronomic / Urban / Water / No-Data", "color": "#64748B"},
                 ],
             },
         }

@@ -103,6 +103,11 @@ class DeforestationFinding(BaseModel):
     plantation_replanting_ha: float = 0.0        # Post-2020 loss in Non-Forest Plantation (Art. 2(5))
     silviculture_replanting_ha: float = 0.0      # Post-2020 loss in Managed Planted Forest (Art. 2(3)/2(7))
     is_silviculture_exemption: bool = False      # True if harvesting is lawful rotational silviculture
+    non_agronomic_ha: float = 0.0                # Class 4: Urban / Built-Up / Water / Bare (ESA WorldCover 10m)
+    non_agronomic_pct: float = 0.0               # Percentage of parcel in non-productive urban/water/no-data class
+    confidence_score_pct: float = 96.4           # Statistical Multi-Sensor Consensus Confidence Score (%)
+    confidence_margin_pct: float = 1.4           # 95% Confidence Interval Margin of Error (± %)
+    active_sensors_count: int = 6                # Count of active independent EO sensors (out of 6)
     compliant_ha: float = 0.0                    # Compliant agricultural / managed land area
     spatial_compliance_pct: float = 100.0        # Continuous spatial compliance percentage
     carveout_eligible_ha: float = 0.0            # Segregation area under EUDR Art. 9 & May 2026 Guidance

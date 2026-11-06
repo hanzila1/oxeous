@@ -63,6 +63,13 @@ export interface DeforestationFinding {
   total_parcel_ha?: number;
   statutory_deforestation_ha?: number;
   plantation_replanting_ha?: number;
+  silviculture_replanting_ha?: number;
+  is_silviculture_exemption?: boolean;
+  non_agronomic_ha?: number;
+  non_agronomic_pct?: number;
+  confidence_score_pct?: number;
+  confidence_margin_pct?: number;
+  active_sensors_count?: number;
   compliant_ha?: number;
   spatial_compliance_pct?: number;
   carveout_eligible_ha?: number;

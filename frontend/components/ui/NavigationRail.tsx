@@ -41,11 +41,11 @@ export default function NavigationRail() {
   return (
     <nav
       className="flex flex-col items-center flex-shrink-0 h-full glass border-r border-[#C8CFD5] z-20 shadow-[1px_0_4px_rgba(0,0,0,0.03)]"
-      style={{ width: 60 }}
+      style={{ width: 68 }}
     >
 
       {/* Nav buttons */}
-      <div className="flex flex-col items-center gap-1.5 pt-3 flex-1 w-full px-1.5">
+      <div className="flex flex-col items-center gap-2 pt-3 flex-1 w-full px-1.5">
         {NAV_ITEMS.map(({ id, icon: Icon, label, desc }) => {
           const active =
             id === "eudr"
@@ -61,7 +61,7 @@ export default function NavigationRail() {
               onClick={() => handleNav(id)}
               aria-label={`${label} - ${desc}`}
               className={cn(
-                "group relative flex flex-col items-center justify-center w-full rounded-xl py-2.5 gap-1 border",
+                "group relative flex flex-col items-center justify-center w-full rounded-xl py-3 gap-1.5 border",
                 "transition-all duration-150 select-none cursor-pointer",
                 active
                   ? "bg-white text-[#1D2227] border-[#C8CFD5] shadow-xs font-bold"
@@ -71,8 +71,8 @@ export default function NavigationRail() {
               {active && (
                 <span className="absolute -left-1.5 top-2.5 bottom-2.5 w-1 bg-[#315F50] rounded-r-full shadow-2xs" />
               )}
-              <Icon className={cn("w-4 h-4 transition-colors", active ? "text-[#315F50]" : "text-[#7A8791] group-hover:text-[#1D2227]")} />
-              <span className={cn("text-[9.5px] leading-none tracking-wide", active ? "font-bold text-[#1D2227]" : "font-medium text-[#747F88] group-hover:text-[#1D2227]")}>{label}</span>
+              <Icon className={cn("w-5 h-5 transition-colors", active ? "text-[#315F50]" : "text-[#7A8791] group-hover:text-[#1D2227]")} />
+              <span className={cn("text-[10.5px] leading-none tracking-wide", active ? "font-bold text-[#1D2227]" : "font-semibold text-[#5B6773] group-hover:text-[#1D2227]")}>{label}</span>
 
               {/* Glass Tooltip */}
               <span className="oxe-tip" data-side="right">

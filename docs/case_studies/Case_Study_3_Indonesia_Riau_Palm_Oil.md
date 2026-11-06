@@ -52,3 +52,4 @@ $$P'_{\text{mill}} = \bigcup_{k \in \{1..K\}} \big\{ B_k \;\big|\; V_{3(\text{a}
 3. **Rule 3 (CPO Extraction & Biophysical Mass-Balance Gate)**: To ensure that FFB harvested from quarantined Block B-04 cannot be covertly blended into the certified mill consignment ($M_{\text{CPO}} = 752.4\text{ t}$ at standard Oil Extraction Rate $\text{OER} = 22.0\%$, equivalent to $3,420\text{ t}$ FFB across $\mathcal{A}(P'_{\text{mill}}) = 143.40\text{ ha}$), Agent A6 verifies the implied CPO yield against the MPOB / GAPKI regional Sumatra biological ceiling ($Y_{c,\text{CPO}} = 6.10\text{ t CPO ha}^{-1}\text{ yr}^{-1}$):
 
 $$Y_{\text{implied, CPO}} = \frac{M_{\text{CPO}}}{\mathcal{A}_{\text{WGS84}}(P'_{\text{mill}})} = \frac{752.4\text{ t}}{143.40\text{ ha}} = 5.25\text{ t CPO ha}^{-1}\text{ yr}^{-1} \le Y_{c,\text{CPO}} \tag{3}$$
+

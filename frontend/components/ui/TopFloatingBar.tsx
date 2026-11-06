@@ -299,16 +299,16 @@ export default function TopFloatingBar() {
   };
 
   return (
-    <div className="absolute bottom-4 right-3 z-30 flex flex-col items-center gap-1 bg-white/95 backdrop-blur-md border border-[#C8CFD5] shadow-panel rounded-xl p-1 select-none transition-all">
+    <div className="absolute bottom-4 right-3 z-30 flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur-md border border-[#C8CFD5] shadow-panel rounded-xl p-1.5 select-none transition-all">
 
       {/* 1. Map Zoom In & Zoom Out Controls */}
       <button
         onClick={() => getMap()?.zoomIn()}
         aria-label="Zoom In (+)"
         title="Zoom In (+)"
-        className="group relative p-2 rounded-lg text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227] transition-all cursor-pointer active:scale-95"
+        className="group relative p-2.5 rounded-lg text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227] transition-all cursor-pointer active:scale-95"
       >
-        <Plus className="w-4 h-4 text-[#343B42]" />
+        <Plus className="w-5 h-5 text-[#343B42]" />
         <span className="oxe-tip" data-side="left">
           Zoom In <small>Enlarge map (+)</small>
         </span>
@@ -318,15 +318,15 @@ export default function TopFloatingBar() {
         onClick={() => getMap()?.zoomOut()}
         aria-label="Zoom Out (-)"
         title="Zoom Out (-)"
-        className="group relative p-2 rounded-lg text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227] transition-all cursor-pointer active:scale-95"
+        className="group relative p-2.5 rounded-lg text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227] transition-all cursor-pointer active:scale-95"
       >
-        <Minus className="w-4 h-4 text-[#343B42]" />
+        <Minus className="w-5 h-5 text-[#343B42]" />
         <span className="oxe-tip" data-side="left">
           Zoom Out <small>Reduce map (-)</small>
         </span>
       </button>
 
-      <div className="w-5 h-[1px] bg-[#C8CFD5]/80 my-0.5" />
+      <div className="w-6 h-[1px] bg-[#C8CFD5]/80 my-0.5" />
 
       {/* 2. Benchmark Case Studies Trigger (Opens popover to the LEFT) */}
       <div className="relative" ref={dropdownRef}>
@@ -334,14 +334,14 @@ export default function TopFloatingBar() {
           onClick={() => setDropdownOpen(!dropdownOpen)}
           aria-label={`Benchmark Case Studies (${BENCHMARK_CASES.length})`}
           className={cn(
-            "group relative flex flex-col items-center justify-center p-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
+            "group relative flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
             dropdownOpen
               ? "bg-[#315F50]/15 text-[#315F50] border border-[#315F50]/40 shadow-xs font-semibold"
               : "text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
           )}
         >
-          <BenchmarkFlagIcon className="w-4 h-4 text-[#315F50]" />
-          <span className="text-[8.5px] font-mono font-bold text-[#315F50] -mt-0.5">{BENCHMARK_CASES.length}</span>
+          <BenchmarkFlagIcon className="w-5 h-5 text-[#315F50]" />
+          <span className="text-[9px] font-mono font-bold text-[#315F50] -mt-0.5">{BENCHMARK_CASES.length}</span>
 
           {/* Glass Tooltip */}
           <span className="oxe-tip" data-side="left">
@@ -368,7 +368,7 @@ export default function TopFloatingBar() {
                       "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border",
                       isCompliant ? "bg-[rgba(49,95,80,0.1)] border-[rgba(49,95,80,0.25)] text-[#315F50]" : "bg-[rgba(166,75,69,0.1)] border-[rgba(166,75,69,0.25)] text-[#A64B45]"
                     )}>
-                      <BenchmarkFlagIcon className="w-3.5 h-3.5" />
+                      <BenchmarkFlagIcon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-semibold text-[#1D2227] group-hover:text-[#315F50] transition-colors truncate">
@@ -391,13 +391,13 @@ export default function TopFloatingBar() {
         onClick={() => setDrawingAOI(!drawingAOI)}
         aria-label={drawingAOI ? "Finish Polygon Drawing" : "Draw Area of Interest (AOI)"}
         className={cn(
-          "group relative p-2 rounded-lg transition-all cursor-pointer border",
+          "group relative p-2.5 rounded-lg transition-all cursor-pointer border",
           drawingAOI
             ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
             : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
         )}
       >
-        <DrawParcelIcon className="w-4 h-4 text-[#315F50]" />
+        <DrawParcelIcon className="w-5 h-5 text-[#315F50]" />
         <span className="oxe-tip" data-side="left">
           {drawingAOI ? "Finish AOI" : "Draw AOI"} <small>Custom polygon tool</small>
         </span>
@@ -408,13 +408,13 @@ export default function TopFloatingBar() {
         onClick={() => setCompareMode(!compareMode)}
         aria-label={compareMode ? "Exit Swipe Compare" : "Compare Dec 2020 Baseline vs Disturbance"}
         className={cn(
-          "group relative p-2 rounded-lg transition-all cursor-pointer border",
+          "group relative p-2.5 rounded-lg transition-all cursor-pointer border",
           compareMode
             ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
             : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
         )}
       >
-        <SwipeCompareIcon className="w-4 h-4 text-[#315F50]" />
+        <SwipeCompareIcon className="w-5 h-5 text-[#315F50]" />
         <span className="oxe-tip" data-side="left">
           {compareMode ? "Comparing" : "Swipe Compare"} <small>2020 Baseline vs Disturbance</small>
         </span>
@@ -425,13 +425,13 @@ export default function TopFloatingBar() {
         onClick={() => setPixelInspectorOpen(!pixelInspectorOpen)}
         aria-label={pixelInspectorOpen ? "Close Pixel Inspector" : "Spatial Pixel Inspector"}
         className={cn(
-          "group relative p-2 rounded-lg transition-all cursor-pointer border",
+          "group relative p-2.5 rounded-lg transition-all cursor-pointer border",
           pixelInspectorOpen
             ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
             : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
         )}
       >
-        <PixelInspectorIcon className="w-4 h-4 text-[#315F50]" />
+        <PixelInspectorIcon className="w-5 h-5 text-[#315F50]" />
         <span className="oxe-tip" data-side="left">
           {pixelInspectorOpen ? "Close Inspector" : "Pixel Inspector"} <small>Inspect plot pixels</small>
         </span>
@@ -441,9 +441,9 @@ export default function TopFloatingBar() {
       <button
         onClick={() => setActiveDossier("cocoa")}
         aria-label="Publication Dossier Library"
-        className="group relative p-2 rounded-lg text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227] transition-all cursor-pointer border border-transparent"
+        className="group relative p-2.5 rounded-lg text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227] transition-all cursor-pointer border border-transparent"
       >
-        <DossierIcon className="w-4 h-4 text-[#315F50]" />
+        <DossierIcon className="w-5 h-5 text-[#315F50]" />
         <span className="oxe-tip" data-side="left">
           Dossier Library <small>Official publication report</small>
         </span>
