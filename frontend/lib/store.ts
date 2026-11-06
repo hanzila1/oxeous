@@ -41,6 +41,7 @@ interface ChatMessage {
 }
 
 export type RightPanelType = "chat" | "layers" | "timelapse" | null;
+export type BasemapMode = "satellite" | "light";
 
 interface OxeousState {
   // Navigation & Panels (Simultaneous EUDR + Right Panel)
@@ -50,6 +51,8 @@ interface OxeousState {
   setRightPanel: (panel: RightPanelType) => void;
   eudrAuditTab: EudrAuditTabType;
   setEudrAuditTab: (tab: EudrAuditTabType) => void;
+  basemapMode: BasemapMode;
+  setBasemapMode: (mode: BasemapMode) => void;
 
   // Legacy activePanel compatibility
   activePanel: SidePanelType;
@@ -181,6 +184,9 @@ export const useStore = create<OxeousState>((set) => ({
 
   eudrAuditTab: "charts",
   setEudrAuditTab: (tab) => set({ eudrAuditTab: tab }),
+
+  basemapMode: "satellite",
+  setBasemapMode: (mode) => set({ basemapMode: mode }),
 
   activePanel: "chat",
   setActivePanel: (panel) =>

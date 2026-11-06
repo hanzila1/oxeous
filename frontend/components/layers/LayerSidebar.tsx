@@ -305,6 +305,8 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
     compareRightLayerId,
     setCompareLeftLayerId,
     setCompareRightLayerId,
+    basemapMode,
+    setBasemapMode,
   } = useStore();
 
   const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
@@ -462,16 +464,43 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
 
         {/* Quick actions strip */}
         <div className="flex items-center justify-between pt-1 border-t border-[#F0F2F4] text-[10px]">
-          <button
-            onClick={applyStatutoryPreset}
-            className="flex items-center gap-1 font-semibold text-[#315F50] hover:text-[#274d40] transition-colors cursor-pointer"
-            title="Enable JRC 2020 Baseline, Hansen Loss, and PWRI Carve-out"
-          >
-            <Sparkles className="w-3 h-3 text-[#315F50]" />
-            <span>Statutory Preset (3)</span>
-          </button>
+          <div className="flex items-center gap-1 bg-[#F4F5F6] p-0.5 rounded-md border border-[#E3E7EA]">
+            <button
+              type="button"
+              onClick={() => setBasemapMode("satellite")}
+              className={cn(
+                "px-2 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer",
+                basemapMode === "satellite"
+                  ? "bg-white text-[#1D2227] shadow-2xs font-bold"
+                  : "text-[#747F88] hover:text-[#1D2227]"
+              )}
+            >
+              Satellite
+            </button>
+            <button
+              type="button"
+              onClick={() => setBasemapMode("light")}
+              className={cn(
+                "px-2 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer",
+                basemapMode === "light"
+                  ? "bg-white text-[#315F50] shadow-2xs font-bold"
+                  : "text-[#747F88] hover:text-[#1D2227]"
+              )}
+            >
+              White Map
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={applyStatutoryPreset}
+              className="flex items-center gap-1 font-semibold text-[#315F50] hover:text-[#274d40] transition-colors cursor-pointer"
+              title="Enable JRC 2020 Baseline, Hansen Loss, and PWRI Carve-out"
+            >
+              <Sparkles className="w-3 h-3 text-[#315F50]" />
+              <span>Preset</span>
+            </button>
+            <span className="text-[#C8CFD5]">·</span>
             <button
               onClick={showAllLayers}
               className="text-[#747F88] hover:text-[#1D2227] font-medium transition-colors cursor-pointer"

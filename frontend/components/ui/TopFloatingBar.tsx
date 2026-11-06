@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Plus, Minus } from "lucide-react";
 import {
+  SatelliteGlobeIcon,
   BenchmarkFlagIcon,
   DrawParcelIcon,
   SwipeCompareIcon,
@@ -281,6 +282,8 @@ export default function TopFloatingBar() {
     rightPanel,
     setRightPanel,
     setEudrAuditTab,
+    basemapMode,
+    setBasemapMode,
   } = useStore();
 
   useEffect(() => {
@@ -331,6 +334,27 @@ export default function TopFloatingBar() {
       </button>
 
       <div className="w-6 h-[1px] bg-[#C8CFD5]/80 my-0.5" />
+
+      {/* 1B. Basemap Toggle (Satellite vs Clean White Map) */}
+      <button
+        onClick={() => setBasemapMode(basemapMode === "satellite" ? "light" : "satellite")}
+        aria-label={basemapMode === "light" ? "Switch to Satellite Basemap" : "Switch to White Basemap"}
+        className={cn(
+          "group relative flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-medium transition-all cursor-pointer border",
+          basemapMode === "light"
+            ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
+            : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
+        )}
+      >
+        <SatelliteGlobeIcon className="w-5 h-5 text-[#315F50]" />
+        <span className="text-[8.5px] font-mono font-bold text-[#315F50] -mt-0.5 uppercase">
+          {basemapMode === "light" ? "WHT" : "SAT"}
+        </span>
+        <span className="oxe-tip" data-side="left">
+          {basemapMode === "light" ? "White Basemap" : "Satellite Basemap"}{" "}
+          <small>Click for {basemapMode === "light" ? "Satellite" : "White Map"}</small>
+        </span>
+      </button>
 
       {/* 2. Benchmark Case Studies Trigger (Opens popover to the LEFT) */}
       <div className="relative" ref={dropdownRef}>

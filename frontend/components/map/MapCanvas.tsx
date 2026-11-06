@@ -47,6 +47,7 @@ function MapCanvasComponent() {
     drawingAOI, setDrawingAOI, setActiveGeoJSON, setActivePanel,
     ddsHistory, setEudrPanelOpen, isScanning,
     compareMode, comparePosition, compareLeftLayerId, compareRightLayerId,
+    basemapMode,
   } = useStore();
 
   const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
@@ -479,6 +480,31 @@ function MapCanvasComponent() {
     };
   }, [drawingAOI, activeGeoJSON, ddsHistory, setEudrPanelOpen, setActiveGeoJSON, setDrawingAOI, setActivePanel, renderPermanentPolygon]);
 
+  // -- Sync basemap mode (Satellite vs Clean White Map) ----------------------
+  useEffect(() => {
+    const applyBasemap = (m: maplibregl.Map | null) => {
+      if (!m) return;
+      const run = () => {
+        try {
+          const isLight = basemapMode === "light";
+          if (m.getLayer("carto-light")) {
+            m.setLayoutProperty("carto-light", "visibility", isLight ? "visible" : "none");
+          }
+          if (m.getLayer("esri-satellite")) {
+            m.setLayoutProperty("esri-satellite", "visibility", isLight ? "none" : "visible");
+          }
+          if (m.getLayer("esri-labels")) {
+            m.setLayoutProperty("esri-labels", "visibility", isLight ? "none" : "visible");
+          }
+        } catch {}
+      };
+      if (m.isStyleLoaded()) run();
+      else m.once("styledata", run);
+    };
+    applyBasemap(mapRef.current);
+    applyBasemap(compareMapRef.current);
+  }, [basemapMode, compareMode]);
+
   // -- Sync GeoJSON plot outline (for non-drawing sources like examples/upload) --
   useEffect(() => {
     const map = mapRef.current;
@@ -771,9 +797,9 @@ function MapCanvasComponent() {
   }, [activeGeoJSON, drawingAOI, flyToBbox]);
 
   return (
-    <div className="relative w-full h-full bg-[#0c141c]">
-      {/* Satellite map fills entire area with dark fallback tone */}
-      <div ref={containerRef} className="absolute inset-0 bg-[#0c141c]" />
+    <div className={basemapMode === "light" ? "relative w-full h-full bg-[#F8FAF9]" : "relative w-full h-full bg-[#0c141c]"}>
+      {/* Map fills entire area */}
+      <div ref={containerRef} className={basemapMode === "light" ? "absolute inset-0 bg-[#F8FAF9]" : "absolute inset-0 bg-[#0c141c]"} />
 
       {/* Synchronized Left Secondary Clipped Map for True Real-Time Layer Comparison */}
       {compareMode && (

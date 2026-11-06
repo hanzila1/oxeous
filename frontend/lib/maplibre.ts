@@ -26,8 +26,31 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       attribution: "Esri, HERE, Garmin",
       maxzoom: 19,
     },
+    "carto-light": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "OpenStreetMap, CARTO",
+      maxzoom: 19,
+    },
   },
   layers: [
+    {
+      id: "carto-light",
+      type: "raster",
+      source: "carto-light",
+      layout: {
+        visibility: "none",
+      },
+      paint: {
+        "raster-opacity": 1,
+        "raster-fade-duration": 150,
+      },
+    },
     {
       id: "esri-satellite",
       type: "raster",
