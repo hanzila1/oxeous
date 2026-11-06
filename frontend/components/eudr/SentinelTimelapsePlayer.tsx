@@ -508,49 +508,57 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
             </div>
           </div>
 
-          {/* Play/Pause + Year Scrubber Bar */}
-          <div className="p-2 rounded-xl bg-[#F4F5F6] border border-[#C8CFD5] flex flex-wrap items-center justify-between gap-1.5">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsPlaying(false);
-                  setActiveIndex((prev) => (prev - 1 + frames.length) % frames.length);
-                }}
-                className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] text-[#5B6773] hover:text-[#1D2227] cursor-pointer"
-                title="Previous Year"
-              >
-                <SkipBack className="w-3.5 h-3.5" />
-              </button>
+          {/* Play/Pause + Year Scrubber Bar (Two Clean Rows — Zero Clipping) */}
+          <div className="p-2.5 rounded-xl bg-[#F4F5F6] border border-[#C8CFD5] space-y-2">
+            {/* Row 1: Transport Controls + Active Year Label */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setActiveIndex((prev) => (prev - 1 + frames.length) % frames.length);
+                  }}
+                  className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] text-[#5B6773] hover:text-[#1D2227] cursor-pointer"
+                  title="Previous Year"
+                >
+                  <SkipBack className="w-3.5 h-3.5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setIsPlaying((p) => !p)}
-                className={cn(
-                  "flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-bold text-[10.5px] transition-all cursor-pointer",
-                  isPlaying
-                    ? "bg-[#C58A3A] text-white"
-                    : "bg-[#315F50] text-white"
-                )}
-              >
-                {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                <span>{isPlaying ? "Pause" : "Play"}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPlaying((p) => !p)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer shadow-2xs",
+                    isPlaying
+                      ? "bg-[#C58A3A] text-white"
+                      : "bg-[#315F50] text-white"
+                  )}
+                >
+                  {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                  <span>{isPlaying ? "Pause" : "Play"}</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setIsPlaying(false);
-                  setActiveIndex((prev) => (prev + 1) % frames.length);
-                }}
-                className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] text-[#5B6773] hover:text-[#1D2227] cursor-pointer"
-                title="Next Year"
-              >
-                <SkipForward className="w-3.5 h-3.5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setActiveIndex((prev) => (prev + 1) % frames.length);
+                  }}
+                  className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] text-[#5B6773] hover:text-[#1D2227] cursor-pointer"
+                  title="Next Year"
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <span className="text-[10.5px] font-mono font-bold text-[#5B6773]">
+                {currentFrame.year} {currentFrame.is_cutoff ? "· Cutoff Baseline" : isLossYear ? "· Loss Detected" : "· Verified"}
+              </span>
             </div>
 
-            <div className="flex items-center gap-1 flex-1 justify-end overflow-x-auto">
+            {/* Row 2: 6 Equal-Width Year Pills (2020–2025) */}
+            <div className="grid grid-cols-6 gap-1.5 w-full">
               {frames.map((f, idx) => {
                 const active = idx === activeIndex;
                 const yrLoss = lossYears.includes(f.year);
@@ -563,11 +571,11 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                       setActiveIndex(idx);
                     }}
                     className={cn(
-                      "px-2 py-1 rounded-lg font-mono text-[10px] font-bold transition-all cursor-pointer border flex items-center gap-1",
+                      "py-1.5 rounded-lg font-mono text-[10.5px] font-bold transition-all cursor-pointer border flex items-center justify-center gap-1",
                       active
                         ? f.is_cutoff
-                          ? "bg-[#C58A3A] text-white border-[#C58A3A]"
-                          : "bg-[#315F50] text-white border-[#315F50]"
+                          ? "bg-[#C58A3A] text-white border-[#C58A3A] shadow-2xs"
+                          : "bg-[#315F50] text-white border-[#315F50] shadow-2xs"
                         : "bg-white text-[#5B6773] border-[#C8CFD5] hover:text-[#1D2227]"
                     )}
                   >
@@ -575,7 +583,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                     {yrLoss && !f.is_cutoff && (
                       <span
                         className={cn(
-                          "w-1.5 h-1.5 rounded-full inline-block",
+                          "w-1.5 h-1.5 rounded-full inline-block flex-shrink-0",
                           active ? "bg-rose-300" : "bg-[#A64B45]"
                         )}
                       />
