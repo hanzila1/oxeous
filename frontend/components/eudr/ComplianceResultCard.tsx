@@ -289,7 +289,7 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
           {def.has_deforestation && (def.spatial_compliance_pct ?? 0) >= 70 && (
             <div className="mx-3.5 mb-2.5 p-2.5 rounded-xl bg-[rgba(197,138,58,0.08)] border border-[rgba(197,138,58,0.25)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
               <div className="flex items-center gap-2 min-w-0">
-                <May2026CarveIcon className="w-4.5 h-4.5 flex-shrink-0 text-[#C58A3A]" />
+                <May2026CarveIcon className="w-5 h-5 flex-shrink-0 text-[#C58A3A]" />
                 <div className="text-[11px] leading-snug">
                   <span className="font-bold text-[#1D2227]">May 2026 Segregation: </span>
                   <span className="font-mono font-bold text-[#315F50]">

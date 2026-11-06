@@ -34,8 +34,10 @@ interface TimelapseFrame {
   is_cutoff: boolean;
   rgb_tile_url: string | null;
   nir_tile_url: string | null;
+  pinpoint_tile_url?: string | null;
   rgb_thumb_url: string | null;
   nir_thumb_url: string | null;
+  pinpoint_thumb_url?: string | null;
   sensor: string;
 }
 
@@ -58,7 +60,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [spectralMode, setSpectralMode] = useState<"rgb" | "nir">("rgb");
+  const [spectralMode, setSpectralMode] = useState<"pinpoint" | "rgb" | "nir">("pinpoint");
   const [syncToMap, setSyncToMap] = useState(true);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -78,7 +80,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
 
   // Sync all 6 clipped Sentinel-2 raster frames onto the MapLibre map inside the plot boundary
   const syncFramesToMap = useCallback(
-    (frameList: TimelapseFrame[], currentIdx: number, mode: "rgb" | "nir", mapEnabled: boolean) => {
+    (frameList: TimelapseFrame[], currentIdx: number, mode: "pinpoint" | "rgb" | "nir", mapEnabled: boolean) => {
       const map = getMap();
       if (!map || !map.isStyleLoaded()) return;
 
@@ -94,7 +96,12 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
         : undefined;
 
       frameList.forEach((frame, idx) => {
-        const tileUrl = mode === "rgb" ? frame.rgb_tile_url : frame.nir_tile_url;
+        const tileUrl =
+          mode === "pinpoint"
+            ? frame.pinpoint_tile_url || frame.rgb_tile_url
+            : mode === "rgb"
+            ? frame.rgb_tile_url
+            : frame.nir_tile_url;
         if (!tileUrl) return;
 
         const srcId = `oxe-s2-tl-src-${frame.year}`;
@@ -263,7 +270,11 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   };
 
   const activeThumbUrl =
-    spectralMode === "rgb" ? currentFrame.rgb_thumb_url : currentFrame.nir_thumb_url;
+    spectralMode === "pinpoint"
+      ? currentFrame.pinpoint_thumb_url || currentFrame.rgb_thumb_url
+      : spectralMode === "rgb"
+      ? currentFrame.rgb_thumb_url
+      : currentFrame.nir_thumb_url;
 
   // Estimate year-specific canopy cover % for HUD readout
   const cutoff2020Cover = Number(def.forest_cover_2020_pct ?? 80);
@@ -303,6 +314,19 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
           <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-semibold">
             <button
               type="button"
+              onClick={() => setSpectralMode("pinpoint")}
+              className={cn(
+                "px-2 py-1 rounded-md transition-all cursor-pointer",
+                spectralMode === "pinpoint"
+                  ? "bg-white text-rose-700 shadow-2xs font-bold"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+              title="10m Sentinel-2 True Color + Year-by-Year Cumulative Red Loss Pinpoint (2021–2025)"
+            >
+              Pinpoint Loss (S2 + Red)
+            </button>
+            <button
+              type="button"
               onClick={() => setSpectralMode("rgb")}
               className={cn(
                 "px-2 py-1 rounded-md transition-all cursor-pointer",
@@ -320,7 +344,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
               className={cn(
                 "px-2 py-1 rounded-md transition-all cursor-pointer",
                 spectralMode === "nir"
-                  ? "bg-white text-rose-700 shadow-2xs font-bold"
+                  ? "bg-white text-[#315F50] shadow-2xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
               )}
               title="False-Color Infrared Vegetation (B8, B4, B3 · 10m — Standing forest glows red, cleared soil is cyan)"
@@ -476,7 +500,13 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
 
               {/* Bottom Bar inside Frame */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 py-2 flex items-center justify-between text-[10px] font-mono text-white">
-                <span>{spectralMode === "rgb" ? "S2 10m True Color (B4/B3/B2)" : "S2 10m NIR False Color (B8/B4/B3)"}</span>
+                <span>
+                  {spectralMode === "pinpoint"
+                    ? "S2 10m + Year-by-Year Loss Pinpoint"
+                    : spectralMode === "rgb"
+                    ? "S2 10m True Color (B4/B3/B2)"
+                    : "S2 10m NIR False Color (B8/B4/B3)"}
+                </span>
                 <span className="text-emerald-300 font-bold">
                   Est. Canopy: {yearCanopyPct.toFixed(1)}%
                 </span>

@@ -795,6 +795,25 @@ def get_sentinel2_timelapse(
         # Buffered bounding box for thumbnail framing around the clipped plot
         thumb_region = region.bounds().buffer(120).bounds() if region is not None else None
 
+        # Pre-prepare Hansen GFC + JRC GFC2020 + RADD for Year-by-Year Cumulative Loss Pinpoint
+        hansen_img = ee.Image("UMD/hansen/global_forest_change_2025_v1_13")
+        tc_2000 = hansen_img.select("treecover2000").unmask(0)
+        ly_band = hansen_img.select("lossyear").unmask(0)
+        l_band = hansen_img.select("loss").unmask(0)
+        jrc_forest = ee.Image("JRC/GFC2020/V4").select("Map").unmask(0).eq(1)
+        try:
+            radd_alert_img = (
+                ee.ImageCollection("projects/radar-wur/raddalert/v1")
+                .filterBounds(region)
+                .filter(ee.Filter.listContains("system:band_names", "Alert"))
+                .mosaic()
+                .select("Alert")
+                .unmask(0)
+                .gte(2)
+            )
+        except Exception:
+            radd_alert_img = ee.Image(0)
+
         def _build_year_frame(yr: int) -> dict[str, Any]:
             try:
                 start_d = f"{yr}-01-01"
@@ -833,15 +852,41 @@ def get_sentinel2_timelapse(
                 rgb_tile_url = _safe_tile_url(clipped, rgb_vis_params)
                 nir_tile_url = _safe_tile_url(clipped, nir_vis_params)
 
+                # Year-by-Year Cumulative Loss Pinpoint (2020 = 0 loss; 2021..2025 = cumulative loss up to yr)
+                base_rgb_vis = clipped.visualize(**rgb_vis_params)
+                if yr <= 2020:
+                    pinpoint_vis = base_rgb_vis
+                else:
+                    ly_code = yr - 2000
+                    cum_loss = ly_band.gt(20).And(ly_band.lte(ly_code)).And(l_band.eq(1)).And(tc_2000.gte(30))
+                    if yr >= 2025:
+                        cum_loss = cum_loss.Or(radd_alert_img)
+                    cum_stat_loss = _clip_image(cum_loss.And(jrc_forest), bbox, geometry)
+                    cum_replant_loss = _clip_image(cum_loss.And(jrc_forest.Not()), bbox, geometry)
+
+                    replant_overlay = ee.Image(1).updateMask(cum_replant_loss).visualize(palette=["#FFB703"], opacity=0.72)
+                    stat_overlay = ee.Image(1).updateMask(cum_stat_loss).visualize(palette=["#FF1E42"], opacity=0.78)
+                    pinpoint_vis = ee.ImageCollection([base_rgb_vis.byte(), replant_overlay.byte(), stat_overlay.byte()]).mosaic()
+
+                pinpoint_tile_url = _safe_tile_url(pinpoint_vis, {})
+
                 # Generate plot-clipped thumbnail with subtle dark context outside the plot
                 rgb_thumb_url = None
                 nir_thumb_url = None
+                pinpoint_thumb_url = None
                 if thumb_region is not None:
                     try:
                         bg_rgb = composite.visualize(**rgb_vis_params).multiply(0.32)
                         fg_rgb = clipped.visualize(**rgb_vis_params)
                         framed_rgb = ee.ImageCollection([bg_rgb.byte(), fg_rgb.byte()]).mosaic()
                         rgb_thumb_url = framed_rgb.getThumbURL({
+                            "region": thumb_region,
+                            "dimensions": 360,
+                            "format": "jpg",
+                        })
+
+                        framed_pinpoint = ee.ImageCollection([bg_rgb.byte(), pinpoint_vis.byte()]).mosaic()
+                        pinpoint_thumb_url = framed_pinpoint.getThumbURL({
                             "region": thumb_region,
                             "dimensions": 360,
                             "format": "jpg",
@@ -864,8 +909,10 @@ def get_sentinel2_timelapse(
                     "is_cutoff": yr == 2020,
                     "rgb_tile_url": rgb_tile_url,
                     "nir_tile_url": nir_tile_url,
+                    "pinpoint_tile_url": pinpoint_tile_url,
                     "rgb_thumb_url": rgb_thumb_url,
                     "nir_thumb_url": nir_thumb_url,
+                    "pinpoint_thumb_url": pinpoint_thumb_url,
                     "sensor": "Sentinel-2 L2A (10m Cloud-Free Composite)",
                 }
             except Exception as yr_exc:
