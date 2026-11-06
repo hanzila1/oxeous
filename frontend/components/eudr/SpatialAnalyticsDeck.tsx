@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
+import SentinelTimelapsePlayer from "./SentinelTimelapsePlayer";
 
 interface Props {
   result: EUDRAnalysisResponse;
@@ -567,6 +568,9 @@ export default function SpatialAnalyticsDeck({ result, compact = false }: Props)
           </div>
         </div>
       </div>
+
+      {/* -- 1B. Sentinel-2 10m Plot Time-Series Timelapse (2020-2025) -- */}
+      <SentinelTimelapsePlayer result={result} />
 
       {/* -- 2. Multi-Decadal 25-Year Canopy Timeline (2000-2025) ----- */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">

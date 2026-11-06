@@ -741,3 +741,152 @@ def get_all_map_layers(commodity: str, bbox: tuple[float, float, float, float] |
         })
 
     return layers
+
+
+# -- 11. Sentinel-2 10m Annual Time-Series Timelapse (2020 Cutoff -> 2025) -----
+
+def get_sentinel2_timelapse(
+    bbox: tuple[float, float, float, float] | None = None,
+    geometry: dict | None = None,
+    years: list[int] | None = None,
+) -> dict[str, Any]:
+    """
+    Generate cloud-masked 10m Sentinel-2 (COPERNICUS/S2_SR_HARMONIZED) annual composites
+    strictly clipped inside the plot polygon for EUDR visual cross-verification (2020-2025).
+    Returns both True-Color RGB (B4/B3/B2) and False-Color NIR Vegetation (B8/B4/B3) XYZ tiles
+    and plot-framed thumbnail URLs for each year.
+    """
+    target_years = years or [2020, 2021, 2022, 2023, 2024, 2025]
+    year_labels = {
+        2020: "2020 · Statutory Cutoff (Dec 31, 2020)",
+        2021: "2021 · Post-Cutoff Year 1",
+        2022: "2022 · Post-Cutoff Year 2",
+        2023: "2023 · Post-Cutoff Year 3",
+        2024: "2024 · Post-Cutoff Year 4",
+        2025: "2025 · Present Verification",
+    }
+
+    if not _init():
+        return {
+            "available": False,
+            "frames": [
+                {
+                    "year": y,
+                    "label": year_labels.get(y, f"{y} Composite"),
+                    "is_cutoff": y == 2020,
+                    "rgb_tile_url": None,
+                    "nir_tile_url": None,
+                    "rgb_thumb_url": None,
+                    "nir_thumb_url": None,
+                    "sensor": "Sentinel-2 L2A (10m)",
+                }
+                for y in target_years
+            ],
+        }
+
+    try:
+        import ee
+        from concurrent.futures import ThreadPoolExecutor
+
+        region = _to_ee_geometry(geometry, bbox)
+        if region is None and bbox:
+            region = ee.Geometry.Rectangle([bbox[0], bbox[1], bbox[2], bbox[3]])
+
+        # Buffered bounding box for thumbnail framing around the clipped plot
+        thumb_region = region.bounds().buffer(120).bounds() if region is not None else None
+
+        def _build_year_frame(yr: int) -> dict[str, Any]:
+            try:
+                start_d = f"{yr}-01-01"
+                end_d = f"{yr}-12-31" if yr < 2025 else "2026-11-01"
+
+                col = (
+                    ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                    .filterDate(start_d, end_d)
+                )
+                if region is not None:
+                    col = col.filterBounds(region)
+
+                # Filter low-cloud scenes and apply SCL cloud/shadow mask
+                def _mask_s2_clouds(img):
+                    scl = img.select("SCL")
+                    # Mask cloud shadow (3), medium/high cloud (8, 9), thin cirrus (10)
+                    mask = scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
+                    return img.updateMask(mask)
+
+                clean_col = col.filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 45)).map(_mask_s2_clouds)
+                # Fallback to unmasked median if tropical cloud cover leaves empty pixels
+                fallback_img = col.median()
+                composite = clean_col.median().unmask(fallback_img)
+
+                # Strict clip inside the plot polygon so timelapse sticks inside the plot on the map
+                clipped = _clip_image(composite, bbox, geometry)
+
+                rgb_vis_params = {"bands": ["B4", "B3", "B2"], "min": 180, "max": 2600, "gamma": 1.25}
+                nir_vis_params = {"bands": ["B8", "B4", "B3"], "min": 250, "max": 4200, "gamma": 1.15}
+
+                rgb_tile_url = _safe_tile_url(clipped, rgb_vis_params)
+                nir_tile_url = _safe_tile_url(clipped, nir_vis_params)
+
+                # Generate plot-clipped thumbnail with subtle dark context outside the plot
+                rgb_thumb_url = None
+                nir_thumb_url = None
+                if thumb_region is not None:
+                    try:
+                        bg_rgb = composite.visualize(**rgb_vis_params).multiply(0.32)
+                        fg_rgb = clipped.visualize(**rgb_vis_params)
+                        framed_rgb = ee.ImageCollection([bg_rgb.byte(), fg_rgb.byte()]).mosaic()
+                        rgb_thumb_url = framed_rgb.getThumbURL({
+                            "region": thumb_region,
+                            "dimensions": 420,
+                            "format": "png",
+                        })
+
+                        bg_nir = composite.visualize(**nir_vis_params).multiply(0.32)
+                        fg_nir = clipped.visualize(**nir_vis_params)
+                        framed_nir = ee.ImageCollection([bg_nir.byte(), fg_nir.byte()]).mosaic()
+                        nir_thumb_url = framed_nir.getThumbURL({
+                            "region": thumb_region,
+                            "dimensions": 420,
+                            "format": "png",
+                        })
+                    except Exception:
+                        pass
+
+                return {
+                    "year": yr,
+                    "label": year_labels.get(yr, f"{yr} Composite"),
+                    "is_cutoff": yr == 2020,
+                    "rgb_tile_url": rgb_tile_url,
+                    "nir_tile_url": nir_tile_url,
+                    "rgb_thumb_url": rgb_thumb_url,
+                    "nir_thumb_url": nir_thumb_url,
+                    "sensor": "Sentinel-2 L2A (10m Cloud-Free Composite)",
+                }
+            except Exception as yr_exc:
+                logger.warning("Sentinel-2 timelapse frame %s failed: %s", yr, yr_exc)
+                return {
+                    "year": yr,
+                    "label": year_labels.get(yr, f"{yr} Composite"),
+                    "is_cutoff": yr == 2020,
+                    "rgb_tile_url": None,
+                    "nir_tile_url": None,
+                    "rgb_thumb_url": None,
+                    "nir_thumb_url": None,
+                    "sensor": "Sentinel-2 L2A (10m)",
+                }
+
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            frames = list(pool.map(_build_year_frame, target_years))
+
+        frames.sort(key=lambda f: f["year"])
+        has_any = any(f.get("rgb_tile_url") or f.get("rgb_thumb_url") for f in frames)
+        return {
+            "available": has_any,
+            "resolution_m": 10,
+            "dataset": "COPERNICUS/S2_SR_HARMONIZED",
+            "frames": frames,
+        }
+    except Exception as exc:
+        logger.warning("Sentinel-2 timelapse generation failed: %s", exc)
+        return {"available": False, "error": str(exc), "frames": []}

@@ -834,3 +834,27 @@ async def get_plot_traces_nt_xml(plot_id: str) -> Response:
         headers={"Content-Disposition": f'attachment; filename="TRACES_NT_{plot_id}.xml"'},
     )
 
+
+@router.post("/timelapse")
+async def get_plot_sentinel_timelapse(body: dict[str, Any]) -> dict[str, Any]:
+    """
+    On-demand 10m Sentinel-2 annual time-series timelapse (2020 Cutoff -> 2025)
+    strictly clipped inside the submitted plot geometry.
+    """
+    from ...eudr.analysis_engine import _geometry_to_bbox
+    from ...tools.eudr.gee_tile_server import get_sentinel2_timelapse
+
+    geometry = body.get("geometry")
+    if not geometry:
+        raise HTTPException(status_code=400, detail="Missing plot geometry")
+
+    bbox = _geometry_to_bbox(geometry)
+    years = body.get("years")
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: get_sentinel2_timelapse(bbox=bbox, geometry=geometry, years=years),
+    )
+    return result
+
+
