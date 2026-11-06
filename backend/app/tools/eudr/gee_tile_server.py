@@ -538,14 +538,39 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
 
         jrc_img = ee.Image("JRC/GFC2020/V4")
         jrc_forest = jrc_img.select("Map").unmask(0).eq(1)
+        try:
+            nat_forest_2020 = (
+                ee.ImageCollection("projects/nature-trace/assets/forest_typology/natural_forest_2020_v1_0_collection")
+                .mosaic()
+                .select("B0")
+                .unmask(0)
+                .divide(250.0)
+                .gte(0.45)
+            )
+            consensus_forest_2020 = jrc_forest.Or(nat_forest_2020)
+        except Exception:
+            consensus_forest_2020 = jrc_forest
 
-        statutory_deforest = post_cutoff.And(jrc_forest)
-        replanting = post_cutoff.And(jrc_forest.Not())
+        try:
+            region = _to_ee_geometry(geometry, bbox)
+            radd_col = (
+                ee.ImageCollection("projects/radar-wur/raddalert/v1")
+                .filterBounds(region)
+                .filter(ee.Filter.listContains("system:band_names", "Alert"))
+            )
+            radd_img = radd_col.mosaic().select("Alert").unmask(0)
+            post_cutoff = post_cutoff.Or(radd_img.gte(2))
+        except Exception:
+            pass
+
+        statutory_raw = post_cutoff.And(consensus_forest_2020)
+        statutory_deforest = statutory_raw.selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+        replanting = post_cutoff.And(consensus_forest_2020.Not())
 
         wc_map = ee.ImageCollection("ESA/WorldCover/v200").first().select("Map").unmask(0)
         non_agronomic = (
             wc_map.eq(50).Or(wc_map.eq(60)).Or(wc_map.eq(70)).Or(wc_map.eq(80))
-            .And(jrc_forest.Not()).And(post_cutoff.Not())
+            .And(consensus_forest_2020.Not()).And(post_cutoff.Not())
         )
 
         inter_vis = ee.ImageCollection([
@@ -795,12 +820,25 @@ def get_sentinel2_timelapse(
         # Buffered bounding box for thumbnail framing around the clipped plot
         thumb_region = region.bounds().buffer(120).bounds() if region is not None else None
 
-        # Pre-prepare Hansen GFC + JRC GFC2020 + RADD for Year-by-Year Cumulative Loss Pinpoint
+        # Pre-prepare Hansen GFC + Consensus 2020 Forest (JRC V4 ∪ Nature Trace 2020) + RADD
+        # Must match gee_commodity.py 100% so Timelapse Pinpoint Red/Amber pixels are identical to PWRI-3D!
         hansen_img = ee.Image("UMD/hansen/global_forest_change_2025_v1_13")
         tc_2000 = hansen_img.select("treecover2000").unmask(0)
         ly_band = hansen_img.select("lossyear").unmask(0)
         l_band = hansen_img.select("loss").unmask(0)
         jrc_forest = ee.Image("JRC/GFC2020/V4").select("Map").unmask(0).eq(1)
+        try:
+            nat_forest_2020 = (
+                ee.ImageCollection("projects/nature-trace/assets/forest_typology/natural_forest_2020_v1_0_collection")
+                .mosaic()
+                .select("B0")
+                .unmask(0)
+                .divide(250.0)
+                .gte(0.45)
+            )
+            consensus_forest_2020 = jrc_forest.Or(nat_forest_2020)
+        except Exception:
+            consensus_forest_2020 = jrc_forest
         try:
             radd_alert_img = (
                 ee.ImageCollection("projects/radar-wur/raddalert/v1")
@@ -861,11 +899,13 @@ def get_sentinel2_timelapse(
                     cum_loss = ly_band.gt(20).And(ly_band.lte(ly_code)).And(l_band.eq(1)).And(tc_2000.gte(30))
                     if yr >= 2025:
                         cum_loss = cum_loss.Or(radd_alert_img)
-                    cum_stat_loss = _clip_image(cum_loss.And(jrc_forest), bbox, geometry)
-                    cum_replant_loss = _clip_image(cum_loss.And(jrc_forest.Not()), bbox, geometry)
+                    cum_stat_raw = cum_loss.And(consensus_forest_2020)
+                    cum_stat_mmu = cum_stat_raw.selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+                    cum_stat_loss = _clip_image(cum_stat_mmu, bbox, geometry)
+                    cum_replant_loss = _clip_image(cum_loss.And(consensus_forest_2020.Not()), bbox, geometry)
 
-                    replant_overlay = ee.Image(1).updateMask(cum_replant_loss).visualize(palette=["#FFB703"], opacity=0.72)
-                    stat_overlay = ee.Image(1).updateMask(cum_stat_loss).visualize(palette=["#FF1E42"], opacity=0.78)
+                    replant_overlay = ee.Image(1).updateMask(cum_replant_loss).visualize(palette=["#F2A91F"], opacity=0.78)
+                    stat_overlay = ee.Image(1).updateMask(cum_stat_loss).visualize(palette=["#D93C4A"], opacity=0.85)
                     pinpoint_vis = ee.ImageCollection([base_rgb_vis.byte(), replant_overlay.byte(), stat_overlay.byte()]).mosaic()
 
                 pinpoint_tile_url = _safe_tile_url(pinpoint_vis, {})

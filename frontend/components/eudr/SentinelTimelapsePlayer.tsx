@@ -56,7 +56,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   const effectiveResult = result ?? ddsHistory[0] ?? null;
 
   const plotGeom = effectiveResult?.plot?.geometry ?? activeGeoJSON ?? null;
-  const geomSig = plotGeom ? JSON.stringify(plotGeom).slice(0, 180) : "";
+  const geomSig = plotGeom ? `v2:${JSON.stringify(plotGeom).slice(0, 180)}` : "";
 
   const areaHa = effectiveResult?.plot?.area_ha ?? 100.0;
   const def = effectiveResult?.risk_assessment?.deforestation;
