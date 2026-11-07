@@ -11,6 +11,7 @@ import EUDRDashboard from "@/components/eudr/EUDRDashboard";
 import ProgressOverlay from "@/components/ui/ProgressOverlay";
 import TopFloatingBar from "@/components/ui/TopFloatingBar";
 import BrandLogoBadge from "@/components/ui/BrandLogoBadge";
+import CloudTelemetryBadge from "@/components/ui/CloudTelemetryBadge";
 import DossierModal from "@/components/eudr/DossierModal";
 import AnalyticsDeckModal from "@/components/eudr/AnalyticsDeckModal";
 import { useStore } from "@/lib/store";
@@ -19,12 +20,13 @@ import { cn } from "@/lib/utils";
 /** Shared panel widths - upgraded default from 380px to 460px (and 640px expanded) so cards and charts have ample room to breathe */
 const EUDR_PANEL_WIDTH_DEFAULT = 460;
 const EUDR_PANEL_WIDTH_EXPANDED = 640;
+const TIMELAPSE_PANEL_WIDTH = 420;
 const RIGHT_PANEL_WIDTH = 400;
 
 function AppShell() {
   const {
-    eudrPanelOpen,
-    setEudrPanelOpen,
+    leftPanel,
+    setLeftPanel,
     eudrPanelExpanded,
     rightPanel,
     setRightPanel,
@@ -32,11 +34,34 @@ function AppShell() {
     setActiveDossier,
     activeAnalyticsResult,
     setActiveAnalyticsResult,
+    timelapsePlaying,
+    timelapseFrames,
+    setTimelapseIndex,
   } = useStore();
 
-  const activeEudrWidth = eudrPanelExpanded ? EUDR_PANEL_WIDTH_EXPANDED : EUDR_PANEL_WIDTH_DEFAULT;
+  // Keep Timelapse map animation advancing globally even when user switches left/right panels
+  useEffect(() => {
+    if (!timelapsePlaying || timelapseFrames.length === 0) return;
+    const id = setInterval(() => {
+      setTimelapseIndex((prev) => (prev + 1) % timelapseFrames.length);
+    }, 1500);
+    return () => clearInterval(id);
+  }, [timelapsePlaying, timelapseFrames.length, setTimelapseIndex]);
 
-  // Remember the last view so its content stays visible while the panel collapses.
+  // Remember the last left/right views so content stays visible while panels collapse
+  const [lastLeftPanel, setLastLeftPanel] = useState(leftPanel);
+  useEffect(() => {
+    if (leftPanel) setLastLeftPanel(leftPanel);
+  }, [leftPanel]);
+  const shownLeftPanel = leftPanel ?? lastLeftPanel;
+
+  const activeLeftWidth =
+    shownLeftPanel === "timelapse"
+      ? TIMELAPSE_PANEL_WIDTH
+      : eudrPanelExpanded
+      ? EUDR_PANEL_WIDTH_EXPANDED
+      : EUDR_PANEL_WIDTH_DEFAULT;
+
   const [lastRightPanel, setLastRightPanel] = useState(rightPanel);
   useEffect(() => {
     if (rightPanel) setLastRightPanel(rightPanel);
@@ -46,29 +71,47 @@ function AppShell() {
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#F4F5F6]">
 
-      {/* -- 1. Navigation Rail - 48px fixed ----------------------- */}
+      {/* -- 1. Navigation Rail - fixed left ------------------------ */}
       <NavigationRail />
 
-      {/* -- 2. EUDR panel - slides in from left -------------------- */}
+      {/* -- 2. Left Panel (EUDR Suite OR Standalone Plot Timelapse) - slides in from left */}
       <div
         className="flex-shrink-0 h-full overflow-hidden flex justify-end transition-[width] duration-300 ease-panel"
-        style={{ width: eudrPanelOpen ? activeEudrWidth : 0 }}
-        aria-hidden={!eudrPanelOpen}
+        style={{ width: leftPanel ? activeLeftWidth : 0 }}
+        aria-hidden={!leftPanel}
       >
         <div
           className={cn(
-            "h-full flex-shrink-0 border-r border-[#C8CFD5] transition-all duration-300 ease-panel",
-            eudrPanelOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            "relative h-full flex-shrink-0 border-r border-[#C8CFD5] bg-[#F4F5F6] transition-all duration-300 ease-panel",
+            leftPanel ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
-          style={{ width: activeEudrWidth }}
+          style={{ width: activeLeftWidth }}
         >
-          <EUDRDashboard onClose={() => setEudrPanelOpen(false)} />
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200 ease-panel",
+              shownLeftPanel === "eudr" ? "opacity-100 z-10" : "opacity-0 pointer-events-none"
+            )}
+            aria-hidden={shownLeftPanel !== "eudr"}
+          >
+            <EUDRDashboard onClose={() => setLeftPanel(null)} />
+          </div>
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200 ease-panel",
+              shownLeftPanel === "timelapse" ? "opacity-100 z-10" : "opacity-0 pointer-events-none"
+            )}
+            aria-hidden={shownLeftPanel !== "timelapse"}
+          >
+            <TimelapseSidebar onClose={() => setLeftPanel(null)} />
+          </div>
         </div>
       </div>
 
       {/* -- 3. Map with Top Floating Bar -------------------------- */}
       <div className="relative flex-1 min-w-0 h-full overflow-hidden">
         <BrandLogoBadge />
+        <CloudTelemetryBadge />
         <TopFloatingBar />
         <MapCanvas />
         <ProgressOverlay />
@@ -105,15 +148,6 @@ function AppShell() {
             aria-hidden={shownRightPanel !== "layers"}
           >
             <LayerSidebar onClose={() => setRightPanel(null)} />
-          </div>
-          <div
-            className={cn(
-              "absolute inset-0 transition-opacity duration-200 ease-panel",
-              shownRightPanel === "timelapse" ? "opacity-100 z-10" : "opacity-0 pointer-events-none"
-            )}
-            aria-hidden={shownRightPanel !== "timelapse"}
-          >
-            <TimelapseSidebar onClose={() => setRightPanel(null)} />
           </div>
         </div>
       </div>

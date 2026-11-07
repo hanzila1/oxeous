@@ -5,13 +5,14 @@ Handles tool-calling prompt construction, response parsing, and one retry on bad
 from __future__ import annotations
 
 import json
+import os
 import re
 import logging
 from typing import Any, Optional
 
 import httpx
 
-from ..config import get_settings
+from ..config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ CRITICAL EXPLANATION REQUIREMENTS:
    - Article 2(4) explicitly excludes agricultural plantations and agroforestry from the statutory definition of 'forest'.
    - Article 2(3) strictly defines Deforestation as 'the conversion of forest to agricultural use'.
    - Therefore, cyclical felling and replanting of mature tree crops (like 20-25 year rubber rejuvenation cycles) on pre-existing agricultural plantations is a lawful agricultural replanting cycle, NOT illegal deforestation.
-   - Contrast this with legacy single-sensor optical tools (like Hansen GFC alone) which generate false-positive non-compliance disqualifications, and explain how multi-sensor consensus (JRC GFC2020 + Nature Trace ForTy + Google FDP) dynamically resolves the true statutory status.
+   - Contrast this with legacy single-sensor optical tools (like Hansen GFC alone) which generate false-positive non-compliance disqualifications, and explain how multi-sensor consensus (JRC GFC2020 + Nature Trace ForTy + 10m Sentinel-2 Forest Data Partnership) dynamically resolves the true statutory status.
 7. Pixel-Wise Raster Intersection (PWRI) & Continuous Compliance:
    - Report the Continuous Spatial Compliance Index (`spatial_compliance_pct`%).
    - Break down the exact parcel hectares: Total Parcel (`total_parcel_ha` ha), Verified Clean Area (`compliant_ha` ha), Agricultural Replanting Exemption (`plantation_replanting_ha` ha), and Statutory Deforestation Violation (`statutory_deforestation_ha` ha).
@@ -88,7 +89,22 @@ class GraniteClient:
 
     def __init__(self) -> None:
         self.settings = get_settings()
+        self._env_mtime: float = self._get_env_mtime()
         self._http = httpx.AsyncClient(timeout=60.0)
+
+    @staticmethod
+    def _get_env_mtime() -> float:
+        try:
+            return os.path.getmtime(".env")
+        except OSError:
+            return 0.0
+
+    def _refresh_settings_if_needed(self) -> None:
+        mtime = self._get_env_mtime()
+        if mtime != self._env_mtime:
+            self._env_mtime = mtime
+            get_settings.cache_clear()
+            self.settings = Settings()
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -154,11 +170,98 @@ class GraniteClient:
         return prompt
 
     async def _generate(self, system: str, messages: list[dict[str, str]]) -> str:
+        self._refresh_settings_if_needed()
+        # Auto-prefer Microsoft Foundry / Azure OpenAI whenever credentials are configured
+        if self.settings.azure_openai_api_key and self.settings.azure_openai_endpoint:
+            try:
+                return await self._azure_generate(system, messages)
+            except Exception as az_exc:
+                logger.warning("Azure OpenAI / Foundry call failed (%s); falling back", az_exc)
+                if self.settings.granite_deployment == "azure":
+                    raise
+        if self.settings.granite_deployment == "azure":
+            return await self._azure_generate(system, messages)
         if self.settings.granite_deployment == "watsonx":
             return await self._watsonx_generate(system, messages)
         if self.settings.granite_deployment == "gemini":
             return await self._gemini_generate(system, messages)
         return await self._ollama_generate(system, messages)
+
+    async def _azure_generate(self, system: str, messages: list[dict[str, str]]) -> str:
+        """Microsoft Foundry / Azure OpenAI Chat Completions via REST API (GPT-5/6 + GPT-4 + Foundry)."""
+        raw_endpoint = self.settings.azure_openai_endpoint.strip().rstrip("/")
+        deployment = self.settings.azure_openai_deployment.strip() or "gpt-5.4-mini"
+        api_version = self.settings.azure_openai_api_version.strip() or "2025-04-01-preview"
+        api_key = self.settings.azure_openai_api_key.strip()
+
+        chat_messages = [{"role": "system", "content": system}]
+        for m in messages:
+            role = m.get("role", "user")
+            if role not in ("system", "user", "assistant"):
+                role = "user"
+            chat_messages.append({"role": role, "content": m.get("content", "")})
+
+        # Normalize endpoint whether user pasted Azure OpenAI v1 URL or Foundry Project URL
+        m_host = re.match(
+            r"^(https://[^./]+)\.(?:openai|services\.ai|cognitiveservices)\.azure\.com",
+            raw_endpoint,
+            re.IGNORECASE,
+        )
+        if m_host:
+            base_host = f"{m_host.group(1)}.openai.azure.com"
+        else:
+            base_host = re.sub(r"/openai(/v1)?$", "", raw_endpoint)
+
+        is_reasoning_series = bool(re.match(r"^(gpt-[56]|o[134])", deployment.lower()))
+        headers = {"api-key": api_key, "Content-Type": "application/json"}
+
+        # Build token/sampling params compatible with GPT-5/GPT-6 (max_completion_tokens, no custom temp)
+        if is_reasoning_series:
+            param_variants = [
+                {"max_completion_tokens": 4096, "reasoning_effort": "low"},
+                {"max_completion_tokens": 4096},
+            ]
+        else:
+            param_variants = [
+                {"max_completion_tokens": 2048, "temperature": 0.1},
+                {"max_tokens": 2048, "temperature": 0.1},
+            ]
+
+        # Primary: Azure OpenAI v1 endpoint (/openai/v1/chat/completions)
+        v1_url = f"{base_host}/openai/v1/chat/completions"
+        last_resp = None
+        for params in param_variants:
+            v1_payload: dict[str, Any] = {
+                "model": deployment,
+                "messages": chat_messages,
+                **params,
+            }
+            resp = await self._http.post(v1_url, headers=headers, json=v1_payload)
+            last_resp = resp
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["choices"][0]["message"]["content"]
+            if resp.status_code not in (400, 422):
+                break
+
+        # Fallback: classic Azure OpenAI deployment path
+        classic_url = f"{base_host}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
+        for params in param_variants:
+            classic_payload: dict[str, Any] = {
+                "messages": chat_messages,
+                **params,
+            }
+            resp2 = await self._http.post(classic_url, headers=headers, json=classic_payload)
+            last_resp = resp2
+            if resp2.status_code == 200:
+                data2 = resp2.json()
+                return data2["choices"][0]["message"]["content"]
+            if resp2.status_code not in (400, 422):
+                break
+
+        if last_resp is not None:
+            last_resp.raise_for_status()
+        raise RuntimeError("Azure OpenAI request failed without response")
 
     async def _ollama_generate(self, system: str, messages: list[dict[str, str]]) -> str:
         payload = {

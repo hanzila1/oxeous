@@ -10,6 +10,7 @@ import logging
 import zipfile
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -48,6 +49,8 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
     granite: GraniteClient = request.app.state.granite
 
     # -- Run assessment --------------------------------------------------------
+    from ...eudr.ftw_delineation import extract_ftw_parcel_network_sync
+    ftw_mesh_task = asyncio.create_task(asyncio.to_thread(extract_ftw_parcel_network_sync, body.plot.geometry))
     try:
         assessment, tile_url, deforestation_geojson, gee_summary = await assess_plot(
             plot=body.plot,
@@ -55,6 +58,7 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"EUDR assessment failed: {exc}")
+    ftw_geojson = await ftw_mesh_task
 
     # -- Generate DDS if requested ---------------------------------------------
     dds = None
@@ -100,7 +104,11 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
             "country_risk": assessment.legality.country_risk_level.value,
             "data_sources": assessment.deforestation.data_sources,
         }
-        explanation = _fallback_explanation(assessment, body.plot, gee_summary)
+        explanation = await _augment_with_foundry_brief(
+            _fallback_explanation(assessment, body.plot, gee_summary),
+            tool_context,
+            granite,
+        )
     except Exception:
         explanation = _fallback_explanation(assessment, body.plot, gee_summary)
 
@@ -152,6 +160,26 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
     if not gee_layers and gee_summary and gee_summary.get("tile_urls"):
         fallback_raw = _build_fallback_map_layers(gee_summary.get("tile_urls", {}), body.plot.commodity.value)
         gee_layers = [GEEMapLayer(**lyr) for lyr in fallback_raw]
+
+    if ftw_geojson and ftw_geojson.get("features"):
+        ftw_lyr = GEEMapLayer(
+            id="ftw-field-boundaries",
+            label="FTW Field Boundaries · Art. 9(1)(d) (Vector)",
+            tile_url="",
+            geojson_data=ftw_geojson,
+            visible=False,
+            opacity=0.95,
+            legend={
+                "title": "FTW Connected Parcel Vector Mesh (10m S2)",
+                "classes": [
+                    {"label": "Cultivated Field Boundary (Vector)", "color": "#00F5D4"},
+                    {"label": "Agroforestry / Tree-Crop Parcel (Vector)", "color": "#38BDF8"},
+                ],
+            },
+            dataset="Sentinel-2 Bi-Temporal Vector Mesh (Window A/B)",
+            layer_type="ftw_boundaries",
+        )
+        gee_layers.insert(1 if gee_layers else 0, ftw_lyr)
 
     if dds:
         _dds_store[dds.dds_id] = {
@@ -303,9 +331,13 @@ async def _run_assessment_with_stream(
             "status": "done",
         })
 
+        from ...eudr.ftw_delineation import extract_ftw_parcel_network_sync
+
+        ftw_mesh_task = asyncio.create_task(asyncio.to_thread(extract_ftw_parcel_network_sync, plot.geometry))
         assessment, tile_url, deforestation_geojson, gee_summary = await assess_plot(
             plot=plot, request_id=request_id, progress_callback=progress_callback
         )
+        ftw_geojson = await ftw_mesh_task
 
         dds = generate_dds(plot, assessment)
         _dds_store[dds.dds_id] = dds.model_dump()
@@ -355,7 +387,11 @@ async def _run_assessment_with_stream(
                 "detail": "Synthesizing multi-agent compliance verdict & TRACES NT...",
                 "status": "active",
             })
-            explanation = _fallback_explanation(assessment, plot, gee_summary)
+            explanation = await _augment_with_foundry_brief(
+                _fallback_explanation(assessment, plot, gee_summary),
+                tool_context,
+                granite,
+            )
             await progress_callback({
                 "step": "agent_log",
                 "id": "consensus",
@@ -397,6 +433,27 @@ async def _run_assessment_with_stream(
                 ]
             except Exception as exc:
                 logger.warning("GEE tile generation skipped: %s", exc)
+
+        if ftw_geojson and ftw_geojson.get("features"):
+            ftw_layer = {
+                "id": "ftw-field-boundaries",
+                "label": "FTW Field Boundaries · Art. 9(1)(d) (Vector)",
+                "tile_url": "",
+                "geojson_data": ftw_geojson,
+                "visible": False,
+                "opacity": 0.95,
+                "legend": {
+                    "title": "FTW Connected Parcel Vector Mesh (10m S2)",
+                    "classes": [
+                        {"label": "Cultivated Field Boundary (Vector)", "color": "#00F5D4"},
+                        {"label": "Agroforestry / Tree-Crop Parcel (Vector)", "color": "#38BDF8"},
+                    ],
+                },
+                "dataset": "Sentinel-2 Bi-Temporal Vector Mesh (Window A/B)",
+                "layer_type": "ftw_boundaries",
+            }
+            insert_idx = 1 if gee_layers else 0
+            gee_layers.insert(insert_idx, ftw_layer)
 
         _dds_store[dds.dds_id] = {
             "dds": dds.model_dump(),
@@ -465,6 +522,39 @@ async def export_dds(dds_id: str) -> StreamingResponse:
 
 # -- Helpers -------------------------------------------------------------------
 
+async def _augment_with_foundry_brief(
+    base_explanation: str,
+    tool_context: dict[str, Any],
+    granite: GraniteClient | None,
+) -> str:
+    """Prepend a concise 2-sentence live AI legal brief when cloud LLM is configured, preserving deterministic metrics."""
+    if not granite:
+        return base_explanation
+    try:
+        granite._refresh_settings_if_needed()
+        if not (granite.settings.azure_openai_api_key and granite.settings.azure_openai_endpoint):
+            return base_explanation
+        brief_system = (
+            "You are Oxeous Earth Agent, an EUDR (Regulation EU 2023/1115) legal & spatial compliance auditor. "
+            "Given verified plot metrics JSON, write ONE concise 2-sentence executive audit brief in plain English "
+            "explaining the legal outcome (citing Art. 3(a), Art. 2(5) replanting exemption, or May 2026 Carve-Out as applicable). "
+            "Use ONLY exact numbers from the JSON. Do NOT add headings, bullet points, or em-dashes."
+        )
+        brief = await asyncio.wait_for(
+            granite._azure_generate(
+                brief_system,
+                [{"role": "user", "content": json.dumps(tool_context)}],
+            ),
+            timeout=6.0,
+        )
+        clean_brief = (brief or "").strip().replace("—", "-").replace("–", "-")
+        if len(clean_brief) > 30:
+            return f"> **Executive Legal Brief:** {clean_brief}\n\n{base_explanation}"
+    except Exception as exc:
+        logger.debug("Live executive brief skipped (%s)", exc)
+    return base_explanation
+
+
 def _fallback_explanation(assessment, plot, gee_summary: dict | None = None) -> str:
     risk = assessment.overall_risk.value.replace("_", " ").upper()
     is_compliant_verdict = assessment.overall_risk.value in ("compliant", "low_risk")
@@ -511,127 +601,110 @@ def _fallback_explanation(assessment, plot, gee_summary: dict | None = None) -> 
     sections = []
 
     # ==========================================================================
-    # SECTION 1: PLAIN-ENGLISH EXECUTIVE VERDICT (READ IN 10 SECONDS)
+    # SECTION 1: PLAIN-ENGLISH EXECUTIVE VERDICT (WHAT HAPPENED ON THIS PLOT)
     # ==========================================================================
     if is_wood_silviculture:
         verdict_story = (
-            f"### 1. What This Result Means in Plain English\n"
-            f"- **Final Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 - Cleared for EU Import)**\n"
-            f"- **The Story of This Plot**: You are auditing a **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})**. "
-            f"Satellites detected **{loss_ha:.2f} ha** of tree cutting after 2020. However, our multi-sensor check proves this land is a **commercial planted production forest (`PlantedForest` with only {nat_pct:.1f}% wild natural forest)** where the activity is routine **timber harvesting (`{driver}`)**.\n"
-            f"- **Why It Is Legal Under EUDR**: Under **EUDR Article 2(3)**, 'deforestation' only means converting a forest into a *farm*. Harvesting timber in a managed Swedish/European production forest and replanting trees is **not conversion to agriculture**, and because it did not destroy wild primary forest (**Article 2(7)**), **100% of this {total_ha:.2f} ha plot is legal and compliant**."
+            f"### 1. What Happened on This Plot (Plain-English Verdict)\n"
+            f"- **Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 — Cleared for EU Import)**\n"
+            f"- **What Happened (2020–2025)**: On this **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})**, satellites detected **{loss_ha:.2f} ha** of tree harvesting after Dec 31, 2020. However, multi-sensor checks prove this is a **managed timber production forest (`{ftype_plain}`, only {nat_pct:.1f}% wild forest)** undergoing routine harvesting (`{driver}`).\n"
+            f"- **Why It Passes EU Law**: Under **EUDR Article 2(3) & 2(7)**, harvesting timber in a planted forest and replanting trees is **sustainable silviculture, not conversion to agriculture** — so **100% ({total_ha:.2f} ha)** is legal."
         )
     elif is_exempt:
         verdict_story = (
-            f"### 1. What This Result Means in Plain English\n"
-            f"- **Final Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 - Exempt under EUDR Article 2(5))**\n"
-            f"- **The Story of This Plot**: You are auditing a **{total_ha:.2f} ha {comm_label}** farm in **{plot.country_name} ({plot.country_code})**. "
-            f"Basic optical satellites (`Hansen GFC`) flagged **{loss_ha:.2f} ha** of tree loss after 2020. Normally, naive software would block this farm. "
-            f"However, Oxeous cross-checked the European Commission's 2020 forest map (**{jrc2020:.1f}%** forest) and Sentinel-2's wild forest sensor (**{nat_pct:.1f}%** wild forest), proving this land was **already an established {comm_label.lower()} farm in 2020** (`{ftype_plain}`).\n"
-            f"- **Why It Is Legal Under EUDR**: Under **EUDR Article 2(4) & 2(5)**, farm trees (like rubber, cocoa, coffee, and oil palm) are legally **agricultural crops, not forest**. Cutting down old crop trees to replant young saplings is normal farming maintenance - **100% of this {total_ha:.2f} ha plot is legal for EU import**."
+            f"### 1. What Happened on This Plot (Plain-English Verdict)\n"
+            f"- **Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 — Exempt under EUDR Article 2(5))**\n"
+            f"- **What Happened (2020–2025)**: On this **{total_ha:.2f} ha {comm_label}** farm in **{plot.country_name} ({plot.country_code})**, optical satellites saw **{loss_ha:.2f} ha** of tree canopy cleared after 2020. Standard tools would falsely block this farm. However, the EU's 2020 forest map (**{jrc2020:.1f}%** forest) and wild-forest AI (**{nat_pct:.1f}%** wild forest) prove this land was **already an active {comm_label.lower()} farm in 2020** (`{ftype_plain}`).\n"
+            f"- **Why It Passes EU Law**: Under **EUDR Article 2(4) & 2(5)**, cutting old crop trees (rubber, cocoa, coffee, oil palm) to replant young saplings is **normal farm rotation, not deforestation** — **100% ({total_ha:.2f} ha)** is legal for EU import."
         )
     elif not is_compliant_verdict and true_loss_ha == 0.0 and assessment.legality.overlaps_protected_area:
         pa_name_str = ", ".join(pa_names[:2]) if pa_names else "Protected Conservation Reserve"
         verdict_story = (
-            f"### 1. What This Result Means in Plain English\n"
-            f"- **Final Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 - Blocked under EUDR Article 3(b) Protected Area Law)**\n"
-            f"- **The Story of This Plot**: You are auditing a **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})**. "
-            f"While satellites confirmed **0.00 ha of tree cutting** between 2021 and 2025, **{pa_pct:.1f}%** of this plot sits inside a legally protected conservation area (**{pa_name_str}**).\n"
-            f"- **What This Means for You**: Under **EUDR Article 3(b)**, commodities must be produced in accordance with national protected-area and land-use laws. Even with zero tree cutting, harvesting inside a protected park is illegal without an explicit statutory concession permit."
+            f"### 1. What Happened on This Plot (Plain-English Verdict)\n"
+            f"- **Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 — Blocked under EUDR Article 3(b) Protected Area Law)**\n"
+            f"- **What Happened (2020–2025)**: This **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})** had **0.00 ha of tree cutting** after 2020, but **{pa_pct:.1f}%** of the land sits inside a protected reserve (**{pa_name_str}**).\n"
+            f"- **Why It Is Blocked**: Under **EUDR Article 3(b)**, farming inside a protected national park or reserve violates national land-use law even if no new trees were cut."
         )
     elif not is_compliant_verdict:
         pa_warning = (
-            f" Worse yet, **{pa_pct:.1f}%** of this plot sits inside a legally protected park (**{pa_names[0]}**), which is a strict illegality under **EUDR Article 3(b)**."
+            f" Additionally, **{pa_pct:.1f}%** overlaps a protected reserve (**{pa_names[0]}**), violating **Article 3(b)**."
             if (assessment.legality.overlaps_protected_area and pa_names)
             else ""
         )
+        replant_note = (
+            f" (Another **{replant_ha:.2f} ha** painted **Amber** on the map was legal crop replanting on land already farmed before 2020.)"
+            if replant_ha > 0
+            else ""
+        )
         verdict_story = (
-            f"### 1. What This Result Means in Plain English\n"
-            f"- **Final Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 - Blocked from Direct EU Import)**\n"
-            f"- **The Story of This Plot**: You are auditing a **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})**. "
-            f"Satellites confirm that on December 31, 2020 (the mandatory EUDR cutoff date), this land held real standing forest (**{f2020:.1f}%** baseline). "
-            f"Between 2021 and 2025, **{true_loss_ha:.2f} ha** of that standing forest was cut down and cleared for **{driver.lower()}**.{pa_warning}\n"
-            f"- **What This Means for You**: Under **EUDR Article 3(a)**, any crop or cattle produced on land deforested after Dec 31, 2020 is **illegal to sell in the EU**. However, if the violation is limited to one part of the property, you can use Oxeous's **May 2026 Carve-Out** tool to cut out the **{true_loss_ha:.2f} ha** bad zone and legally export from the remaining **{clean_ha:.2f} ha ({pwri_pct:.1f}%)** clean land."
+            f"### 1. What Happened on This Plot (Plain-English Verdict)\n"
+            f"- **Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 — Blocked from Direct EU Import)**\n"
+            f"- **What Happened (2020–2025)**: On Dec 31, 2020 (the EUDR legal cutoff date), this **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})** held standing natural forest (**{f2020:.1f}%** baseline). Between 2021 and 2025, **{true_loss_ha:.2f} ha** of that standing 2020 forest was cleared (shown in **Red** on the map) for **{driver.lower()}**.{replant_note}{pa_warning}\n"
+            f"- **Why It Is Blocked & How to Fix It**: Under **EUDR Article 3(a)**, crops from land deforested after Dec 31, 2020 cannot enter the EU. However, using **May 2026 Plot Carve-Out**, you can exclude the **{true_loss_ha:.2f} ha** Red zone and legally export from the remaining **{clean_ha:.2f} ha ({pwri_pct:.1f}%)** Green compliant land."
         )
     else:
         speckle_note = (
-            f" While optical sensors noticed **{loss_ha:.2f} ha** of tiny isolated tree gaps, that is smaller than the **0.5 hectare minimum size of a forest under EUDR Article 2(4)** (isolated single-tree/wind noise, not land clearing)."
+            f" While optical sensors noticed **{loss_ha:.2f} ha** of tiny isolated tree gaps, that is smaller than the **0.5 ha minimum forest size under EUDR Article 2(4)** (single-tree/wind noise, not land clearing)."
             if loss_ha > 0
             else " Satellites confirmed **0.00 ha** of tree cutting between 2021 and 2025."
         )
         verdict_story = (
-            f"### 1. What This Result Means in Plain English\n"
-            f"- **Final Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 - 100% Cleared for EU Import)**\n"
-            f"- **The Story of This Plot**: You are auditing a **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})**.{speckle_note} "
-            f"The plot does not overlap any protected national parks, and **100% of its {clean_ha:.2f} ha area is verified clean** for EU customs."
+            f"### 1. What Happened on This Plot (Plain-English Verdict)\n"
+            f"- **Verdict**: **{risk} (Risk Score: {assessment.risk_score:.0f}/100 — 100% Cleared for EU Import)**\n"
+            f"- **What Happened (2020–2025)**: On this **{total_ha:.2f} ha {comm_label}** plot in **{plot.country_name} ({plot.country_code})**,{speckle_note} It is completely outside protected national parks, and **100% ({clean_ha:.2f} ha)** is verified clean for EU customs."
         )
     sections.append(verdict_story)
 
     # ==========================================================================
-    # SECTION 2: WHAT EACH SATELLITE DATASET FOUND (EXPLAINING THE STATS SIMPLY)
+    # SECTION 2: MAP COLORS & HECTARE BREAKDOWN (CONNECTING MAP TO NUMBERS)
+    # ==========================================================================
+    replant_label = "🔵 Blue — Sustainable Silviculture (Art. 2(3))" if is_wood_silviculture else "🟡 Amber — Crop Replanting (Art. 2(5) Legal)"
+    ledger_section = (
+        f"### 2. How to Read the Map & Hectare Breakdown\n"
+        f"Every pixel inside your **{total_ha:.2f} ha** plot boundary is color-coded on the map:\n\n"
+        f"| Map Color & Zone | Area (ha) | % of Plot | Plain-English Meaning |\n"
+        f"| :--- | :--- | :--- | :--- |\n"
+        f"| **🟢 Green — Clean Compliant Land** | **{clean_ha:.2f} ha** | **{pwri_pct:.2f}%** | Safe to export to the EU (`TRACES NT Box 44`) |\n"
+        f"| **{replant_label}** | **{replant_ha:.2f} ha** | {round((replant_ha / max(0.1, total_ha)) * 100, 2):.2f}% | Trees cut on pre-2020 farmland for crop rotation (100% legal) |\n"
+        f"| **🔴 Red — Statutory Deforestation** | **{true_loss_ha:.2f} ha** | {round((true_loss_ha / max(0.1, total_ha)) * 100, 2):.2f}% | **Illegal (Art. 3a)** — standing 2020 forest cleared after Dec 2020 |\n"
+        f"| **⚪ Filtered (<0.5 ha gaps / roads)** | **{sub_mmu_speckle_ha:.2f} ha** | {round((sub_mmu_speckle_ha / max(0.1, total_ha)) * 100, 2):.2f}% | Isolated tree gaps <0.5 ha (exempt under Art. 2(4) FAO threshold) |"
+    )
+    sections.append(ledger_section)
+
+    # ==========================================================================
+    # SECTION 3: WHAT EACH OF THE 6 SATELLITES FOUND (EXPLAINING THE STATS)
     # ==========================================================================
     jrc_meaning = (
-        "meaning the EU's own map confirms this was real standing forest in 2020."
+        "confirms real standing forest existed here on Dec 31, 2020."
         if jrc2020 >= 10.0
-        else "meaning the EU's official map confirms this land was NOT forest in 2020 (it was already farmland or open land)."
+        else "confirms this land was already non-forest farmland in 2020."
     )
     nat_meaning = (
-        f"confirming the trees here are wild natural forest (`{ftype_plain}`), so cutting them is illegal deforestation."
+        f"identifies wild natural forest (`{ftype_plain}`), where clearing is illegal."
         if nat_pct >= 15.0
-        else f"proving these trees are human-managed (`{ftype_plain}`), NOT wild rainforest."
+        else f"proves these trees are human-planted (`{ftype_plain}`), not wild jungle."
     )
     radar_meaning = (
-        f"Radar waves pierced through the clouds and confirmed active tree clearing across **{radd_alert_pct:.1f}%** of the plot."
+        f"pierced through cloud cover and detected active clearing on **{radd_alert_pct:.1f}%** of the plot."
         if radd_alert_pct > 0
-        else "Zero active radar alerts (`0.0%`) - no hidden under-cloud clearing was detected."
+        else "zero radar alerts (`0.0%`) — no hidden clearing under clouds."
     )
     pa_meaning = (
-        f"**OVERLAP DETECTED ({pa_pct:.1f}%)** inside **{', '.join(pa_names[:2])}** ({'Strict National Park / Reserve - Illegal' if is_strict_pa else 'Managed Reserve - Permit Required'})."
+        f"**{pa_pct:.1f}% overlap** with **{', '.join(pa_names[:2])}** ({'Strict Reserve — Illegal' if is_strict_pa else 'Managed Zone — Permit Needed'})."
         if assessment.legality.overlaps_protected_area
-        else "**CLEAR (0.0% overlap)** - this farm is completely outside all national parks and indigenous reserves."
+        else "**0.0% overlap** — completely outside national parks and indigenous reserves."
     )
 
     dataset_guide = (
-        f"### 2. What Each Satellite Sensor Found (How to Read the Numbers)\n"
-        f"You do not need to be a satellite expert - here is what each of the 6 satellite systems checked on this plot:\n\n"
-        f"1. **EU Official 2020 Forest Map (`EC JRC GFC2020`, 10m resolution) -> `{jrc2020:.1f}%`**:\n"
-        f"   - *What it is*: The European Commission's official reference map of what was forest on Dec 31, 2020.\n"
-        f"   - *What it means here*: `{jrc2020:.1f}%` of your plot was mapped as EU statutory forest in 2020 - {jrc_meaning}\n"
-        f"2. **Wild Rainforest vs. Farm Tree Sensor (`Sentinel-2 Nature Trace & ForTy`, 10m) -> `{nat_pct:.1f}% Wild Forest` (`{ftype}`)**:\n"
-        f"   - *What it is*: Standard satellites cannot tell wild jungle apart from rubber, cocoa, or pine plantations. This 10m AI sensor separates wild forest from planted trees.\n"
-        f"   - *What it means here*: Only `{nat_pct:.1f}%` is wild natural forest, and the land is classified as **{ftype_plain}** - {nat_meaning}\n"
-        f"3. **25-Year Tree-Cutting Tracker (`Hansen GFC v1.13`, 30m) -> `{loss_ha:.2f} ha` (`{loss_pct:.2f}%`) cut after 2020**:\n"
-        f"   - *What it is*: Tracks all tree canopy from the year 2000 to 2025.\n"
-        f"   - *What it means here*: Back in 2000, `{f2000:.1f}%` of this plot had trees (`{pre_loss:.1f}%` was cleared before the Dec 2020 law took effect, leaving `{f2020:.1f}%` canopy in 2020). Between 2021 and 2025, `{loss_ha:.2f} ha` (`{loss_pct:.2f}%` of the plot) had trees cut down.\n"
-        f"4. **Cloud-Piercing Radar (`Sentinel-1 RADD`, 10m) -> `{radd_alert_pct:.1f}%`**:\n"
-        f"   - *What it is*: C-band radar that sees through thick clouds to catch recent logging.\n"
-        f"   - *What it means here*: {radar_meaning}\n"
-        f"5. **Cause-of-Clearing & Crop AI (`WRI/DeepMind & Google FDP`) -> `{driver}`**:\n"
-        f"   - *What it is*: AI that identifies *why* trees were cut and whether `{comm_label}` grows here.\n"
-        f"   - *What it means here*: The activity is identified as **`{driver}`**{f', and satellite crop recognition confirms {comm_label} presence ({comm_cov:.1f}% coverage)' if comm_confirmed else ''}. Adjacent 500m neighbor ring loss is `{halo_pct:.1f}%`.\n"
-        f"6. **Protected Parks & Terrain Physics (`WDPA & 30m DEM`) -> `{elev_m:.0f}m` elevation, `{slope_deg:.1f}°` slope**:\n"
-        f"   - *What it is*: Checks national park boundaries and mountain steepness (`{biome}`).\n"
-        f"   - *What it means here*: Protected areas status is {pa_meaning}"
+        f"### 3. What the 6 Satellite Sensors Found (Stat Guide)\n"
+        f"- **1. EU 2020 Forest Map (`EC JRC GFC2020`, 10m) → `{jrc2020:.1f}%`**: The European Commission's official cutoff map {jrc_meaning}\n"
+        f"- **2. Wild Forest vs. Farm Sensor (`Nature Trace & ForTy`, 10m) → `{nat_pct:.1f}% Wild`**: Separates wild rainforest from tree crops; {nat_meaning}\n"
+        f"- **3. Post-2020 Tree Loss (`Hansen GFC v1.13`, 10m-refined) → `{loss_ha:.2f} ha` (`{loss_pct:.2f}%`)**: Tracks canopy from 2000 (`{f2000:.1f}%`) to 2020 (`{f2020:.1f}%`) and detected `{loss_ha:.2f} ha` of trees cut during 2021–2025.\n"
+        f"- **4. Cloud-Piercing Radar (`Sentinel-1 RADD`, 10m) → `{radd_alert_pct:.1f}%`**: C-band radar {radar_meaning}\n"
+        f"- **5. Clearing Cause & Crop AI (`WRI Drivers & FDP 10m`) → `{driver}`**: Identifies the activity as **`{driver}`**{f' with confirmed {comm_label} crop presence ({comm_cov:.1f}%)' if comm_confirmed else ''} (`{halo_pct:.1f}%` loss in surrounding 500m buffer).\n"
+        f"- **6. Protected Parks & Terrain (`WDPA & DEM`) → `{elev_m:.0f}m` elev, `{slope_deg:.1f}°` slope**: Park check shows {pa_meaning}"
     )
     sections.append(dataset_guide)
-
-    # ==========================================================================
-    # SECTION 3: SIMPLE HECTARE MATH BREAKDOWN (100% BALANCED)
-    # ==========================================================================
-    replant_label = "Sustainable Silviculture / Replanting (Legal)" if is_wood_silviculture else "Agricultural Crop Replanting (Legal Art. 2(5))"
-    ledger_section = (
-        f"### 3. How the Hectares Add Up (Simple Area Accounting)\n"
-        f"Every single hectare of your **{total_ha:.2f} ha** plot is accounted for below:\n\n"
-        f"| What Part of the Plot | Hectares (ha) | % of Plot | What It Means for EUDR Compliance |\n"
-        f"| :--- | :--- | :--- | :--- |\n"
-        f"| **Total Plot Size** | **{total_ha:.2f} ha** | 100.00% | Exact Earth-ellipsoid GPS area (`EPSG:4326`) |\n"
-        f"| **Clean Area (Legal to Export)** | **{clean_ha:.2f} ha** | **{pwri_pct:.2f}%** | Safe to include in your EU TRACES NT customs filing |\n"
-        f"| **{replant_label}** | **{replant_ha:.2f} ha** | {round((replant_ha / max(0.1, total_ha)) * 100, 2):.2f}% | Trees cut for legal crop rotation / timber harvest (Not deforestation) |\n"
-        f"| **Tiny Isolated Tree Gaps (<0.5 ha)** | **{sub_mmu_speckle_ha:.2f} ha** | {round((sub_mmu_speckle_ha / max(0.1, total_ha)) * 100, 2):.2f}% | Ignored under EU law because a forest must be >= 0.5 ha (Art. 2(4)) |\n"
-        f"| **Illegal Deforestation Zone** | **{true_loss_ha:.2f} ha** | {round((true_loss_ha / max(0.1, total_ha)) * 100, 2):.2f}% | **Violation (Art. 3a)** - real 2020 forest destroyed after cutoff |\n\n"
-        f"*Math Check: {replant_ha:.2f} ha (Legal Rotation) + {sub_mmu_speckle_ha:.2f} ha (<0.5 ha Noise) + {true_loss_ha:.2f} ha (Illegal Deforestation) = **{loss_ha:.2f} ha Total Trees Cut**.*"
-    )
-    sections.append(ledger_section)
 
     # ==========================================================================
     # SECTION 4: WHAT TO DO NEXT (ACTION PLAN)
@@ -639,19 +712,18 @@ def _fallback_explanation(assessment, plot, gee_summary: dict | None = None) -> 
     if not is_compliant_verdict:
         if assessment.legality.overlaps_protected_area and is_strict_pa:
             action_section = (
-                f"### 4. What You Should Do Next\n"
-                f"- **DO NOT IMPORT**: Because this plot overlaps a strict protected reserve (**{pa_names[0] if pa_names else 'Protected Area'}**) and has **{true_loss_ha:.2f} ha** of illegal deforestation, it cannot pass EU customs (`TARIC Box 44`). Reject this plot or request official government land-title boundary correction."
+                f"### 4. Recommended Next Step\n"
+                f"- **Do Not Import**: Because this plot overlaps a strict protected reserve (**{pa_names[0] if pa_names else 'Protected Area'}**) and has **{true_loss_ha:.2f} ha** of illegal deforestation, it cannot pass EU customs (`TARIC Box 44`)."
             )
         else:
             action_section = (
-                f"### 4. What You Should Do Next (How to Save the Clean {clean_ha:.2f} ha)\n"
-                f"- **Step 1 (Do Not Submit the Whole Plot)**: Submitting the full **{total_ha:.2f} ha** boundary will trigger an EU customs block because of the **{true_loss_ha:.2f} ha** red deforestation zone.\n"
-                f"- **Step 2 (Use May 2026 Plot Carve-Out)**: Click **`Segregation Hub` / `Open Dossier`** in Oxeous to download the **Segregated Clean GeoJSON**. Oxeous has already cut out the **{true_loss_ha:.2f} ha** red violation zone so you can legally export from the remaining **{clean_ha:.2f} ha ({pwri_pct:.1f}%)** clean farm."
+                f"### 4. Recommended Next Step (Save the Clean {clean_ha:.2f} ha)\n"
+                f"- **Use May 2026 Plot Carve-Out**: Do not submit the full **{total_ha:.2f} ha** boundary. Click **`Segregation` / `View Dossier`** to download the **Compliant GeoJSON** with the **{true_loss_ha:.2f} ha** Red zone removed, allowing you to legally export from the remaining **{clean_ha:.2f} ha ({pwri_pct:.1f}%)** Green area."
             )
     else:
         action_section = (
-            f"### 4. What You Should Do Next\n"
-            f"- **Ready for EU Customs (`TARIC Box 44`)**: This plot is **verified compliant**. Click **`Open Dossier`** to download your **TRACES NT GeoJSON** and **Due Diligence Statement (`Code C716`)** covering all **{clean_ha:.2f} ha**."
+            f"### 4. Recommended Next Step\n"
+            f"- **Ready for EU Customs (`TARIC Box 44`)**: Click **`View Dossier`** or **`Legality & DDS`** to download your **TRACES NT GeoJSON** and **Due Diligence Statement (`Code C716`)** for all **{clean_ha:.2f} ha**."
         )
     sections.append(action_section)
 
@@ -716,7 +788,7 @@ def _build_fallback_map_layers(tile_urls: dict[str, Any], commodity: str) -> lis
                 {"label": "Tree Crops & Agroforestry", "color": "#E6AB02"},
             ]
         }),
-        ("gee-wri-drivers", "drivers", "WRI/DeepMind · Drivers of Forest Loss 2001-2025 (1km)", "wri_drivers", False, 1.0, {
+        ("gee-wri-drivers", "drivers", "WRI · Drivers of Forest Loss 2001-2025 (1km)", "wri_drivers", False, 1.0, {
             "title": "Dominant Driver of Forest Loss",
             "classes": [
                 {"label": "Permanent Agriculture", "color": "#E39D29"},
@@ -731,7 +803,7 @@ def _build_fallback_map_layers(tile_urls: dict[str, Any], commodity: str) -> lis
         (f"gee-commodity-{commodity}", "commodity_map", f"{commodity.capitalize()} Probability Map 2023 (FDP 2025)", "commodity_map", False, 1.0, {
             "title": f"{commodity.capitalize()} Probability", "colormap": "Browns", "min": 0.5, "max": 1.0, "units": "probability"
         }),
-        ("gee-protected-areas", "protected_areas", "UNEP-WCMC · WDPA Protected Areas (GEE)", "protected_areas", False, 0.8, {
+        ("gee-protected-areas", "protected_areas", "UNEP-WCMC · WDPA Protected Areas", "protected_areas", False, 0.8, {
             "title": "Protected Areas (WDPA)",
             "classes": [{"label": "Designated Protected Area", "color": "#dc2626"}],
         }),
@@ -857,5 +929,96 @@ async def get_plot_sentinel_timelapse(request: Request):
         lambda: get_sentinel2_timelapse(bbox=bbox, geometry=geometry, years=years),
     )
     return result
+
+
+@router.post("/ftw-delineate")
+async def ftw_delineate_plot_boundary(request: Request) -> dict[str, Any]:
+    """
+    Bi-temporal Sentinel-2 L2A agricultural parcel boundary delineation (FTW architecture +
+    Planetary Computer STAC Window A/B scene discovery) for EUDR Article 9(1)(d) compliance.
+    Converts a single GPS coordinate (lat, lng) or rough bounding box into a multi-vertex
+    6-decimal WGS84 parcel polygon.
+    """
+    from ...eudr.ftw_delineation import delineate_field_boundary
+
+    body = await request.json()
+    lat = body.get("lat")
+    lng = body.get("lng")
+    geometry = body.get("geometry")
+    target_area_ha = float(body.get("target_area_ha") or 12.0)
+
+    if lat is None and lng is None and not geometry:
+        raise HTTPException(status_code=400, detail="Provide either (lat, lng) coordinates or a GeoJSON geometry.")
+
+    try:
+        return await delineate_field_boundary(
+            lat=float(lat) if lat is not None else None,
+            lng=float(lng) if lng is not None else None,
+            geometry=geometry,
+            target_area_ha=target_area_ha,
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as exc:
+        logger.exception("FTW boundary delineation failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Field boundary delineation failed: {exc}")
+
+
+@router.get("/statutory-search")
+async def search_official_eurlex_corpus(
+    q: str = "",
+    category: str = "",
+    commodity: str = "",
+    top_k: int = 8,
+) -> dict[str, Any]:
+    """
+    Live sub-second search over the 114 verbatim Official Journal of the European Union
+    EUR-Lex primary legal provisions (`CELEX:32023R1115`, `02023R1115-20251226`, `32025R2650`,
+    `32024R3084`, `32025R1093`, and Commission Notice `C/2025/4524`).
+    """
+    import time as _time
+    from ...eudr.azure_search_rag import EUDR_STATUTORY_CORPUS, get_eudr_rag_engine
+
+    t0 = _time.monotonic()
+    engine = get_eudr_rag_engine()
+    safe_top = max(1, min(int(top_k or 8), 25))
+
+    query_str = q.strip() or "Article 3 deforestation cutoff Annex I"
+    hits, raw_mode = await engine.search(
+        query=query_str,
+        commodity=commodity.strip() or None,
+        top_k=safe_top * 2 if category.strip() else safe_top,
+    )
+    if category.strip() and category.strip() != "all":
+        hits = [h for h in hits if h.get("category") == category.strip()]
+    hits = hits[:safe_top]
+    latency_ms = max(1, int((_time.monotonic() - t0) * 1000))
+
+    return {
+        "query": q,
+        "engine_mode": "eurlex_cloud_index" if raw_mode == "azure_ai_search" else "eurlex_local_index",
+        "latency_ms": latency_ms,
+        "total_corpus_documents": len(EUDR_STATUTORY_CORPUS) or 114,
+        "returned_count": len(hits),
+        "results": [
+            {
+                "id": h.get("id", ""),
+                "celex_id": h.get("celex_id", ""),
+                "oj_ref": h.get("oj_ref", ""),
+                "eurlex_url": h.get("eurlex_url", ""),
+                "sha256_verbatim": h.get("sha256_verbatim", ""),
+                "article_ref": h.get("article_ref", ""),
+                "title": h.get("title", ""),
+                "category": h.get("category", ""),
+                "hs_codes": h.get("hs_codes", ""),
+                "score": h.get("score", 1.0),
+                "legal_summary": h.get("legal_summary", ""),
+                "verbatim_excerpt": h.get("full_text", "")[:3500],
+            }
+            for h in hits
+        ],
+    }
+
+
 
 

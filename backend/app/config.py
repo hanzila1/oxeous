@@ -11,13 +11,25 @@ _DEFAULT_TILE_CACHE_DIR = os.path.join(tempfile.gettempdir(), "oxeous_tiles")
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # LLM deployment: "gemini" (primary) | "ollama" | "watsonx"
+    # LLM deployment: "azure" (Microsoft Foundry / Azure OpenAI) | "gemini" | "ollama" | "watsonx"
     granite_deployment: str = "gemini"
     granite_model: str = "gemini-3.6-flash"
     granite_ollama_url: str = "http://localhost:11434"
     watsonx_api_key: str = ""
     watsonx_project_id: str = ""
     watsonx_url: str = "https://us-south.ml.cloud.ibm.com"
+
+    # Microsoft Foundry / Azure OpenAI (auto-preferred when azure_openai_api_key & endpoint are set)
+    azure_openai_api_key: str = ""
+    azure_openai_endpoint: str = ""
+    azure_openai_deployment: str = "gpt-5.4-mini"
+    azure_openai_api_version: str = "2025-04-01-preview"
+    azure_openai_embedding_deployment: str = ""
+
+    # Azure AI Search (Step 3 - Live EUDR Statutory & Customs HS Code RAG)
+    azure_search_endpoint: str = ""
+    azure_search_api_key: str = ""
+    azure_search_index: str = "eudr-statutory-corpus"
 
     # Google Earth Engine
     gee_project: str = "ee-hanzilabinyounasai"

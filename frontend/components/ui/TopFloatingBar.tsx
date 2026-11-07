@@ -4,6 +4,7 @@ import {
   SatelliteGlobeIcon,
   BenchmarkFlagIcon,
   DrawParcelIcon,
+  PinSnapIcon,
   SwipeCompareIcon,
   SentinelTimelapseIcon,
   DossierIcon,
@@ -275,13 +276,14 @@ export default function TopFloatingBar() {
     setActiveDossier,
     drawingAOI,
     setDrawingAOI,
+    droppingPin,
+    setDroppingPin,
     compareMode,
     setCompareMode,
     pixelInspectorOpen,
     setPixelInspectorOpen,
-    rightPanel,
-    setRightPanel,
-    setEudrAuditTab,
+    leftPanel,
+    setLeftPanel,
     basemapMode,
     setBasemapMode,
   } = useStore();
@@ -431,6 +433,23 @@ export default function TopFloatingBar() {
         </span>
       </button>
 
+      {/* 3b. Drop Custom GPS Pin -> Auto FTW Boundary Snap */}
+      <button
+        onClick={() => setDroppingPin(!droppingPin)}
+        aria-label={droppingPin ? "Cancel GPS Pin Drop" : "Drop Custom GPS Point & Auto-Snap Field Boundary"}
+        className={cn(
+          "group relative p-2.5 rounded-lg transition-all cursor-pointer border",
+          droppingPin
+            ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
+            : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
+        )}
+      >
+        <PinSnapIcon className="w-5 h-5 text-[#315F50]" />
+        <span className="oxe-tip" data-side="left">
+          {droppingPin ? "Cancel Pin" : "Drop GPS Pin"} <small>Click map → Auto FTW snap</small>
+        </span>
+      </button>
+
       {/* 4. Compare Cutoff Splitter Toggle */}
       <button
         onClick={() => setCompareMode(!compareMode)}
@@ -451,13 +470,12 @@ export default function TopFloatingBar() {
       {/* 5. 10m Sentinel-2 Plot Timelapse Toggle */}
       <button
         onClick={() => {
-          setEudrAuditTab("timelapse");
-          setRightPanel(rightPanel === "timelapse" ? null : "timelapse");
+          setLeftPanel(leftPanel === "timelapse" ? null : "timelapse");
         }}
-        aria-label={rightPanel === "timelapse" ? "Close Plot Timelapse" : "10m Sentinel-2 Plot Timelapse (2020–2025)"}
+        aria-label={leftPanel === "timelapse" ? "Close Plot Timelapse" : "10m Sentinel-2 Plot Timelapse (2020–2025)"}
         className={cn(
           "group relative p-2.5 rounded-lg transition-all cursor-pointer border",
-          rightPanel === "timelapse"
+          leftPanel === "timelapse"
             ? "bg-[#315F50]/15 text-[#315F50] border-[#315F50]/40 shadow-xs font-semibold"
             : "border-transparent text-[#343B42] hover:bg-[#E3E7EA] hover:text-[#1D2227]"
         )}

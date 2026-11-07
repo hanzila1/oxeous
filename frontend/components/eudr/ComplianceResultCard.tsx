@@ -28,7 +28,6 @@ import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
 import { useStore, type ActiveLayer } from "@/lib/store";
 import RiskBadge from "./RiskBadge";
 import SpatialAnalyticsDeck from "./SpatialAnalyticsDeck";
-import SentinelTimelapsePlayer from "./SentinelTimelapsePlayer";
 import AgentConstellationRing from "./AgentConstellationRing";
 import {
   EULogoSeal,
@@ -39,7 +38,6 @@ import {
   May2026CarveIcon,
   OverviewGridIcon,
   AnalyticsDeckIcon,
-  SentinelTimelapseIcon,
   SensorStackIcon,
   ComplianceShieldIcon,
   DossierIcon,
@@ -81,12 +79,6 @@ const MULTI_SENSOR_TABS = [
     label: "Charts",
     tip: "Canopy trajectory & land partition",
     icon: AnalyticsDeckIcon,
-  },
-  {
-    id: "timelapse" as const,
-    label: "Timelapse",
-    tip: "10m Sentinel-2 plot time-series (2020–2025)",
-    icon: SentinelTimelapseIcon,
   },
   {
     id: "overview" as const,
@@ -285,19 +277,16 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
             </div>
           </div>
 
-          {/* Non-Agronomic / Urban / Water / No-Data Warning Banner */}
+          {/* Non-Agronomic / Urban / Water / No-Data Compact Strip */}
           {Number((def as any).non_agronomic_ha ?? 0) > 0.1 && (
-            <div className="mx-3.5 mb-2.5 p-2.5 rounded-xl bg-slate-100 border border-slate-300 flex items-start gap-2.5 text-[11px] text-slate-800">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-slate-600 mt-0.5" />
-              <div className="leading-snug">
-                <span className="font-bold text-slate-900">Class 4 Non-Agronomic / Urban / No-Data Mask: </span>
-                <span className="font-mono font-bold text-slate-700">
-                  {Number((def as any).non_agronomic_ha ?? 0).toFixed(1)} ha ({Number((def as any).non_agronomic_pct ?? 0).toFixed(1)}%)
-                </span>
-                <span className="text-slate-600">
-                  {" "}identified as urban built-up, water, or bare non-productive surface (ESA WorldCover 10m) and excluded from clean agricultural land.
-                </span>
-              </div>
+            <div className="mx-3.5 mb-2.5 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-300 flex items-center justify-between gap-2 text-[10.5px] text-slate-800">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-700 truncate">
+                <span className="w-2 h-2 rounded-full bg-slate-500 flex-shrink-0" />
+                <span className="truncate">Non-Agronomic Mask (Built-up / Water excluded)</span>
+              </span>
+              <span className="font-mono font-bold text-slate-800 flex-shrink-0">
+                {Number((def as any).non_agronomic_ha ?? 0).toFixed(1)} ha ({Number((def as any).non_agronomic_pct ?? 0).toFixed(1)}%)
+              </span>
             </div>
           )}
 
@@ -386,13 +375,12 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
                 </span>
               </div>
               {(def as any).is_plantation_replanting_exemption && (
-                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-200 text-emerald-900 text-[11px] leading-relaxed">
-                  <span className="text-base flex-shrink-0">🌿</span>
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-200 text-emerald-900 text-[11px] leading-snug">
+                  <span className="text-sm flex-shrink-0">🌿</span>
                   <div>
-                    <span className="font-bold">EUDR Art. 2(4), 2(5) & Recital 37 Scientific Rebuttal: </span>
+                    <span className="font-bold">Art. 2(5) Crop Replanting Exemption: </span>
                     <span>
-                      Multi-sensor consensus confirms an established agricultural plantation baseline (0.0% EC JRC statutory forest, Tree Crops & Agroforestry typology, Confirmed {plot.commodity.replace(/_/g, " ")}).
-                      Post-2020 canopy reduction of {(def.forest_loss_ha ?? 0).toFixed(1)} ha is cyclical plantation replanting/harvest, overriding single-map false positives (JRC GFC2020 18.0% global / 24.6% Africa commission error; Thünen Institute 2025 75% agroforestry false-positive benchmark).
+                      The {(def.forest_loss_ha ?? 0).toFixed(1)} ha canopy change occurred on an existing {plot.commodity.replace(/_/g, " ")} plantation (0.0% EC JRC 2020 forest) and is lawful crop rotation.
                     </span>
                   </div>
                 </div>
@@ -731,13 +719,6 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
             </div>
           )}
 
-          {/* Tab: 10m Sentinel-2 Multi-Temporal Timelapse (2020-2025) */}
-          {viewTab === "timelapse" && (
-            <div className="p-3 bg-[#F4F5F6]">
-              <SentinelTimelapsePlayer result={result} />
-            </div>
-          )}
-
           {/* Tab: Data Layers */}
           {viewTab === "layers" && (
             <div className="px-3.5 py-3 space-y-3">
@@ -836,7 +817,7 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
                   <span className="text-[9px] text-[#AAB3BB] font-mono">Art. 2 & WDPA</span>
                 </div>
                 <SensorBadge
-                  sensor="Google FDP Commodity"
+                  sensor="FDP 2025 Commodity"
                   res="10m"
                   status={def.commodity_confirmed ? `Confirmed (${(def.commodity_coverage_pct ?? 0).toFixed(1)}%)` : "Detected"}
                   pass={Boolean(def.commodity_confirmed)}

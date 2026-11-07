@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
-import SentinelTimelapsePlayer from "./SentinelTimelapsePlayer";
 
 interface Props {
   result: EUDRAnalysisResponse;
@@ -569,9 +568,6 @@ export default function SpatialAnalyticsDeck({ result, compact = false }: Props)
         </div>
       </div>
 
-      {/* -- 1B. Sentinel-2 10m Plot Time-Series Timelapse (2020-2025) -- */}
-      {!compact && <SentinelTimelapsePlayer result={result} />}
-
       {/* -- 2. Multi-Decadal 25-Year Canopy Timeline (2000-2025) ----- */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
@@ -808,16 +804,16 @@ export default function SpatialAnalyticsDeck({ result, compact = false }: Props)
               />
               <ConsensusCard
                 title="Hansen Global Forest Change v1.13"
-                resolution="30m"
-                provenance="University of Maryland / Google Earth Engine"
+                resolution="10m-Refined"
+                provenance="University of Maryland (GLAD v1.13)"
                 metric={statutoryDeforestationHa > 0 ? `${statutoryDeforestationHa.toFixed(1)} ha Loss` : "0.0 ha Loss"}
                 status={statutoryDeforestationHa > 0 ? "REVIEW" : "PASS"}
                 detail="Continuous annual loss detection cross-checked against statutory forest mask."
               />
               <ConsensusCard
-                title="Google Forest Data Partnership"
+                title="Forest Data Partnership (FDP 2025)"
                 resolution="10m"
-                provenance="Google / WRI / USAID"
+                provenance="FAO / WRI / USAID"
                 metric={def.commodity_confirmed ? `Confirmed (${(def.commodity_coverage_pct ?? 0).toFixed(1)}%)` : "Crop Detected"}
                 status="PASS"
                 detail="AI commodity canopy probability verifying agricultural land tenure & replanting."

@@ -13,6 +13,11 @@ import AnalysisResultCard from "./AnalysisResultCard";
 import FollowUpChips from "./FollowUpChips";
 import FormattedMarkdown from "./FormattedMarkdown";
 import AgentTelemetryStepper from "./AgentTelemetryStepper";
+import {
+  StatutoryCitationsDrawer,
+  EurLexLiveSearchExplorer,
+  type EurLexCitationItem,
+} from "./StatutorySearchTelemetry";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -28,6 +33,8 @@ const COMMODITY_ICON: Record<string, typeof Coffee> = {
 export default function ConversationPanel({ onClose }: { onClose?: () => void }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [panelTab, setPanelTab] = useState<"agent" | "law">("agent");
+  const [expandedMsgIds, setExpandedMsgIds] = useState<Record<string, boolean>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const uid = useId();
@@ -82,20 +89,20 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
       agentLogs: [
         {
           id: "intent",
-          label: isSpatialCmd ? "Query & Intent Parsing" : "Statutory Intelligence & Intent Parsing",
+          label: isSpatialCmd ? "Query & Intent Parsing" : "EUR-Lex Primary Search Index",
           detail: isSpatialCmd
             ? `Interpreting geospatial query: "${prompt.trim().slice(0, 50)}..."`
-            : `Consulting EU 2023/1115 regulatory knowledge base & audit context...`,
+            : `Searching 114 verbatim Official Journal provisions (CELEX:32023R1115, 2025/1093, C/2025/4524)...`,
           status: "active",
         },
       ],
     });
     setSending(true);
 
-    const stageTimer = isSpatialCmd
-      ? setTimeout(() => {
-          updateMessage(botId, {
-            agentLogs: [
+    const stageTimer = setTimeout(() => {
+      updateMessage(botId, {
+        agentLogs: isSpatialCmd
+          ? [
               {
                 id: "intent",
                 label: "Query & Intent Parsing",
@@ -105,13 +112,26 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
               {
                 id: "tool",
                 label: "Earth Observation Query",
-                detail: "Dispatching spatial analysis engine across Sentinel & GEE datasets...",
+                detail: "Dispatching spatial analysis engine across Sentinel & Copernicus datasets...",
+                status: "active",
+              },
+            ]
+          : [
+              {
+                id: "intent",
+                label: "EUR-Lex Primary Search Index",
+                detail: "Retrieved top SHA-256 verified Official Journal Articles & Annex I CN/HS tariff clauses",
+                status: "done",
+              },
+              {
+                id: "synthesis",
+                label: "Statutory Compliance Synthesis",
+                detail: "Drafting plain-English regulatory analysis strictly from primary EU law...",
                 status: "active",
               },
             ],
-          });
-        }, 450)
-      : null;
+      });
+    }, 380);
 
     try {
       // If viewport bbox area exceeds 3.8 deg², focus on central 1.0° x 1.0° analysis window
@@ -201,7 +221,7 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
         },
         {
           id: "radd",
-          label: "Sentinel-1 SAR & Google FDP 2026a",
+          label: "Sentinel-1 SAR & FDP 2026a",
           detail: "Queued: All-weather radar & commodity presence",
           status: "pending",
         },
@@ -323,11 +343,13 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
 
                 if (data.map_layers && data.map_layers.length > 0) {
                   data.map_layers.forEach((lyr) => {
+                    const gj = (lyr as { geojson_data?: object | null }).geojson_data ?? undefined;
                     addLayer({
                       id: lyr.id,
                       label: lyr.label,
-                      type: "raster",
-                      tileUrl: lyr.tile_url,
+                      type: gj ? "geojson" : "raster",
+                      tileUrl: lyr.tile_url || undefined,
+                      geojsonData: gj,
                       visible: lyr.visible,
                       opacity: lyr.opacity,
                       legend: lyr.legend as ActiveLayer["legend"] | undefined,
@@ -397,13 +419,52 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
 
           </div>
         </div>
-        {onClose && (
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {/* Mode Switch: Agent Chat vs Live EUR-Lex Search */}
+          <div className="flex items-center bg-[#F4F5F6] p-0.5 rounded-lg border border-[#C8CFD5] text-[10px]">
+            <button
+              type="button"
+              onClick={() => setPanelTab("agent")}
+              className={cn(
+                "px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer",
+                panelTab === "agent"
+                  ? "bg-white text-[#1D2227] shadow-2xs font-bold"
+                  : "text-[#747F88] hover:text-[#1D2227]"
+              )}
+            >
+              Agent
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelTab("law")}
+              className={cn(
+                "px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer",
+                panelTab === "law"
+                  ? "bg-white text-[#315F50] shadow-2xs font-bold"
+                  : "text-[#747F88] hover:text-[#1D2227]"
+              )}
+            >
+              EUR-Lex
+            </button>
+          </div>
+
+          {onClose && (
+            <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </header>
 
+      {panelTab === "law" ? (
+        <EurLexLiveSearchExplorer
+          onAskAgent={(q) => {
+            setPanelTab("agent");
+            submit(q);
+          }}
+        />
+      ) : (
+      <>
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
@@ -470,6 +531,32 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
                           </div>
                         )}
 
+                        {/* 3b. Verbatim Official Journal EUR-Lex Search Telemetry & Primary Sources Drawer */}
+                        {Array.isArray((msg.analysisResult?.granite_intent as { rag_citations?: EurLexCitationItem[] } | undefined)?.rag_citations) && (
+                          <StatutoryCitationsDrawer
+                            citations={
+                              ((msg.analysisResult?.granite_intent as unknown) as {
+                                rag_citations: EurLexCitationItem[];
+                              }).rag_citations
+                            }
+                            searchLatencyMs={
+                              ((msg.analysisResult?.granite_intent as unknown) as {
+                                search_latency_ms?: number;
+                              })?.search_latency_ms
+                            }
+                            ragMode={
+                              ((msg.analysisResult?.granite_intent as unknown) as {
+                                rag_mode?: string;
+                              })?.rag_mode
+                            }
+                            corpusDocs={
+                              ((msg.analysisResult?.granite_intent as unknown) as {
+                                corpus_docs?: number;
+                              })?.corpus_docs ?? 114
+                            }
+                          />
+                        )}
+
                         {/* 4. Regular Spatial Analysis Result (only when real raster layer was generated) */}
                         {msg.analysisResult && Boolean(msg.analysisResult.tile_url) && (
                           <div className="rounded-xl border border-[#D8E1E5] bg-white p-2.5">
@@ -516,6 +603,8 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
         </div>
 
       </footer>
+      </>
+      )}
     </div>
   );
 }
@@ -566,9 +655,9 @@ function Welcome({
           <OxeousOrbitIcon size={24} isSpinning={isSpinning} className={isSpinning ? "text-[#315F50]" : "text-[#1D2227]"} />
         </div>
         <div>
-          <h3 className="text-[13px] font-bold text-[#1D2227] tracking-tight">Statutory Due Diligence & Spatial AI</h3>
-          <p className="text-[11px] text-[#747F88] mt-0.5 max-w-[320px] mx-auto leading-relaxed">
-            Multi-sensor EU 2023/1115 compliance verification. Audit a benchmark plot or ask statutory questions below.
+          <h3 className="text-[13px] font-bold text-[#1D2227] tracking-tight">EUDR Compliance & Spatial AI</h3>
+          <p className="text-[11px] text-[#747F88] mt-0.5 max-w-[310px] mx-auto leading-relaxed">
+            Select a sample plot to audit live, or ask any EU 2023/1115 question below.
           </p>
         </div>
       </div>
@@ -577,10 +666,10 @@ function Welcome({
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between px-1">
           <span className="text-[9.5px] text-[#747F88] uppercase tracking-wider font-mono font-bold">
-            Test Benchmark Plots
+            Quick-Audit Sample Plots
           </span>
           <span className="text-[9px] text-[#AAB3BB] font-mono">
-            {BENCHMARK_CASES.length} Statutory Presets
+            1-Click Live Run
           </span>
         </div>
 
@@ -635,29 +724,42 @@ function Welcome({
         </div>
       </div>
 
-      {/* Suggested Statutory Starter Prompts */}
+      {/* Suggested Starter Prompts */}
       <div className="space-y-1.5 pt-1">
         <div className="flex items-center justify-between px-1">
           <span className="text-[9.5px] text-[#747F88] uppercase tracking-wider font-mono font-bold">
-            Statutory Due Diligence Prompts
+            High-Impact Strategic Inquiries
           </span>
           <span className="text-[9px] text-[#AAB3BB] font-mono">
-            1-Click Guided Query
+            1-Click Ask
           </span>
         </div>
         <div className="space-y-1">
           {[
-            "What are the main articles of EUDR and what do they say in simple words?",
-            "How does the May 2026 plot carve-out segregation protocol work?",
-            "Why is agricultural plantation replanting exempt under EUDR Article 2(5)?",
-          ].map((promptText) => (
+            {
+              label: "How does Oxeous compare to legacy 30m satellite tools?",
+              prompt: "How does Oxeous compare to legacy 30m satellite tools in the market?",
+            },
+            {
+              label: "How does the May 2026 plot carve-out work for my farm?",
+              prompt: "How does the May 2026 plot carve-out segregation protocol work for a farm with partial deforestation?",
+            },
+            {
+              label: "Which rubber and tyre HS codes are regulated under Annex I?",
+              prompt: "Which rubber and tyre HS codes (like 4001 and 4011) are regulated under EUDR Annex I, and what is the rule for synthetic rubber?",
+            },
+            {
+              label: "Why is cyclical crop replanting exempt under Article 2(5)?",
+              prompt: "Why is cyclical crop replanting exempt under EUDR Article 2(5), and how does Oxeous prevent false alarms?",
+            },
+          ].map((item) => (
             <button
-              key={promptText}
+              key={item.label}
               disabled={disabled}
-              onClick={() => onSelectPrompt?.(promptText)}
+              onClick={() => onSelectPrompt?.(item.prompt)}
               className="w-full text-left p-2 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 text-[11px] text-[#343B42] hover:text-[#1D2227] transition-all flex items-center justify-between group shadow-2xs cursor-pointer active:scale-[0.99]"
             >
-              <span className="truncate flex-1">{promptText}</span>
+              <span className="truncate flex-1">{item.label}</span>
               <ArrowRight className="w-3.5 h-3.5 text-[#7A8791] group-hover:text-[#315F50] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1.5" />
             </button>
           ))}

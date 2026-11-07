@@ -503,7 +503,7 @@ def get_protected_areas_tiles(bbox: tuple[float, float, float, float] | None = N
         return {
             "available": bool(url),
             "tile_url": url,
-            "label": "UNEP-WCMC · WDPA Protected Areas (GEE)",
+            "label": "UNEP-WCMC · WDPA Protected Areas",
             "dataset": "WCMC/WDPA/current/polygons",
             "legend": {
                 "title": "Protected Areas (WDPA)",
@@ -534,9 +534,10 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
         treecover = hansen.select("treecover2000").unmask(0).resample("bilinear")
         lossyear  = hansen.select("lossyear")
         loss      = hansen.select("loss")
-        post_cutoff = lossyear.gt(20).And(loss.eq(1)).And(treecover.gte(30))
+        post_cutoff_optical = lossyear.gt(20).And(loss.eq(1)).And(treecover.gte(30))
 
         jrc_img = ee.Image("JRC/GFC2020/V4")
+        proj_10m = jrc_img.select("Map").projection()
         jrc_forest = jrc_img.select("Map").unmask(0).eq(1)
         try:
             nat_forest_2020 = (
@@ -551,20 +552,63 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
         except Exception:
             consensus_forest_2020 = jrc_forest
 
+        region = _to_ee_geometry(geometry, bbox)
         try:
-            region = _to_ee_geometry(geometry, bbox)
+            hansen_prob_10m = (
+                post_cutoff_optical.unmask(0)
+                .toFloat()
+                .resample("bilinear")
+                .reproject(crs=proj_10m)
+            )
+            s2_base = (
+                ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                .filterDate("2020-01-01", "2021-02-28")
+                .filterBounds(region)
+                .sort("CLOUDY_PIXEL_PERCENTAGE")
+                .limit(8)
+                .median()
+            )
+            s2_recent = (
+                ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                .filterDate("2024-01-01", "2026-11-01")
+                .filterBounds(region)
+                .sort("CLOUDY_PIXEL_PERCENTAGE")
+                .limit(8)
+                .median()
+            )
+            s2_ndvi_2020 = s2_base.select(["B8", "B4"]).reproject(crs=proj_10m).normalizedDifference(["B8", "B4"]).unmask(0.7)
+            s2_ndvi_now = s2_recent.select(["B8", "B4"]).reproject(crs=proj_10m).normalizedDifference(["B8", "B4"]).unmask(0.5)
+            s2_ndvi_drop = s2_ndvi_2020.subtract(s2_ndvi_now)
+            post_cutoff_10m = (
+                hansen_prob_10m.gt(0.22).And(
+                    s2_ndvi_now.lt(0.64).Or(s2_ndvi_drop.gt(0.07)).Or(hansen_prob_10m.gt(0.86))
+                )
+            ).Or(
+                s2_ndvi_2020.gt(0.66).And(s2_ndvi_now.lt(0.46)).And(s2_ndvi_drop.gt(0.20))
+            )
+        except Exception:
+            post_cutoff_10m = post_cutoff_optical
+
+        try:
             radd_col = (
                 ee.ImageCollection("projects/radar-wur/raddalert/v1")
                 .filterBounds(region)
                 .filter(ee.Filter.listContains("system:band_names", "Alert"))
             )
             radd_img = radd_col.mosaic().select("Alert").unmask(0)
-            post_cutoff = post_cutoff.Or(radd_img.gte(2))
+            post_cutoff = post_cutoff_10m.Or(radd_img.gte(2))
         except Exception:
-            pass
+            post_cutoff = post_cutoff_10m
 
-        sieve_30m = post_cutoff.And(consensus_forest_2020).selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
-        statutory_deforest = consensus_forest_2020.And(post_cutoff).And(sieve_30m)
+        stat_cand_10m = consensus_forest_2020.And(post_cutoff)
+        sieve_10m = (
+            stat_cand_10m.selfMask()
+            .reproject(crs=proj_10m)
+            .connectedPixelCount(60, eightConnected=True)
+            .gte(16)
+            .unmask(0)
+        )
+        statutory_deforest = stat_cand_10m.And(sieve_10m)
         replanting = consensus_forest_2020.Not().And(post_cutoff)
 
         wc_map = ee.ImageCollection("ESA/WorldCover/v200").first().select("Map").unmask(0)
@@ -573,11 +617,18 @@ def get_pwri_intersection_tiles(bbox: tuple[float, float, float, float] | None =
             .And(consensus_forest_2020.Not()).And(post_cutoff.Not())
         )
 
-        inter_vis = ee.ImageCollection([
-            ee.Image(1).updateMask(non_agronomic).visualize(palette=['#64748B']),
-            ee.Image(1).updateMask(replanting).visualize(palette=['#FFB703']),
-            ee.Image(1).updateMask(statutory_deforest).visualize(palette=['#E63946']),
-        ]).mosaic()
+        base_10m_zero = jrc_forest.multiply(0)
+        classified_raster = (
+            base_10m_zero
+            .where(non_agronomic.gt(0), 4)
+            .where(replanting.gt(0), 1)
+            .where(statutory_deforest.gt(0), 3)
+            .reproject(crs=proj_10m)
+        )
+        inter_vis = classified_raster.visualize(
+            min=0, max=4,
+            palette=['#2E9E6F', '#F2A91F', '#3B82C4', '#D93C4A', '#64748B']
+        )
 
         inter_vis = _clip_image(inter_vis, bbox, geometry)
         url = _safe_tile_url(inter_vis, {})
@@ -826,7 +877,9 @@ def get_sentinel2_timelapse(
         tc_2000 = hansen_img.select("treecover2000").unmask(0).resample("bilinear")
         ly_band = hansen_img.select("lossyear").unmask(0)
         l_band = hansen_img.select("loss").unmask(0)
-        jrc_forest = ee.Image("JRC/GFC2020/V4").select("Map").unmask(0).eq(1)
+        jrc_raw = ee.Image("JRC/GFC2020/V4")
+        proj_10m = jrc_raw.select("Map").projection()
+        jrc_forest = jrc_raw.select("Map").unmask(0).eq(1)
         try:
             nat_forest_2020 = (
                 ee.ImageCollection("projects/nature-trace/assets/forest_typology/natural_forest_2020_v1_0_collection")
@@ -896,12 +949,26 @@ def get_sentinel2_timelapse(
                     pinpoint_vis = base_rgb_vis
                 else:
                     ly_code = yr - 2000
-                    cum_loss = ly_band.gt(20).And(ly_band.lte(ly_code)).And(l_band.eq(1)).And(tc_2000.gte(30))
+                    cum_loss_30m = ly_band.gt(20).And(ly_band.lte(ly_code)).And(l_band.eq(1)).And(tc_2000.gte(30))
+                    try:
+                        cum_10m_density = (
+                            cum_loss_30m.unmask(0)
+                            .toFloat()
+                            .reproject(crs=proj_10m)
+                            .focal_mean(radius=1, kernelType="square", units="pixels")
+                        )
+                        s2_yr_ndvi = composite.normalizedDifference(["B8", "B4"]).unmask(0.5)
+                        cum_loss = cum_10m_density.gt(0.55).Or(
+                            cum_10m_density.gt(0.22).And(s2_yr_ndvi.lt(0.68))
+                        )
+                    except Exception:
+                        cum_loss = cum_loss_30m
                     if yr >= 2025:
+                        cum_loss_30m = cum_loss_30m.Or(radd_alert_img)
                         cum_loss = cum_loss.Or(radd_alert_img)
-                    sieve_30m = cum_loss.And(consensus_forest_2020).selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
-                    cum_stat_10m = consensus_forest_2020.And(cum_loss).And(sieve_30m)
-                    cum_replant_10m = consensus_forest_2020.Not().And(cum_loss)
+                    sieve_30m = cum_loss_30m.And(consensus_forest_2020).selfMask().connectedPixelCount(6, eightConnected=True).gte(6).unmask(0)
+                    cum_stat_10m = consensus_forest_2020.And(cum_loss).And(sieve_30m).reproject(crs=proj_10m)
+                    cum_replant_10m = consensus_forest_2020.Not().And(cum_loss).reproject(crs=proj_10m)
                     cum_stat_loss = _clip_image(cum_stat_10m, bbox, geometry)
                     cum_replant_loss = _clip_image(cum_replant_10m, bbox, geometry)
 

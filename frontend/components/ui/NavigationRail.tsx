@@ -13,31 +13,30 @@ import { useStore, type SidePanelType } from "@/lib/store";
 const NAV_ITEMS: { id: SidePanelType; icon: React.ComponentType<{ className?: string }>; label: string; desc: string }[] = [
   { id: null,        icon: SatelliteGlobeIcon,    label: "Map",       desc: "Satellite view" },
   { id: "eudr",      icon: ComplianceShieldIcon,  label: "EUDR",      desc: "Compliance" },
+  { id: "timelapse", icon: SentinelTimelapseIcon, label: "Timelapse", desc: "10m Time-series" },
   { id: "chat",      icon: AgentSparkIcon,        label: "Agent",     desc: "Spatial AI" },
   { id: "layers",    icon: LayerStackIcon,        label: "Layers",    desc: "Raster layers" },
-  { id: "timelapse", icon: SentinelTimelapseIcon, label: "Timelapse", desc: "10m Time-series" },
 ];
 
 export default function NavigationRail() {
-  const { eudrPanelOpen, setEudrPanelOpen, rightPanel, setRightPanel, setEudrAuditTab } = useStore();
+  const { leftPanel, setLeftPanel, rightPanel, setRightPanel } = useStore();
 
   const handleNav = (id: SidePanelType) => {
     if (id === "eudr") {
-      setEudrPanelOpen(!eudrPanelOpen);
+      setLeftPanel(leftPanel === "eudr" ? null : "eudr");
+    } else if (id === "timelapse") {
+      setLeftPanel(leftPanel === "timelapse" ? null : "timelapse");
     } else if (id === "chat") {
       setRightPanel(rightPanel === "chat" ? null : "chat");
     } else if (id === "layers") {
       setRightPanel(rightPanel === "layers" ? null : "layers");
-    } else if (id === "timelapse") {
-      setEudrAuditTab("timelapse");
-      setRightPanel(rightPanel === "timelapse" ? null : "timelapse");
     } else if (id === null) {
       // Map view toggle
-      if (eudrPanelOpen || rightPanel) {
-        setEudrPanelOpen(false);
+      if (leftPanel || rightPanel) {
+        setLeftPanel(null);
         setRightPanel(null);
       } else {
-        setEudrPanelOpen(true);
+        setLeftPanel("eudr");
         setRightPanel("chat");
       }
     }
@@ -54,14 +53,14 @@ export default function NavigationRail() {
         {NAV_ITEMS.map(({ id, icon: Icon, label, desc }) => {
           const active =
             id === "eudr"
-              ? eudrPanelOpen
+              ? leftPanel === "eudr"
+              : id === "timelapse"
+              ? leftPanel === "timelapse"
               : id === "chat"
               ? rightPanel === "chat"
               : id === "layers"
               ? rightPanel === "layers"
-              : id === "timelapse"
-              ? rightPanel === "timelapse"
-              : !eudrPanelOpen && !rightPanel;
+              : !leftPanel && !rightPanel;
           return (
             <button
               key={label}

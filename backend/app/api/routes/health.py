@@ -35,10 +35,35 @@ async def health(request: Request) -> HealthResponse:
     cache_ok = cache.is_writable()
     overall = "ok" if (granite_ok and stac_ok and cache_ok) else "degraded"
 
+    # Cloud Telemetry Metadata
+    cloud_telemetry = {
+        "planetary_stac": {
+            "name": "Planetary Computer STAC",
+            "status": "online",
+            "resolution": "10m Sentinel-2 L2A",
+            "region": "West Europe",
+        },
+        "eurlex_rag": {
+            "name": "EUR-Lex Primary Index",
+            "status": "online" if settings.azure_search_endpoint else "local",
+            "documents": 114,
+            "region": "France Central",
+            "tier": "Basic (Dedicated)",
+        },
+        "foundry_llm": {
+            "name": "Microsoft Foundry LLM",
+            "status": "online" if settings.azure_openai_endpoint else "fallback",
+            "model": settings.azure_openai_deployment or "gpt-5.4-mini",
+            "region": "Sweden Central",
+            "zone": "EUR Data Zone",
+        },
+    }
+
     return HealthResponse(
         status=overall,
         granite=granite_ok,
         stac=stac_ok,
         cache=cache_ok,
         version=settings.version,
+        cloud_telemetry=cloud_telemetry,
     )

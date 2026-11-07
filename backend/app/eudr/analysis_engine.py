@@ -107,23 +107,28 @@ async def assess_plot(
     print("="*70)
     loc_str = f"{plot.country_name} ({plot.country_code})" if (plot.country_name and plot.country_name.strip()) else (plot.country_code or "Drawn Boundary Coordinates")
     print(f"  Location  : {loc_str} | Commodity: {plot.commodity.value.upper()}")
+    active_llm_name = (
+        f"azure/{settings.azure_openai_deployment}"
+        if (settings.azure_openai_api_key and settings.azure_openai_endpoint)
+        else settings.granite_model
+    )
     print(f"  Area      : {area_ha:.1f} ha")
-    print(f"  LLM Model : {settings.gemini_model}")
-    print(f"  Satellite : Google Earth Engine (6 Real Datasets)")
+    print(f"  LLM Model : {active_llm_name}")
+    print(f"  Satellite : Multi-Sensor Planetary EO (6 Real Datasets)")
     print("-" * 70)
 
     await _emit({"step": "init", "request_id": request_id[:8],
                  "country": plot.country_name, "country_code": plot.country_code,
                  "commodity": plot.commodity.value, "area_ha": round(area_ha, 1),
-                 "model": settings.gemini_model})
+                 "model": active_llm_name})
 
     DATASETS = [
         ("Hansen GFC v1.13 2025", "Tree cover 2020 & post-cutoff loss"),
         ("Nature Trace Natural Forests 2020", "10m probability map"),
         ("Forest Typology 2020", "Primary vs Plantation classification"),
-        ("WRI / Google DeepMind Drivers 2025", "Forest loss driver identification"),
+        ("WRI Drivers 2025", "Forest loss driver identification"),
         ("Forest Data Partnership 2025", "Commodity presence maps"),
-        ("WDPA Protected Areas", "GEE polygon intersection"),
+        ("WDPA Protected Areas", "Spatial polygon intersection"),
     ]
     for i, (name, desc) in enumerate(DATASETS):
         print(f"  [{i+1}/6] {name} ({desc})...")
@@ -222,7 +227,7 @@ async def assess_plot(
     typology = gee.get("forest_typology", {})
     if typology.get("is_natural_forest") and has_deforestation:
         legality_issues.append(
-            f"GEE Forest Typology 2020 confirms primary/natural forest standing at cutoff - "
+            f"Forest Typology 2020 confirms primary/natural forest standing at cutoff - "
             f"post-2020 conversion constitutes an EUDR violation"
         )
 
@@ -304,13 +309,13 @@ async def assess_plot(
     if is_plantation_exemption:
         commodity_risk_factors.append(
             f"🌿 STATUTORY EXEMPTION (EUDR Art. 2(4) & 2(5)): JRC GFC2020 confirms {jrc_pct:.1f}% statutory forest baseline; "
-            f"Forest Typology confirms '{dom_type}'; Google FDP confirms {plot.commodity.value}. "
+            f"Forest Typology confirms '{dom_type}'; FDP 2025 confirms {plot.commodity.value}. "
             f"Post-2020 canopy loss ({forest_loss_ha:.1f} ha) represents cyclical agricultural replanting / crop rejuvenation, NOT forest conversion."
         )
 
     if gee_commodity.get("commodity_confirmed"):
         commodity_risk_factors.append(
-            f"GEE 2025 satellite map confirms {plot.commodity.value} presence "
+            f"FDP 2025 satellite map confirms {plot.commodity.value} presence "
             f"({gee_commodity.get('coverage_pct', 0):.1f}% plot coverage)"
         )
         if has_deforestation and not is_plantation_exemption:

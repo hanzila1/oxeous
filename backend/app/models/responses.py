@@ -56,3 +56,4 @@ class HealthResponse(BaseModel):
     stac: bool = False
     cache: bool = False
     version: str = "0.1.0"
+    cloud_telemetry: Optional[dict[str, Any]] = None

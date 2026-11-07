@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
-import { ShieldCheck, X, AlertCircle, ChevronRight, Loader2, Coffee, Trees, Palmtree, CircleDot, FileText, Leaf } from "lucide-react";
+import { ShieldCheck, X, AlertCircle, ChevronRight, ChevronDown, Loader2, Coffee, Trees, Palmtree, CircleDot, FileText, Leaf } from "lucide-react";
 import {
   EULogoSeal,
   JRC2020Emblem,
@@ -8,6 +8,7 @@ import {
   PanelCollapseIcon,
   AuditPlotIcon,
   DossierIcon,
+  BenchmarkFlagIcon,
 } from "@/components/icons/EOIcons";
 import { cn } from "@/lib/utils";
 import { useStore, type ActiveLayer, type AgentLogEntry } from "@/lib/store";
@@ -31,6 +32,7 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EUDRAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [benchmarksOpen, setBenchmarksOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const {
     addLayer,
@@ -43,7 +45,17 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
     eudrPanelExpanded,
     setEudrPanelExpanded,
     setIsScanning,
+    pendingPinCoords,
+    drawingAOI,
   } = useStore();
+
+  // Ensure PlotUploader mounts when user drops a custom GPS pin or draws a new AOI after a previous audit
+  useEffect(() => {
+    if ((pendingPinCoords || drawingAOI) && !loading) {
+      setResult(null);
+      setError(null);
+    }
+  }, [pendingPinCoords, drawingAOI, loading]);
 
   const run = useCallback(async (geometry: object, commodity: EUDRCommodity, countryCode: string, countryName: string, areaHa?: number) => {
     setLoading(true); setError(null); setResult(null);
@@ -88,7 +100,7 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
       },
       {
         id: "radd",
-        label: "Sentinel-1 SAR & Google FDP 2026a",
+        label: "Sentinel-1 SAR & FDP 2026a",
         detail: "Queued: All-weather radar & commodity presence",
         status: "pending",
       },
@@ -200,11 +212,13 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
               // Add GEE layers to map
               if (data.map_layers && data.map_layers.length > 0) {
                 data.map_layers.forEach((lyr) => {
+                  const gj = (lyr as { geojson_data?: object | null }).geojson_data ?? undefined;
                   addLayer({
                     id: lyr.id,
                     label: lyr.label,
-                    type: "raster",
-                    tileUrl: lyr.tile_url,
+                    type: gj ? "geojson" : "raster",
+                    tileUrl: lyr.tile_url || undefined,
+                    geojsonData: gj,
                     visible: lyr.visible,
                     opacity: lyr.opacity,
                     legend: lyr.legend as ActiveLayer["legend"] | undefined,
@@ -301,7 +315,7 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
                 Oxeous Autonomous EO Pipeline Active
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Querying multi-sensor constellations (Sentinel-2, Hansen v1.13, Google FDP 10m). Live tool execution logs are streaming in the <strong>Agent Panel</strong>.
+                Querying multi-sensor constellations (Sentinel-2, Hansen v1.13, FDP 10m). Live tool execution logs are streaming in the <strong>Agent Panel</strong>.
               </p>
               <button
                 onClick={() => setRightPanel("chat")}
@@ -340,74 +354,80 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
 
         {/* Upload + Research Benchmarks - idle state */}
         {!loading && !result && !error && (
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-3">
             <PlotUploader onPlotReady={run} disabled={loading} />
 
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono font-bold">
-                  Research Benchmark Cases
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {BENCHMARK_CASES.length} Evaluated Plots
-                </span>
-              </div>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setBenchmarksOpen(v => !v)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-[rgba(49,95,80,0.1)] border border-[rgba(49,95,80,0.2)] flex items-center justify-center">
+                    <BenchmarkFlagIcon className="w-3.5 h-3.5 text-[#315F50]" />
+                  </div>
+                  <span className="text-[11.5px] font-semibold text-slate-800">
+                    Sample Benchmark Plots
+                  </span>
+                  <span className="text-[9.5px] font-mono font-bold text-[#315F50] bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.2)] px-1.5 py-0.5 rounded">
+                    {BENCHMARK_CASES.length}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "w-4 h-4 text-slate-400 transition-transform duration-200",
+                    benchmarksOpen && "rotate-180 text-[#315F50]"
+                  )}
+                />
+              </button>
 
-              {BENCHMARK_CASES.map(c => {
-                const Icon = COMMODITY_ICON[c.commodityKey] ?? Trees;
-                const isCompliant = c.verdict.startsWith("COMPLIANT");
-                return (
-                  <div
-                    key={c.id}
-                    className="w-full text-left bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 transition-all shadow-2xs hover:shadow-sm space-y-2 group"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <div className={cn(
-                          "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 border",
-                          isCompliant ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"
-                        )}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-[12px] font-semibold text-slate-900 truncate">{c.label}</p>
-                            <span className={cn(
-                              "text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase",
-                              isCompliant
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : "bg-red-50 text-red-800 border-red-200"
-                            )}>
-                              {c.score}/100
-                            </span>
+              {benchmarksOpen && (
+                <div className="border-t border-slate-100 divide-y divide-slate-100 bg-slate-50/40">
+                  {BENCHMARK_CASES.map(c => {
+                    const Icon = COMMODITY_ICON[c.commodityKey] ?? Trees;
+                    const isCompliant = c.verdict.startsWith("COMPLIANT");
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-white transition-colors"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={cn(
+                            "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 border",
+                            isCompliant ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"
+                          )}>
+                            <Icon className="w-3.5 h-3.5" />
                           </div>
-                          <p className="text-[10px] text-slate-500 mt-0.5 truncate font-mono">
-                            {c.country} · {c.commodity.toUpperCase()}
-                          </p>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold text-slate-900 truncate">{c.label}</p>
+                            <p className="text-[9.5px] text-slate-500 truncate font-mono">
+                              {c.country} · {isCompliant ? "PASS" : "FAIL"} ({c.score}/100)
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => run(c.geometry, c.commodity, c.countryCode, c.country)}
+                            className="flex items-center gap-1 text-[10.5px] font-semibold py-1 px-2.5 rounded-md bg-[#315F50] text-white hover:bg-[#274d40] transition-colors cursor-pointer"
+                          >
+                            <AuditPlotIcon className="w-3 h-3" />
+                            <span>Audit</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveDossier(c.commodityKey)}
+                            className="p-1.5 rounded-md border border-[#C8CFD5] bg-white text-[#1D2227] hover:bg-[#F4F5F6] transition-colors cursor-pointer"
+                            title="Open Statutory Dossier"
+                          >
+                            <DossierIcon className="w-3.5 h-3.5 text-[#315F50]" />
+                          </button>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-[#E3E7EA]">
-                      <button
-                        onClick={() => run(c.geometry, c.commodity, c.countryCode, c.country)}
-                        className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-semibold py-1.5 px-2.5 rounded-lg bg-[#315F50] text-white hover:bg-[#274d40] transition-colors shadow-2xs cursor-pointer"
-                      >
-                        <AuditPlotIcon className="w-3.5 h-3.5" />
-                        <span>Audit Plot</span>
-                      </button>
-                      <button
-                        onClick={() => setActiveDossier(c.commodityKey)}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold py-1.5 px-3 rounded-lg border border-[#C8CFD5] bg-white text-[#1D2227] hover:bg-[#F4F5F6] transition-colors shadow-2xs cursor-pointer"
-                      >
-                        <DossierIcon className="w-3.5 h-3.5 text-[#315F50]" />
-                        <span>Dossier</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -416,7 +436,7 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
       {/* Footer */}
       <footer className="flex-shrink-0 border-t border-slate-200 px-4 py-2.5 bg-white text-center">
         <p className="text-[10px] text-slate-400 font-mono">
-          Copernicus Sentinel-2 · Hansen v1.13 · Google FDP · UNEP-WCMC
+          Copernicus Sentinel-2 · Hansen v1.13 · FDP 2025 · UNEP-WCMC
         </p>
       </footer>
     </div>

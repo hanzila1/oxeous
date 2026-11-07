@@ -27,6 +27,7 @@ import {
   CanopyLossIcon,
   NaturalForestIcon,
   TypologyIcon,
+  SentinelTimelapseIcon,
 } from "@/components/icons/EOIcons";
 
 // Class-based legends for categorical datasets
@@ -75,6 +76,15 @@ const CLASS_LEGENDS: Record<string, Array<{ label: string; color: string }>> = {
     { label: "Settlements & Infrastructure", color: "#a354a0" },
     { label: "Other Natural Disturbances",   color: "#3a209a" },
   ],
+  ftw_boundaries: [
+    { label: "Cultivated Field Boundary (Vector)", color: "#00F5D4" },
+    { label: "Agroforestry / Tree-Crop Parcel (Vector)", color: "#38BDF8" },
+  ],
+  timelapse: [
+    { label: "Dec 2020 Statutory Cutoff Baseline (10m S2)", color: "#C58A3A" },
+    { label: "Annual Canopy & Field Trajectory (2021–2025)", color: "#315F50" },
+    { label: "Post-Cutoff Loss Pinpoint Highlight", color: "#D93C4A" },
+  ],
 };
 
 // Gradient stops for continuous datasets
@@ -82,27 +92,27 @@ const GRADIENT_LEGENDS: Record<string, { stops: string[]; labels: string[]; note
   commodity_map: {
     stops: ["#ffffff", "#fef08a", "#f59e0b", "#b45309", "#78350f"],
     labels: ["0.0", "0.25", "0.50", "0.75", "1.0"],
-    note: "Pixel-level commodity presence probability (Google FDP 10m)",
+    note: "Pixel-level commodity presence probability (FDP 10m)",
   },
   cocoa_probability: {
     stops: ["#ffffff", "#fef3c7", "#d97706", "#854d0e", "#5c3a21"],
     labels: ["0%", "50%", "75%", "100%"],
-    note: "Cocoa agroforestry canopy probability (Google FDP 10m · threshold ≥0.50)",
+    note: "Cocoa agroforestry canopy probability (FDP 10m · threshold ≥0.50)",
   },
   coffee_probability: {
     stops: ["#ffffff", "#fed7aa", "#ea580c", "#7c2d12", "#3b1e08"],
     labels: ["0%", "50%", "80%", "100%"],
-    note: "Coffee agroforestry canopy probability (Google FDP 10m · threshold ≥0.95)",
+    note: "Coffee agroforestry canopy probability (FDP 10m · threshold ≥0.95)",
   },
   palm_oil_probability: {
     stops: ["#ffffff", "#bbf7d0", "#22c55e", "#15803d", "#14532d"],
     labels: ["0%", "47%", "75%", "100%"],
-    note: "Oil palm canopy probability (Google FDP 10m · threshold ≥0.47)",
+    note: "Oil palm canopy probability (FDP 10m · threshold ≥0.47)",
   },
   rubber_probability: {
     stops: ["#ffffff", "#e2e8f0", "#94a3b8", "#64748b", "#334155"],
     labels: ["0%", "35%", "70%", "100%"],
-    note: "Natural rubber plantation probability (Google FDP 10m · threshold ≥0.35)",
+    note: "Natural rubber plantation probability (FDP 10m · threshold ≥0.35)",
   },
   hansen_treecover: {
     stops: ["#000000", "#004400", "#008800", "#00cc00", "#00ff00"],
@@ -254,25 +264,53 @@ function getLayerMeta(layer: ActiveLayer): LayerMeta {
 
     return {
       title: `${commName} Probability (FDP)`,
-      subtitle: "Google AI Canopy Density Heatmap",
+      subtitle: "FDP 10m Canopy Density Heatmap",
       category: "canopy",
       categoryLabel: "Commodity & Drivers",
       resolution: "10m",
-      source: "Google Forest Dynamics",
+      source: "Forest Data Partnership",
       icon: GoogleFDPIcon,
       iconBg: "bg-emerald-50 border-emerald-200",
       iconColor: "text-emerald-600",
     };
   }
 
+  if (id === "sentinel-timelapse" || id.includes("timelapse")) {
+    return {
+      title: "Sentinel-2 Plot Timelapse",
+      subtitle: "Annual 10m S2 Video (2020–2025 · Drag to Restack)",
+      category: "statutory",
+      categoryLabel: "Statutory Cutoff",
+      resolution: "10m Video",
+      source: "Copernicus Sentinel-2",
+      icon: SentinelTimelapseIcon,
+      iconBg: "bg-[rgba(49,95,80,0.12)] border-[rgba(49,95,80,0.25)]",
+      iconColor: "text-[#315F50]",
+    };
+  }
+
+  if (id.includes("ftw") || id.includes("field-boundaries") || id.includes("ftw_boundaries")) {
+    return {
+      title: "FTW Field Boundaries",
+      subtitle: "Connected Cadastral Parcel Vector Mesh (Art. 9(1)(d))",
+      category: "statutory",
+      categoryLabel: "Statutory Cutoff",
+      resolution: "Vector",
+      source: "Fields of The World",
+      icon: Sparkles,
+      iconBg: "bg-cyan-50 border-cyan-200",
+      iconColor: "text-cyan-700",
+    };
+  }
+
   if (id.includes("drivers") || id.includes("wri")) {
     return {
       title: "Drivers of Forest Loss",
-      subtitle: "DeepMind / WRI 7-Class Disturbance Typology",
+      subtitle: "WRI 7-Class Disturbance Typology",
       category: "canopy",
       categoryLabel: "Commodity & Drivers",
       resolution: "30m",
-      source: "WRI / DeepMind",
+      source: "WRI Global Forest Review",
       icon: TypologyIcon,
       iconBg: "bg-purple-50 border-purple-200",
       iconColor: "text-purple-600",
@@ -285,7 +323,7 @@ function getLayerMeta(layer: ActiveLayer): LayerMeta {
     category: "other",
     categoryLabel: "Additional Layers",
     resolution: "10m",
-    source: "Earth Engine",
+    source: "Satellite EO",
     icon: Satellite,
     iconBg: "bg-slate-50 border-slate-200",
     iconColor: "text-slate-600",
@@ -307,6 +345,7 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
     setCompareRightLayerId,
     basemapMode,
     setBasemapMode,
+    setTimelapsePlaying,
   } = useStore();
 
   const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
@@ -571,7 +610,10 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
                 isDragged={draggedLayerId === layer.id}
                 isDragOver={dragOverLayerId === layer.id}
                 onUpdate={updateLayer}
-                onRemove={removeLayer}
+                onRemove={(id) => {
+                  if (id === "sentinel-timelapse") setTimelapsePlaying(false);
+                  removeLayer(id);
+                }}
                 onMoveUp={() => handleMoveStep(layer.id, "up")}
                 onMoveDown={() => handleMoveStep(layer.id, "down")}
                 onBringToTop={() => handleBringToTop(layer.id)}

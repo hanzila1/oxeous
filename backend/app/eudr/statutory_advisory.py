@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from ..models.enums import AnalysisType, CoverageQuality
 from ..models.responses import AnalysisResponse, DataProvenance, LegendSpec
+from .azure_search_rag import format_rag_context_for_llm, get_eudr_rag_engine
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ You asked: *"{prompt}"*
 
 #### Key Statutory Principles Under EUDR:
 1. **Article 3 Mandate**: All imports and exports must be **deforestation-free** (no clearing after Dec 31, 2020), **lawful** under local sovereign regulations, and covered by a **TRACES NT Due Diligence Statement (DDS)**.
-2. **Multi-Sensor Consensus**: We cross-validate high-resolution Sentinel-1 SAR radar, Sentinel-2 optical imagery, Hansen GFC, Google Forest Dynamic Presence (FDP), and the official EC JRC GFC2020 baseline to eliminate false alarms.
+2. **Multi-Sensor Consensus**: We cross-validate high-resolution Sentinel-1 SAR radar, Sentinel-2 optical imagery, Hansen GFC, 10m Forest Dynamic Presence (FDP), and the official EC JRC GFC2020 baseline to eliminate false alarms.
 3. **Traceability**: Plots over 4 hectares require full GPS polygon boundary coordinates.
 4. **Interactive Actions**: You can test our benchmark plots (Colombia Coffee, Ghana Cocoa, Thailand Rubber, Indonesia Palm Oil) or drop your own GeoJSON file in the EUDR Hub.
 
@@ -237,58 +238,120 @@ async def resolve_statutory_advisory(
     request_id: str,
     granite_client: Any,
 ) -> AnalysisResponse:
-    """Resolve a conversational/statutory inquiry using LLM with deterministic fast-fallback."""
+    """Resolve a conversational/statutory inquiry using RAG + LLM with deterministic fast-fallback."""
     answer_text = ""
 
-    # Attempt dynamic LLM generation with strict 5-second timeout
+    # 1. Retrieve grounded statutory Articles, Annex I HS codes & Official Guidance
+    import time as _time
+    t_rag0 = _time.monotonic()
+    rag_hits: list[dict[str, Any]] = []
+    rag_mode = "local_verbatim_eurlex"
+    try:
+        rag_hits, raw_mode = await get_eudr_rag_engine().search(prompt, top_k=4)
+        rag_mode = "eurlex_cloud_index" if raw_mode == "azure_ai_search" else "eurlex_local_index"
+    except Exception as rag_exc:
+        logger.warning("Statutory RAG lookup skipped (%s)", rag_exc)
+    rag_latency_ms = max(1, int((_time.monotonic() - t_rag0) * 1000))
+
+    rag_context_block = format_rag_context_for_llm(rag_hits)
+    cited_articles = [h["article_ref"] for h in rag_hits if h.get("article_ref")]
+    rag_citations_payload = [
+        {
+            "id": h.get("id", ""),
+            "celex_id": h.get("celex_id", ""),
+            "oj_ref": h.get("oj_ref", ""),
+            "eurlex_url": h.get("eurlex_url", ""),
+            "sha256_verbatim": h.get("sha256_verbatim", ""),
+            "article_ref": h.get("article_ref", ""),
+            "title": h.get("title", ""),
+            "category": h.get("category", ""),
+            "hs_codes": h.get("hs_codes", ""),
+            "score": h.get("score", 1.0),
+            "verbatim_excerpt": h.get("full_text", "")[:2200],
+        }
+        for h in rag_hits
+    ]
+
+    # 2. Attempt dynamic LLM generation grounded in retrieved statutory clauses
     if granite_client:
         try:
             import asyncio
             system_prompt = (
-                "You are Oxeous Earth Agent, the leading statutory spatial intelligence assistant for the "
-                "EU Deforestation Regulation (EUDR, EU 2023/1115). Answer the user's question clearly, authoritatively, "
-                "and in plain English. Format your answer with clear Markdown headings, bullet points, and concise statutory explanations. "
-                "Never use raw LaTeX math formulas or set notation (do not use $...$, \\setminus, \\times, or subscript braces like V_{3(a)}). "
-                "Express all calculations in plain words (e.g., 'Total Plot minus Deforested Area'). "
-                "Never use en-dashes or em-dashes; use plain hyphens. Keep explanations structured and easy to digest."
+                "You are Oxeous Earth Agent, the authoritative statutory spatial operating system for the "
+                "EU Deforestation Regulation (EUDR, Regulation (EU) 2023/1115). "
+                "When asked about Oxeous, its capabilities, or how it compares to legacy tools in the market, speak with complete "
+                "confidence about the real Oxeous platform and its 5 proprietary core pillars:\n"
+                "1. True 10m Pixel-Wise Raster Intersection (PWRI): Replaces coarse 30m single-sensor alerts with multi-sensor consensus (Copernicus Sentinel-1 SAR, Sentinel-2 Optical, EC JRC GFC2020, and LiDAR) eliminating false-positive rejections.\n"
+                "2. Statutory Agricultural Plantation Exemption (Article 2(4) & 2(5)): Distinguishes legal cyclical crop rejuvenation/replanting (e.g., 20-25 year rubber rejuvenation, cocoa shade tree pruning, palm oil renewal) from illegal deforestation that legacy tools falsely disqualify.\n"
+                "3. Fields of The World (FTW) Pin-to-Polygon Delineation: Converts single farmer GPS coordinates into legally binding WGS84 multi-vertex field polygons required under Article 9(1)(d) without costly manual GIS surveying.\n"
+                "4. May 2026 Plot Segregation & Carve-Out Engine: Automatically carves out post-cutoff deforested sub-parcels, enforces biophysical yield caps, and isolates verified clean hectares so shipments aren't wholly rejected.\n"
+                "5. Verified Verbatim EUR-Lex Law & Customs Index: Backs every audit with live 114-document Official Journal search (Articles 1-38, Recital 37, Annex I customs HS codes, and TRACES NT XML export schema).\n\n"
+                "Answer clearly, authoritatively, and in plain English. Format your answer with clear Markdown headings, "
+                "bullet points, and concise statutory explanations. Never use raw LaTeX math formulas or set notation (do not use $...$, "
+                "\\setminus, \\times, or subscript braces like V_{3(a)}). Express all calculations in plain words. "
+                "Never use en-dashes or em-dashes; use plain hyphens. Keep explanations structured and easy to digest.\n\n"
+                f"{rag_context_block}"
             )
             messages = [
                 *conversation_history[-4:],
-                {"role": "user", "content": f"{system_prompt}\n\nUser Question: {prompt}"},
+                {"role": "user", "content": prompt},
             ]
             answer_text = await asyncio.wait_for(
                 granite_client._generate(system_prompt, messages),
-                timeout=6.0,
+                timeout=15.0,
             )
         except Exception as exc:
             logger.info("Dynamic LLM generation skipped or timed out (%s), using deterministic statutory engine", exc)
             answer_text = ""
 
-    # If LLM did not respond in time or produced empty text, use deterministic engine
+    # If LLM did not respond in time or produced empty text, use deterministic engine + retrieved citations
     if not answer_text or len(answer_text.strip()) < 40 or "Rate Limit" in answer_text:
         answer_text = get_deterministic_statutory_advisory(prompt, conversation_history)
+        if rag_hits:
+            citation_lines = "\n".join(
+                f"- **{h['article_ref']}** ({h['title']}): {h['legal_summary']}"
+                for h in rag_hits[:3]
+            )
+            answer_text = f"{answer_text}\n\n#### Retrieved Statutory & Customs Citations\n{citation_lines}"
 
     answer_text = sanitize_statutory_text(answer_text)
+
+    total_elapsed_ms = max(rag_latency_ms, int((_time.monotonic() - t_rag0) * 1000))
 
     return AnalysisResponse(
         request_id=request_id,
         analysis_type=AnalysisType.land_disturbance,
-        granite_intent={"type": "statutory_advisory", "query": prompt},
+        granite_intent={
+            "type": "statutory_advisory",
+            "query": prompt,
+            "rag_mode": rag_mode,
+            "search_latency_ms": rag_latency_ms,
+            "total_latency_ms": total_elapsed_ms,
+            "corpus_docs": 114,
+            "rag_citations": rag_citations_payload,
+        },
         tile_url=None,
         overlay_url=None,
         geojson_hotspots=None,
-        statistics={"status": "advisory_resolved", "query_length": len(prompt)},
+        statistics={
+            "status": "advisory_resolved",
+            "query_length": len(prompt),
+            "rag_mode": rag_mode,
+            "search_latency_ms": rag_latency_ms,
+            "citations_retrieved": len(rag_hits),
+            "cited_articles": cited_articles[:4],
+        },
         provenance=DataProvenance(
-            source="Oxeous EUDR Statutory Knowledge & Legal Architecture",
+            source="Oxeous EUDR Statutory & Customs Search Index (Articles 1-38 & Annex I)",
             acquisition_dates=["2026-10-31"],
             spatial_resolution_m=10,
-            processing_level="Regulation (EU) 2023/1115 Articles 1-38",
+            processing_level="Regulation (EU) 2023/1115 Articles 1-38, Recital 37 & Annex I HS Codes",
         ),
         explanation=answer_text,
         follow_up_suggestions=[
-            "What is the EUDR cutoff date?",
+            "Which Annex I HS customs codes apply to cocoa, rubber, and tyres?",
             "How does the Article 2(5) replanting exemption work?",
-            "What are the 7 Annex I regulated commodities?",
+            "What documents prove Article 3(b) legality in Brazil vs. Ghana?",
             "How does May 2026 Plot Segregation (Carve-Out) work?",
         ],
         coverage_quality=CoverageQuality.good,

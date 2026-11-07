@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Oxeous - Ask the Earth. See the evidence.",
   description:
-    "A map-first geospatial analysis agent using Gemini, Google Earth Engine, and NASA satellite datasets for AOI-scoped due diligence.",
+    "A map-first geospatial analysis agent using multi-sensor Earth observation and satellite datasets for EUDR due diligence.",
   icons: { icon: "/favicon.ico" },
 };
 

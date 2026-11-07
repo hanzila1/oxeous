@@ -40,6 +40,15 @@ function getLayerDisplayInfo(
   const lid = id.toLowerCase();
   const label = found?.label || id;
 
+  if (lid === "sentinel-timelapse" || lid.includes("timelapse")) {
+    return {
+      title: "Sentinel-2 Plot Timelapse",
+      shortTitle: "S2 Timelapse",
+      subtitle: "Annual 10m Multi-Temporal S2 Series (2020–2025)",
+      color: "#315F50",
+      badge: "10m VIDEO",
+    };
+  }
   if (lid.includes("jrc") || lid.includes("gfc2020")) {
     return {
       title: "EC JRC GFC2020",
@@ -82,7 +91,7 @@ function getLayerDisplayInfo(
     return {
       title: label || `${formatted} Probability Heatmap`,
       shortTitle: formatted,
-      subtitle: "Google AI Canopy Density Heatmap",
+      subtitle: "FDP 10m Canopy Density Heatmap",
       color: "#d97706",
       badge: "AI 10m",
     };
@@ -146,8 +155,8 @@ export default function MapSwipeSlider() {
     setCompareRightLayerId,
     swapCompareLayers,
     layers,
-    eudrPanelOpen,
-    setEudrPanelOpen,
+    leftPanel,
+    setLeftPanel,
     rightPanel,
     setRightPanel,
   } = useStore();
@@ -155,7 +164,7 @@ export default function MapSwipeSlider() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [savedPanels, setSavedPanels] = useState<{ eudr: boolean; right: "chat" | "layers" | null } | null>(null);
+  const [savedPanels, setSavedPanels] = useState<{ left: "eudr" | "timelapse" | null; right: "chat" | "layers" | null } | null>(null);
   const [isBarCollapsed, setIsBarCollapsed] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -261,16 +270,16 @@ export default function MapSwipeSlider() {
     ...layers.map((l) => ({ id: l.id, ...getLayerDisplayInfo(l.id, layers) })),
   ];
 
-  const hasAnyPanelOpen = eudrPanelOpen || rightPanel !== null;
+  const hasAnyPanelOpen = leftPanel !== null || rightPanel !== null;
 
   const toggleMaximizeMap = () => {
     if (savedPanels) {
-      setEudrPanelOpen(savedPanels.eudr);
+      setLeftPanel(savedPanels.left);
       setRightPanel(savedPanels.right);
       setSavedPanels(null);
     } else {
-      setSavedPanels({ eudr: eudrPanelOpen, right: rightPanel });
-      setEudrPanelOpen(false);
+      setSavedPanels({ left: leftPanel, right: rightPanel });
+      setLeftPanel(null);
       setRightPanel(null);
     }
   };
@@ -296,7 +305,7 @@ export default function MapSwipeSlider() {
           <button
             onClick={() => {
               if (savedPanels) {
-                setEudrPanelOpen(savedPanels.eudr);
+                setLeftPanel(savedPanels.left);
                 setRightPanel(savedPanels.right);
               }
               setCompareMode(false);
@@ -519,7 +528,7 @@ export default function MapSwipeSlider() {
         <button
           onClick={() => {
             if (savedPanels) {
-              setEudrPanelOpen(savedPanels.eudr);
+              setLeftPanel(savedPanels.left);
               setRightPanel(savedPanels.right);
             }
             setCompareMode(false);

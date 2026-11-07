@@ -64,7 +64,7 @@ export default function ProgressOverlay() {
             <Cpu className="w-4 h-4 text-prithvi-purple flex-shrink-0" />
             <div>
               <p className="text-xs font-semibold text-text">Spatial AI Analysis</p>
-              <p className="text-[10px] text-muted">Copernicus & GEE Earth Observation Pipeline</p>
+              <p className="text-[10px] text-muted">Copernicus & Planetary EO Pipeline</p>
             </div>
           </div>
           {(isComplete || isFailed) && (

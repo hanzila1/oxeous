@@ -7,13 +7,28 @@ import type {
 } from "@oxeous/shared-types";
 
 export type SidePanelType = "eudr" | "chat" | "layers" | "timelapse" | "audit" | null;
-export type EudrAuditTabType = "charts" | "timelapse" | "overview" | "pwri" | "layers" | "legality";
+export type LeftPanelType = "eudr" | "timelapse" | null;
+export type EudrAuditTabType = "charts" | "overview" | "pwri" | "layers" | "legality";
+
+export interface TimelapseFrameItem {
+  year: number;
+  label: string;
+  is_cutoff: boolean;
+  rgb_tile_url: string | null;
+  nir_tile_url: string | null;
+  pinpoint_tile_url?: string | null;
+  rgb_thumb_url: string | null;
+  nir_thumb_url: string | null;
+  pinpoint_thumb_url?: string | null;
+  sensor: string;
+}
 
 export interface ActiveLayer {
   id: string;
   label: string;
   type: "raster" | "geojson";
   tileUrl?: string;
+  geojsonData?: object;
   overlayUrl?: string;
   visible: boolean;
   opacity: number;
@@ -40,11 +55,13 @@ interface ChatMessage {
   error?: string;
 }
 
-export type RightPanelType = "chat" | "layers" | "timelapse" | null;
+export type RightPanelType = "chat" | "layers" | null;
 export type BasemapMode = "satellite" | "light";
 
 interface OxeousState {
-  // Navigation & Panels (Simultaneous EUDR + Right Panel)
+  // Navigation & Panels (Left Panel: EUDR or Timelapse · Right Panel: Agent or Layers)
+  leftPanel: LeftPanelType;
+  setLeftPanel: (panel: LeftPanelType) => void;
   eudrPanelOpen: boolean;
   setEudrPanelOpen: (open: boolean) => void;
   rightPanel: RightPanelType;
@@ -53,6 +70,16 @@ interface OxeousState {
   setEudrAuditTab: (tab: EudrAuditTabType) => void;
   basemapMode: BasemapMode;
   setBasemapMode: (mode: BasemapMode) => void;
+
+  // Shared Sentinel-2 Timelapse Layer State (First-Class Draggable Map Layer)
+  timelapseFrames: TimelapseFrameItem[];
+  setTimelapseFrames: (frames: TimelapseFrameItem[]) => void;
+  timelapseIndex: number;
+  setTimelapseIndex: (idx: number | ((prev: number) => number)) => void;
+  timelapseMode: "pinpoint" | "rgb" | "nir";
+  setTimelapseMode: (mode: "pinpoint" | "rgb" | "nir") => void;
+  timelapsePlaying: boolean;
+  setTimelapsePlaying: (playing: boolean | ((prev: boolean) => boolean)) => void;
 
   // Legacy activePanel compatibility
   activePanel: SidePanelType;
@@ -66,9 +93,13 @@ interface OxeousState {
   activeGeoJSON: object | null;
   setActiveGeoJSON: (geojson: object | null) => void;
 
-  // AOI drawing state
+  // AOI drawing & Custom GPS Pin drop state
   drawingAOI: boolean;
   setDrawingAOI: (v: boolean) => void;
+  droppingPin: boolean;
+  setDroppingPin: (v: boolean) => void;
+  pendingPinCoords: { lat: number; lng: number; ts: number } | null;
+  setPendingPinCoords: (coords: { lat: number; lng: number; ts: number } | null) => void;
 
   // Map Raster Layers
   layers: ActiveLayer[];
@@ -176,8 +207,19 @@ export const useStore = create<OxeousState>((set) => ({
   activeAnalyticsResult: null,
   setActiveAnalyticsResult: (res) => set({ activeAnalyticsResult: res }),
 
+  leftPanel: null,
+  setLeftPanel: (panel) =>
+    set({
+      leftPanel: panel,
+      eudrPanelOpen: panel === "eudr",
+    }),
+
   eudrPanelOpen: false,
-  setEudrPanelOpen: (open) => set({ eudrPanelOpen: open }),
+  setEudrPanelOpen: (open) =>
+    set((s) => ({
+      eudrPanelOpen: open,
+      leftPanel: open ? "eudr" : s.leftPanel === "eudr" ? null : s.leftPanel,
+    })),
 
   rightPanel: "chat",
   setRightPanel: (panel) => set({ rightPanel: panel }),
@@ -188,17 +230,37 @@ export const useStore = create<OxeousState>((set) => ({
   basemapMode: "satellite",
   setBasemapMode: (mode) => set({ basemapMode: mode }),
 
+  timelapseFrames: [],
+  setTimelapseFrames: (frames) => set({ timelapseFrames: frames }),
+  timelapseIndex: 0,
+  setTimelapseIndex: (idx) =>
+    set((s) => ({
+      timelapseIndex: typeof idx === "function" ? idx(s.timelapseIndex) : idx,
+    })),
+  timelapseMode: "pinpoint",
+  setTimelapseMode: (mode) => set({ timelapseMode: mode }),
+  timelapsePlaying: false,
+  setTimelapsePlaying: (playing) =>
+    set((s) => ({
+      timelapsePlaying: typeof playing === "function" ? playing(s.timelapsePlaying) : playing,
+    })),
+
   activePanel: "chat",
   setActivePanel: (panel) =>
     set((s) => {
-      if (panel === "eudr") {
-        return { eudrPanelOpen: !s.eudrPanelOpen, activePanel: !s.eudrPanelOpen ? "eudr" : null };
+      if (panel === "eudr" || panel === "timelapse") {
+        const nextLeft = s.leftPanel === panel ? null : panel;
+        return {
+          leftPanel: nextLeft,
+          eudrPanelOpen: nextLeft === "eudr",
+          activePanel: nextLeft,
+        };
       }
-      if (panel === "chat" || panel === "layers" || panel === "timelapse") {
+      if (panel === "chat" || panel === "layers") {
         const nextRight = s.rightPanel === panel ? null : panel;
         return { rightPanel: nextRight, activePanel: nextRight };
       }
-      return { eudrPanelOpen: false, rightPanel: null, activePanel: null };
+      return { leftPanel: null, eudrPanelOpen: false, rightPanel: null, activePanel: null };
     }),
 
   viewport: {
@@ -213,7 +275,11 @@ export const useStore = create<OxeousState>((set) => ({
   setActiveGeoJSON: (geojson) => set({ activeGeoJSON: geojson }),
 
   drawingAOI: false,
-  setDrawingAOI: (v) => set({ drawingAOI: v }),
+  setDrawingAOI: (v) => set((s) => ({ drawingAOI: v, droppingPin: v ? false : s.droppingPin })),
+  droppingPin: false,
+  setDroppingPin: (v) => set((s) => ({ droppingPin: v, drawingAOI: v ? false : s.drawingAOI })),
+  pendingPinCoords: null,
+  setPendingPinCoords: (coords) => set({ pendingPinCoords: coords }),
 
   // Start with NO pre-loaded layers - clean satellite basemap only.
   // GEE layers are added dynamically after each EUDR assessment completes.

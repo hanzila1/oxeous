@@ -207,7 +207,7 @@ async def query_forest_loss(
             tile_url = None
 
         return {
-            "source": "Hansen GFC v1.13 2025 (UMD/Google)",
+            "source": "Hansen GFC v1.13 2025 (UMD GLAD)",
             "available": True,
             "tile_url": tile_url,
             "forest_cover_2000_pct": f2000_pct,
@@ -378,7 +378,7 @@ async def query_natural_forest_2020(
             tile_url = None
 
         return {
-            "source": "Natural Forests of the World 2020 v1.0 (Nature Trace/Google, 10m)",
+            "source": "Natural Forests of the World 2020 v1.0 (Nature Trace, 10m)",
             "available": True,
             "tile_url": tile_url,
             "natural_forest_pct": round(float(natural_forest_fraction) * 100, 2),
@@ -432,7 +432,7 @@ async def query_forest_typology(
             tile_url = None
 
         return {
-            "source": "Forest Typology (ForTy) 2020 v1.0 (Nature Trace/Google, 10m)",
+            "source": "Forest Typology (ForTy) 2020 v1.0 (Nature Trace, 10m)",
             "available": True,
             "tile_url": tile_url,
             "probabilities": result,
@@ -487,7 +487,7 @@ async def query_forest_loss_drivers(
             tile_url = None
 
         return {
-            "source": "WRI/Google DeepMind Drivers of Forest Loss 2001-2025 v1.3 (1km)",
+            "source": "WRI Drivers of Forest Loss 2001-2025 v1.3 (1km)",
             "available": True,
             "tile_url": tile_url,
             "dominant_driver": dominant_name,
@@ -556,7 +556,7 @@ async def query_commodity_presence(
             tile_url = None
 
         return {
-            "source": f"GEE Forest Data Partnership 2025 - {commodity}",
+            "source": f"Forest Data Partnership 2025 - {commodity}",
             "available": True,
             "tile_url": tile_url,
             "commodity": commodity,
@@ -593,7 +593,7 @@ async def query_protected_areas(
 
         if count_info == 0:
             return {
-                "source": "WDPA Protected Areas (WCMC/IUCN via GEE)",
+                "source": "WDPA Protected Areas (UNEP-WCMC / IUCN)",
                 "available": True,
                 "overlaps_protected_area": False,
                 "protected_area_count": 0,
@@ -700,7 +700,7 @@ async def run_full_gee_assessment(
     # Dynamic cache key based on commodity, country, and geometry hash
     geom_str = json.dumps(geometry, sort_keys=True) if geometry else f"{bbox}"
     cache_hash = hashlib.sha256(geom_str.encode()).hexdigest()[:12]
-    cache_key = f"{commodity.lower()}:{country_code.upper()}:{cache_hash}"
+    cache_key = f"v10m_5:{commodity.lower()}:{country_code.upper()}:{cache_hash}"
 
     if cache_key in _DYNAMIC_GEE_CACHE:
         cached = _DYNAMIC_GEE_CACHE[cache_key]
@@ -844,6 +844,53 @@ async def run_full_gee_assessment(
         l_img  = hansen_img.select("loss").unmask(0)
         post_cutoff_optical_img = ly_img.gt(20).And(l_img.eq(1)).And(tc_img.gte(30))
 
+        # Official JRC GFC2020 forest baseline image (ee.Image asset, European Commission 10m)
+        jrc_img = ee.Image("JRC/GFC2020/V4")
+        proj_10m = jrc_img.select("Map").projection()
+        jrc_forest_img = jrc_img.select("Map").unmask(0).eq(1)
+
+        # True 10m x 10m Sub-Pixel Bilinear + Bi-Temporal Sentinel-2 Spectral Downscaling (Visual Layer Only):
+        # 1. Bilinearly interpolate 30m Hansen loss onto the native 10m JRC grid (eliminates 3x3 30m nearest-neighbor squares).
+        # 2. Gate each 10m sub-pixel against native 10m Sentinel-2 L2A 2020-vs-recent NDVI loss so every Red/Amber pixel
+        #    matches the exact 10m x 10m granularity of Sentinel-2 Timelapse & ESA WorldCover.
+        try:
+            hansen_prob_10m = (
+                post_cutoff_optical_img.unmask(0)
+                .toFloat()
+                .resample("bilinear")
+                .reproject(crs=proj_10m)
+            )
+            s2_base = (
+                ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                .filterDate("2020-01-01", "2021-02-28")
+                .filterBounds(region)
+                .sort("CLOUDY_PIXEL_PERCENTAGE")
+                .limit(8)
+                .median()
+            )
+            s2_recent = (
+                ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                .filterDate("2024-01-01", "2026-11-01")
+                .filterBounds(region)
+                .sort("CLOUDY_PIXEL_PERCENTAGE")
+                .limit(8)
+                .median()
+            )
+            s2_ndvi_2020 = s2_base.select(["B8", "B4"]).reproject(crs=proj_10m).normalizedDifference(["B8", "B4"]).unmask(0.7)
+            s2_ndvi_now = s2_recent.select(["B8", "B4"]).reproject(crs=proj_10m).normalizedDifference(["B8", "B4"]).unmask(0.5)
+            s2_ndvi_drop = s2_ndvi_2020.subtract(s2_ndvi_now)
+
+            # Sub-pixel 10m refinement inside/along 30m Hansen cells + direct 10m S2 bare-soil clearings
+            post_cutoff_10m = (
+                hansen_prob_10m.gt(0.22).And(
+                    s2_ndvi_now.lt(0.64).Or(s2_ndvi_drop.gt(0.07)).Or(hansen_prob_10m.gt(0.86))
+                )
+            ).Or(
+                s2_ndvi_2020.gt(0.66).And(s2_ndvi_now.lt(0.46)).And(s2_ndvi_drop.gt(0.20))
+            )
+        except Exception:
+            post_cutoff_10m = post_cutoff_optical_img
+
         # Dimension 1 Multi-Sensor Radar Disturbance Fusion (Sentinel-1 RADD 10m C-band SAR):
         # In cloud-belt tropical biomes, optical sensors suffer heavy cloud occlusions.
         # RADD radar alerts penetrate cloud cover to capture active all-weather disturbance.
@@ -855,12 +902,10 @@ async def run_full_gee_assessment(
             )
             radd_img = radd_col.mosaic().select("Alert").unmask(0)
             post_cutoff_img = post_cutoff_optical_img.Or(radd_img.gte(2))
+            post_cutoff_10m_vis = post_cutoff_10m.Or(radd_img.gte(2))
         except Exception:
             post_cutoff_img = post_cutoff_optical_img
-
-        # Official JRC GFC2020 forest baseline image (ee.Image asset, European Commission 10m)
-        jrc_img = ee.Image("JRC/GFC2020/V4")
-        jrc_forest_img = jrc_img.select("Map").unmask(0).eq(1)
+            post_cutoff_10m_vis = post_cutoff_10m
 
         # Dimension 1 Commodity Model: Forest Data Partnership (FDP 2025) 10m crop probability
         comm_asset_info = COMMODITY_ASSETS.get(commodity.lower())
@@ -1018,13 +1063,31 @@ async def run_full_gee_assessment(
         # 3 = Statutory Deforestation Violation Art. 3(a) (#D93C4A, Red)
         # 4 = Non-Agronomic / Urban / Water / No-Data (#64748B, Slate Grey)
         try:
+            replant_10m_vis = consensus_forest_2020_img.Not().And(post_cutoff_10m_vis)
+            stat_cand_10m_vis = consensus_forest_2020_img.And(post_cutoff_10m_vis)
+            if is_wood and is_managed_stand and not is_strict_pa:
+                silv_10m_vis = stat_cand_10m_vis
+                stat_def_10m_vis = ee.Image(0)
+            else:
+                silv_10m_vis = ee.Image(0)
+                # Native 10m connected-component sieve (never clip visual edges back to blocky 30m sieve_30m!)
+                sieve_10m_vis = (
+                    stat_cand_10m_vis.selfMask()
+                    .reproject(crs=proj_10m)
+                    .connectedPixelCount(60, eightConnected=True)
+                    .gte(16)
+                    .unmask(0)
+                )
+                stat_def_10m_vis = stat_cand_10m_vis.And(sieve_10m_vis)
+
             base_10m_zero = jrc_forest_img.multiply(0)
             classified_raster = (
                 base_10m_zero
                 .where(non_agronomic_img.gt(0), 4)
-                .where(replanting_img.gt(0), 1)
-                .where(silviculture_img.gt(0), 2)
-                .where(statutory_deforest_img.gt(0), 3)
+                .where(replant_10m_vis.gt(0), 1)
+                .where(silv_10m_vis.gt(0), 2)
+                .where(stat_def_10m_vis.gt(0), 3)
+                .reproject(crs=proj_10m)
             )
             pwri_vis = classified_raster.visualize(
                 min=0, max=4,
@@ -1174,6 +1237,7 @@ async def run_full_gee_assessment(
                 "commodity_map": commodity_map.get("tile_url"),
                 "protected_areas": protected_areas.get("tile_url"),
                 "intersection": intersection_tile_url,
+                "pwri_classified": pwri_classified_tile_url,
             },
             "data_sources": [
                 forest_loss.get("source", ""),

@@ -40,6 +40,7 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       type: "raster",
       tiles: [
         "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
       ],
       tileSize: 256,
       attribution: "Esri, HERE, Garmin",
@@ -59,12 +60,12 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       type: "raster",
       source: "esri-light-base",
       layout: {
-        visibility: "none",
+        visibility: "visible",
       },
       paint: {
-        "raster-opacity": 0.85,
+        "raster-opacity": 0.9,
         "raster-brightness-min": 0.35,
-        "raster-fade-duration": 150,
+        "raster-fade-duration": 0,
       },
     },
     {
@@ -72,29 +73,35 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       type: "raster",
       source: "esri-light-labels",
       layout: {
-        visibility: "none",
+        visibility: "visible",
       },
       paint: {
         "raster-opacity": 0.9,
-        "raster-fade-duration": 150,
+        "raster-fade-duration": 0,
       },
     },
     {
       id: "esri-satellite",
       type: "raster",
       source: "esri-satellite",
+      layout: {
+        visibility: "visible",
+      },
       paint: {
         "raster-opacity": 1,
-        "raster-fade-duration": 150,
+        "raster-fade-duration": 0,
       },
     },
     {
       id: "esri-labels",
       type: "raster",
       source: "esri-labels",
+      layout: {
+        visibility: "visible",
+      },
       paint: {
         "raster-opacity": 0.9,
-        "raster-fade-duration": 150,
+        "raster-fade-duration": 0,
       },
     },
   ],
@@ -104,11 +111,11 @@ export const DEFAULT_MAP_OPTIONS: Partial<MapOptions> = {
   center: [-55.5, -12.5],   // Amazon basin / Brazil sourcing region
   zoom: 5.5,                 // Wide enough to see the full basin
   minZoom: 1,
-  maxZoom: 18,
+  maxZoom: 19,
   pitchWithRotate: false,
   attributionControl: false,
-  fadeDuration: 150,
-  maxTileCacheSize: 500,
+  fadeDuration: 0,
+  maxTileCacheSize: 600,
   refreshExpiredTiles: false,
 };
 

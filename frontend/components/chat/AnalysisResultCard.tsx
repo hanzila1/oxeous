@@ -59,7 +59,7 @@ export default function AnalysisResultCard({ result }: Props) {
               {result.analysis_type.replace(/_/g, " ")}
             </p>
             {isPrithvi && (
-              <p className="text-[10px] font-medium text-verified">Gemini + GEE + NASA evidence</p>
+              <p className="text-[10px] font-medium text-verified">Spatial AI + Copernicus + NASA evidence</p>
             )}
           </div>
         </div>

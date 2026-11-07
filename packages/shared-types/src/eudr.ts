@@ -168,6 +168,7 @@ export interface GEEMapLayer {
   id: string;
   label: string;
   tile_url: string;
+  geojson_data?: Record<string, unknown> | null;
   visible: boolean;
   opacity: number;
   legend?: unknown;

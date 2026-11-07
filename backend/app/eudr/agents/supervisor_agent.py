@@ -52,7 +52,7 @@ class SupervisorAgent:
         # Dispatch specialized subagents concurrently
         optical_task = self.optical.evaluate(plot_geometry, commodity, gee_summary)
         radar_task = self.radar.evaluate(plot_geometry, commodity, gee_summary)
-        legal_task = self.legal.evaluate(plot_geometry, commodity, gee_summary)
+        legal_task = self.legal.evaluate(plot_geometry, commodity, gee_summary, country_code=country_code)
         cadastral_task = self.cadastral.evaluate(plot_geometry, country_code, gee_summary)
         carveout_task = self.carveout.evaluate(plot_geometry, total_ha, statutory_loss_ha, is_exempt_prelim)
         yield_task = self.yield_auditor.evaluate(plot_geometry, commodity, country_code, total_ha, declared_net_mass_kg)
@@ -163,6 +163,6 @@ class SupervisorAgent:
             supplier_perjury_detected=supplier_perjury,
             subagent_findings=findings,
             cryptographic_audit_hash=audit_hash,
-            model_foundation="NASA-IBM Prithvi-EO 2.0 (Geospatial Foundation Model) + Granite-3 / Gemini Multi-Agent Spatial Orchestrator",
+            model_foundation="NASA-IBM Prithvi-EO 2.0 (Geospatial Foundation Model) + Oxeous Multi-Agent Spatial Orchestrator",
             carveout_recommended=carveout_recommended,
         )

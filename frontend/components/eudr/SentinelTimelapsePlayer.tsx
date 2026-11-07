@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -11,9 +11,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getMap } from "@/components/map/MapCanvas";
 import { extractBboxFromGeometry } from "@/lib/maplibre";
-import { useStore } from "@/lib/store";
+import { useStore, type ActiveLayer, type TimelapseFrameItem } from "@/lib/store";
 import {
   SentinelTimelapseIcon,
   Sentinel2MSIIcon,
@@ -29,30 +28,37 @@ const API_BASE_CANDIDATES = [
   "http://localhost:8001",
 ].filter((v, idx, arr) => Boolean(v) && arr.indexOf(v) === idx) as string[];
 
-export interface TimelapseFrame {
-  year: number;
-  label: string;
-  is_cutoff: boolean;
-  rgb_tile_url: string | null;
-  nir_tile_url: string | null;
-  pinpoint_tile_url?: string | null;
-  rgb_thumb_url: string | null;
-  nir_thumb_url: string | null;
-  pinpoint_thumb_url?: string | null;
-  sensor: string;
-}
+export type TimelapseFrame = TimelapseFrameItem;
 
 interface Props {
   result?: EUDRAnalysisResponse | null;
 }
 
 const DEFAULT_YEARS = [2020, 2021, 2022, 2023, 2024, 2025];
+const TIMELAPSE_LAYER_ID = "sentinel-timelapse";
 
 let cachedGeomSignature = "";
 let cachedFrames: TimelapseFrame[] = [];
 
 export default function SentinelTimelapsePlayer({ result }: Props) {
-  const { activeGeoJSON, ddsHistory, basemapMode, setBasemapMode } = useStore();
+  const {
+    activeGeoJSON,
+    ddsHistory,
+    basemapMode,
+    setBasemapMode,
+    layers,
+    reorderLayers,
+    updateLayer,
+    removeLayer,
+    timelapseFrames: frames,
+    setTimelapseFrames: setFrames,
+    timelapseIndex: activeIndex,
+    setTimelapseIndex: setActiveIndex,
+    timelapseMode: spectralMode,
+    setTimelapseMode: setSpectralMode,
+    timelapsePlaying: isPlaying,
+    setTimelapsePlaying: setIsPlaying,
+  } = useStore();
   const effectiveResult = result ?? ddsHistory[0] ?? null;
 
   const plotGeom = effectiveResult?.plot?.geometry ?? activeGeoJSON ?? null;
@@ -61,106 +67,39 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   const areaHa = effectiveResult?.plot?.area_ha ?? 100.0;
   const def = effectiveResult?.risk_assessment?.deforestation;
 
-  const [frames, setFrames] = useState<TimelapseFrame[]>(() =>
-    geomSig && geomSig === cachedGeomSignature ? cachedFrames : []
-  );
   const [loading, setLoading] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadStepYear, setLoadStepYear] = useState(2020);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState<boolean>(() =>
-    Boolean(geomSig && geomSig === cachedGeomSignature && cachedFrames.length > 0)
-  );
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [spectralMode, setSpectralMode] = useState<"pinpoint" | "rgb" | "nir">("pinpoint");
-  const [syncToMap, setSyncToMap] = useState(true);
-  const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loaded = frames.length > 0;
 
-  const clearMapTimelapseLayers = useCallback(() => {
-    const map = getMap();
-    if (!map) return;
-    DEFAULT_YEARS.forEach((yr) => {
-      const lyrId = `oxe-s2-tl-lyr-${yr}`;
-      const srcId = `oxe-s2-tl-src-${yr}`;
-      try {
-        if (map.getLayer(lyrId)) map.removeLayer(lyrId);
-        if (map.getSource(srcId)) map.removeSource(srcId);
-      } catch {}
-    });
-  }, []);
+  const tlLayer = layers.find((l) => l.id === TIMELAPSE_LAYER_ID);
+  const syncToMap = tlLayer ? tlLayer.visible : false;
 
-  const syncFramesToMap = useCallback(
-    (frameList: TimelapseFrame[], currentIdx: number, mode: "pinpoint" | "rgb" | "nir", mapEnabled: boolean) => {
-      const map = getMap();
-      if (!map || !map.isStyleLoaded()) return;
-
-      if (!mapEnabled || frameList.length === 0) {
-        clearMapTimelapseLayers();
-        return;
-      }
-
-      const beforeLayer = map.getLayer("oxeous-plot-casing")
-        ? "oxeous-plot-casing"
-        : map.getLayer("oxeous-plot-line")
-        ? "oxeous-plot-line"
-        : undefined;
-
-      frameList.forEach((frame, idx) => {
-        const tileUrl =
-          mode === "pinpoint"
-            ? frame.pinpoint_tile_url || frame.rgb_tile_url
-            : mode === "rgb"
-            ? frame.rgb_tile_url
-            : frame.nir_tile_url;
-        if (!tileUrl) return;
-
-        const srcId = `oxe-s2-tl-src-${frame.year}`;
-        const lyrId = `oxe-s2-tl-lyr-${frame.year}`;
-        const isCurrent = idx === currentIdx;
-
-        try {
-          const existingSrc = map.getSource(srcId) as { tiles?: string[] } | undefined;
-          if (existingSrc && existingSrc.tiles?.[0] !== tileUrl) {
-            if (map.getLayer(lyrId)) map.removeLayer(lyrId);
-            if (map.getSource(srcId)) map.removeSource(srcId);
-          }
-
-          if (!map.getSource(srcId)) {
-            map.addSource(srcId, {
-              type: "raster",
-              tiles: [tileUrl],
-              tileSize: 256,
-            });
-          }
-
-          if (!map.getLayer(lyrId)) {
-            map.addLayer(
-              {
-                id: lyrId,
-                type: "raster",
-                source: srcId,
-                paint: {
-                  "raster-opacity": isCurrent ? 1.0 : 0.0,
-                  "raster-opacity-transition": { duration: 220, delay: 0 },
-                  "raster-fade-duration": 0,
-                },
-              },
-              beforeLayer
-            );
-          } else {
-            map.setPaintProperty(lyrId, "raster-opacity", isCurrent ? 1.0 : 0.0);
-          }
-        } catch {}
-      });
-
-      try {
-        if (map.getLayer("oxeous-plot-casing")) map.moveLayer("oxeous-plot-casing");
-        if (map.getLayer("oxeous-plot-line")) map.moveLayer("oxeous-plot-line");
-      } catch {}
-    },
-    [clearMapTimelapseLayers]
-  );
+  const registerDraggableTimelapseLayer = useCallback(() => {
+    const currentLayers = useStore.getState().layers;
+    const existing = currentLayers.find((l) => l.id === TIMELAPSE_LAYER_ID);
+    if (existing) {
+      updateLayer(TIMELAPSE_LAYER_ID, { visible: true });
+      return;
+    }
+    const newLayer: ActiveLayer = {
+      id: TIMELAPSE_LAYER_ID,
+      label: "Sentinel-2 Plot Timelapse (2020–2025)",
+      type: "raster",
+      visible: true,
+      opacity: 1.0,
+      analysisType: "timelapse",
+      layer_type: "timelapse",
+    };
+    // Insert right below FTW vector borders (if present at index 0) so sharp field vectors stay visible above video by default; user can freely drag-and-drop in Layers
+    const ftwIdx = currentLayers.findIndex((l) => l.id === "ftw-field-boundaries");
+    if (ftwIdx === 0) {
+      reorderLayers([currentLayers[0], newLayer, ...currentLayers.slice(1)]);
+    } else {
+      reorderLayers([newLayer, ...currentLayers]);
+    }
+  }, [reorderLayers, updateLayer]);
 
   const loadTimelapse = async (autoPlay = true) => {
     if (loading) return;
@@ -213,8 +152,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
         cachedGeomSignature = geomSig;
         cachedFrames = data.frames;
         setFrames(data.frames);
-        setLoaded(true);
         setActiveIndex(0);
+        registerDraggableTimelapseLayer();
         if (autoPlay) setIsPlaying(true);
 
         const bbox = extractBboxFromGeometry(plotGeom as object);
@@ -232,36 +171,24 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   };
 
   useEffect(() => {
-    if (!isPlaying || frames.length === 0) {
-      if (playTimerRef.current) clearInterval(playTimerRef.current);
+    if (!geomSig) return;
+    if (geomSig === cachedGeomSignature && cachedFrames.length > 0) {
+      if (frames.length === 0) {
+        setFrames(cachedFrames);
+        registerDraggableTimelapseLayer();
+      }
       return;
     }
-    playTimerRef.current = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % frames.length);
-    }, 1500);
-
-    return () => {
-      if (playTimerRef.current) clearInterval(playTimerRef.current);
-    };
-  }, [isPlaying, frames.length]);
-
-  useEffect(() => {
-    if (!loaded || frames.length === 0) return;
-    syncFramesToMap(frames, activeIndex, spectralMode, syncToMap);
-  }, [loaded, frames, activeIndex, spectralMode, syncToMap, syncFramesToMap]);
-
-  useEffect(() => {
-    if (geomSig && geomSig === cachedGeomSignature && cachedFrames.length > 0) {
-      setFrames(cachedFrames);
-      setLoaded(true);
-      return;
+    if (cachedGeomSignature && geomSig !== cachedGeomSignature) {
+      cachedGeomSignature = "";
+      cachedFrames = [];
+      setFrames([]);
+      setIsPlaying(false);
+      setActiveIndex(0);
+      removeLayer(TIMELAPSE_LAYER_ID);
     }
-    setFrames([]);
-    setLoaded(false);
-    setIsPlaying(false);
-    setActiveIndex(0);
-    clearMapTimelapseLayers();
-  }, [geomSig, clearMapTimelapseLayers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geomSig]);
 
   const currentFrame = frames[activeIndex] ?? {
     year: DEFAULT_YEARS[activeIndex] ?? 2020,
@@ -355,14 +282,20 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
           {loaded && (
             <button
               type="button"
-              onClick={() => setSyncToMap((v) => !v)}
+              onClick={() => {
+                if (tlLayer) {
+                  updateLayer(TIMELAPSE_LAYER_ID, { visible: !tlLayer.visible });
+                } else {
+                  registerDraggableTimelapseLayer();
+                }
+              }}
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer",
                 syncToMap
                   ? "bg-[#315F50] text-white border-[#315F50]"
                   : "bg-white text-[#5B6773] border-[#C8CFD5]"
               )}
-              title="Toggle Map Plot Overlay"
+              title="Toggle Sentinel-2 Timelapse Layer on Map (drag in Layers panel to restack)"
             >
               {syncToMap ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
               <span>Map</span>

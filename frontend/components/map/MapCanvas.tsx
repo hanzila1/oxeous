@@ -44,10 +44,12 @@ function MapCanvasComponent() {
   const [vertexCount, setVertexCount] = useState(0);
   const {
     setViewport, layers, activeGeoJSON, viewport,
-    drawingAOI, setDrawingAOI, setActiveGeoJSON, setActivePanel,
+    drawingAOI, setDrawingAOI, droppingPin, setDroppingPin, setPendingPinCoords,
+    setActiveGeoJSON, setActivePanel,
     ddsHistory, setEudrPanelOpen, isScanning,
     compareMode, comparePosition, compareLeftLayerId, compareRightLayerId,
     basemapMode,
+    timelapseFrames, timelapseIndex, timelapseMode,
   } = useStore();
 
   const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
@@ -67,8 +69,8 @@ function MapCanvasComponent() {
       center: viewport.center as [number, number],
       zoom: viewport.zoom,
       attributionControl: false,
-      fadeDuration: 150,
-      maxTileCacheSize: 500,
+      fadeDuration: 0,
+      maxTileCacheSize: 600,
     });
 
     map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-left");
@@ -271,9 +273,19 @@ function MapCanvasComponent() {
       const ptSrc = map.getSource(DRAW_POINTS_SRC) as maplibregl.GeoJSONSource | undefined;
       if (src) src.setData({ type: "FeatureCollection", features: [] });
       if (ptSrc) ptSrc.setData({ type: "FeatureCollection", features: [] });
+    } else if (droppingPin) {
+      map.getCanvas().style.cursor = "crosshair";
     } else {
       map.getCanvas().style.cursor = "";
     }
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        if (droppingPin) setDroppingPin(false);
+        if (drawingAOI) setDrawingAOI(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
 
     const updatePreview = (cursorPt?: [number, number]) => {
       const pts = drawPointsRef.current;
@@ -322,6 +334,16 @@ function MapCanvasComponent() {
     };
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
+      if (droppingPin) {
+        e.preventDefault();
+        const lat = e.lngLat.lat;
+        const lng = e.lngLat.lng;
+        setDroppingPin(false);
+        setEudrPanelOpen(true);
+        setPendingPinCoords({ lat, lng, ts: Date.now() });
+        return;
+      }
+
       if (drawingAOI) {
         e.preventDefault();
         const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
@@ -474,13 +496,14 @@ function MapCanvasComponent() {
     map.on("mousemove", handleMouseMove);
 
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
       map.off("click", handleClick);
       map.off("dblclick", handleDblClick);
       map.off("mousemove", handleMouseMove);
     };
-  }, [drawingAOI, activeGeoJSON, ddsHistory, setEudrPanelOpen, setActiveGeoJSON, setDrawingAOI, setActivePanel, renderPermanentPolygon]);
+  }, [drawingAOI, droppingPin, activeGeoJSON, ddsHistory, setEudrPanelOpen, setActiveGeoJSON, setDrawingAOI, setDroppingPin, setPendingPinCoords, setActivePanel, renderPermanentPolygon]);
 
-  // -- Sync basemap mode (Satellite vs Clean White Map) ----------------------
+  // -- Sync basemap mode (Instant 0ms GPU opacity toggle: Satellite <-> Clean White Map) --
   useEffect(() => {
     const applyBasemap = (m: maplibregl.Map | null) => {
       if (!m) return;
@@ -488,16 +511,20 @@ function MapCanvasComponent() {
         try {
           const isLight = basemapMode === "light";
           if (m.getLayer("esri-light-base")) {
-            m.setLayoutProperty("esri-light-base", "visibility", isLight ? "visible" : "none");
+            m.setLayoutProperty("esri-light-base", "visibility", "visible");
+            m.setPaintProperty("esri-light-base", "raster-opacity", 0.9);
           }
           if (m.getLayer("esri-light-labels")) {
-            m.setLayoutProperty("esri-light-labels", "visibility", isLight ? "visible" : "none");
+            m.setLayoutProperty("esri-light-labels", "visibility", "visible");
+            m.setPaintProperty("esri-light-labels", "raster-opacity", 0.9);
           }
           if (m.getLayer("esri-satellite")) {
-            m.setLayoutProperty("esri-satellite", "visibility", isLight ? "none" : "visible");
+            m.setLayoutProperty("esri-satellite", "visibility", "visible");
+            m.setPaintProperty("esri-satellite", "raster-opacity", isLight ? 0 : 1);
           }
           if (m.getLayer("esri-labels")) {
-            m.setLayoutProperty("esri-labels", "visibility", isLight ? "none" : "visible");
+            m.setLayoutProperty("esri-labels", "visibility", "visible");
+            m.setPaintProperty("esri-labels", "raster-opacity", isLight ? 0 : 0.9);
           }
         } catch {}
       };
@@ -637,11 +664,13 @@ function MapCanvasComponent() {
       if (style && style.layers) {
         style.layers.forEach((lyr) => {
           if (lyr.id.startsWith("cmp-lyr-")) {
-            const rawId = lyr.id.replace("cmp-lyr-", "");
+            const rawId = lyr.id.replace("cmp-lyr-", "").replace(/-(fill|casing)$/, "");
             if (rawId !== effectiveLeftId) {
               if (cmp.getLayer(lyr.id)) cmp.removeLayer(lyr.id);
               const srcId = "cmp-src-" + rawId;
-              if (cmp.getSource(srcId)) cmp.removeSource(srcId);
+              if (cmp.getSource(srcId) && !cmp.getLayer(`cmp-lyr-${rawId}`) && !cmp.getLayer(`cmp-lyr-${rawId}-fill`) && !cmp.getLayer(`cmp-lyr-${rawId}-casing`)) {
+                cmp.removeSource(srcId);
+              }
             }
           }
         });
@@ -650,21 +679,68 @@ function MapCanvasComponent() {
       // 2. Add or update the effective left layer
       if (effectiveLeftId !== "basemap") {
         const leftLayer = layers.find((l) => l.id === effectiveLeftId);
-        if (leftLayer && leftLayer.tileUrl) {
+        if (leftLayer && leftLayer.type === "geojson" && leftLayer.geojsonData) {
+          const srcId = "cmp-src-" + leftLayer.id;
+          const fillId = `cmp-lyr-${leftLayer.id}-fill`;
+          const casingId = `cmp-lyr-${leftLayer.id}-casing`;
+          const lineId = `cmp-lyr-${leftLayer.id}`;
+          const targetOpacity = typeof leftLayer.opacity === "number" ? Math.max(0, Math.min(1, leftLayer.opacity)) : 1.0;
+          const before = cmp.getLayer(PLOT_CASING) ? PLOT_CASING : undefined;
+          const existingGeo = cmp.getSource(srcId) as maplibregl.GeoJSONSource | undefined;
+          if (existingGeo && typeof existingGeo.setData === "function") {
+            existingGeo.setData(leftLayer.geojsonData as GeoJSON.FeatureCollection);
+          } else {
+            if (cmp.getSource(srcId)) cmp.removeSource(srcId);
+            cmp.addSource(srcId, { type: "geojson", data: leftLayer.geojsonData as GeoJSON.FeatureCollection });
+          }
+          if (!cmp.getLayer(fillId)) {
+            cmp.addLayer({ id: fillId, type: "fill", source: srcId, paint: { "fill-color": "#00F5D4", "fill-opacity": 0.06 * targetOpacity } }, before);
+          }
+          if (!cmp.getLayer(casingId)) {
+            cmp.addLayer({ id: casingId, type: "line", source: srcId, layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#052019", "line-width": 3.0, "line-opacity": 0.78 * targetOpacity } }, before);
+          }
+          if (!cmp.getLayer(lineId)) {
+            cmp.addLayer({
+              id: lineId,
+              type: "line",
+              source: srcId,
+              layout: { "line-join": "round", "line-cap": "round" },
+              paint: {
+                "line-color": ["match", ["get", "parcel_class"], "agroforestry_parcel", "#38BDF8", "#00F5D4"],
+                "line-width": 1.8,
+                "line-opacity": targetOpacity,
+              },
+            }, before);
+          }
+        } else if (leftLayer && leftLayer.tileUrl) {
           const srcId = "cmp-src-" + leftLayer.id;
           const lyrId = "cmp-lyr-" + leftLayer.id;
           const targetOpacity = typeof leftLayer.opacity === "number"
             ? Math.max(0, Math.min(1, leftLayer.opacity))
             : 1.0;
 
+          const resolvedLeftTileUrl = (() => {
+            if (leftLayer.id === "sentinel-timelapse") {
+              const f = timelapseFrames[timelapseIndex];
+              if (!f) return undefined;
+              return timelapseMode === "pinpoint"
+                ? f.pinpoint_tile_url || f.rgb_tile_url || undefined
+                : timelapseMode === "rgb"
+                ? f.rgb_tile_url || undefined
+                : f.nir_tile_url || undefined;
+            }
+            return leftLayer.tileUrl;
+          })();
+          if (!resolvedLeftTileUrl) return;
+
           const existingSrc = cmp.getSource(srcId) as maplibregl.RasterTileSource | undefined;
-          if (existingSrc && existingSrc.tiles?.[0] !== leftLayer.tileUrl) {
+          if (existingSrc && existingSrc.tiles?.[0] !== resolvedLeftTileUrl) {
             if (cmp.getLayer(lyrId)) cmp.removeLayer(lyrId);
             if (cmp.getSource(srcId)) cmp.removeSource(srcId);
           }
 
           if (!cmp.getSource(srcId)) {
-            cmp.addSource(srcId, { type: "raster", tiles: [leftLayer.tileUrl], tileSize: 256 });
+            cmp.addSource(srcId, { type: "raster", tiles: [resolvedLeftTileUrl], tileSize: 256 });
           }
           if (!cmp.getLayer(lyrId)) {
             const before = cmp.getLayer(PLOT_CASING) ? PLOT_CASING : undefined;
@@ -672,7 +748,7 @@ function MapCanvasComponent() {
               id: lyrId,
               type: "raster",
               source: srcId,
-              paint: { "raster-opacity": targetOpacity },
+              paint: { "raster-opacity": targetOpacity, "raster-fade-duration": 0 },
             }, before);
           } else {
             cmp.setPaintProperty(lyrId, "raster-opacity", targetOpacity);
@@ -685,14 +761,14 @@ function MapCanvasComponent() {
       if (cmp.getLayer(PLOT_LINE)) cmp.moveLayer(PLOT_LINE);
     };
 
-    if (cmp.isStyleLoaded()) {
+    if (cmp.getStyle()?.layers?.length) {
       syncLeft();
     } else {
-      cmp.once("styledata", syncLeft);
+      cmp.once("load", syncLeft);
     }
-  }, [compareMode, effectiveLeftId, layers]);
+  }, [compareMode, effectiveLeftId, layers, timelapseFrames, timelapseIndex, timelapseMode]);
 
-  // -- Sync raster layers (dynamic opacity from store, always under plot lines) --
+  // -- Sync raster, vector & draggable timelapse layers (dynamic opacity & z-order) --
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -702,28 +778,165 @@ function MapCanvasComponent() {
       const mapStyle = map.getStyle();
       if (mapStyle && mapStyle.layers) {
         mapStyle.layers.forEach(lyr => {
+          if (lyr.id.startsWith("oxe-s2-tl-lyr-")) {
+            if (!activeLayerIds.has("sentinel-timelapse") || timelapseFrames.length === 0) {
+              const yr = lyr.id.replace("oxe-s2-tl-lyr-", "");
+              if (map.getLayer(lyr.id)) map.removeLayer(lyr.id);
+              if (map.getSource(`oxe-s2-tl-src-${yr}`)) map.removeSource(`oxe-s2-tl-src-${yr}`);
+            }
+            return;
+          }
           if (lyr.id.startsWith("oxe-lyr-")) {
-            const rawId = lyr.id.replace("oxe-lyr-", "");
+            const rawId = lyr.id.replace("oxe-lyr-", "").replace(/-(fill|casing)$/, "");
             if (!activeLayerIds.has(rawId)) {
               if (map.getLayer(lyr.id)) map.removeLayer(lyr.id);
               const srcId = `oxe-src-${rawId}`;
-              if (map.getSource(srcId)) map.removeSource(srcId);
+              if (
+                map.getSource(srcId) &&
+                !map.getLayer(`oxe-lyr-${rawId}`) &&
+                !map.getLayer(`oxe-lyr-${rawId}-fill`) &&
+                !map.getLayer(`oxe-lyr-${rawId}-casing`)
+              ) {
+                map.removeSource(srcId);
+              }
             }
           }
         });
       }
 
-      // 2. Add, update, or refresh layers with new tile URLs
+      // 2. Add, update, or refresh raster, sharp GeoJSON vector & multi-year Timelapse layers
       layers.forEach(layer => {
         try {
-          if (!layer.tileUrl) return;
           const srcId = `oxe-src-${layer.id}`;
           const lyrId = `oxe-lyr-${layer.id}`;
-
-          // Clamp opacity to valid [0, 1] range
           const targetOpacity = typeof layer.opacity === "number"
             ? Math.max(0, Math.min(1, layer.opacity))
             : 1.0;
+
+          const isVisible = (() => {
+            if (!compareMode) return layer.visible;
+            if (effectiveRightId === "basemap") return false;
+            if (effectiveRightId === "all-other") return layer.id !== effectiveLeftId && layer.visible;
+            return layer.id === effectiveRightId;
+          })();
+
+          // First-class draggable Sentinel-2 Timelapse layer (pre-mounted 2020-2025 frames, 0ms flicker-free)
+          if (layer.id === "sentinel-timelapse") {
+            const before = map.getLayer(PLOT_FILL) ? PLOT_FILL : undefined;
+            timelapseFrames.forEach((frame, idx) => {
+              const tlUrl =
+                timelapseMode === "pinpoint"
+                  ? frame.pinpoint_tile_url || frame.rgb_tile_url
+                  : timelapseMode === "rgb"
+                  ? frame.rgb_tile_url
+                  : frame.nir_tile_url;
+              if (!tlUrl) return;
+              const tlSrcId = `oxe-s2-tl-src-${frame.year}`;
+              const tlLyrId = `oxe-s2-tl-lyr-${frame.year}`;
+              const isCurrent = idx === timelapseIndex;
+
+              const existingTlSrc = map.getSource(tlSrcId) as maplibregl.RasterTileSource | undefined;
+              if (existingTlSrc && existingTlSrc.tiles?.[0] !== tlUrl) {
+                if (map.getLayer(tlLyrId)) map.removeLayer(tlLyrId);
+                if (map.getSource(tlSrcId)) map.removeSource(tlSrcId);
+              }
+              if (!map.getSource(tlSrcId)) {
+                map.addSource(tlSrcId, { type: "raster", tiles: [tlUrl], tileSize: 256 });
+              }
+              if (!map.getLayer(tlLyrId)) {
+                map.addLayer(
+                  {
+                    id: tlLyrId,
+                    type: "raster",
+                    source: tlSrcId,
+                    layout: { visibility: isVisible ? "visible" : "none" },
+                    paint: {
+                      "raster-opacity": isVisible && isCurrent ? targetOpacity : 0,
+                      "raster-fade-duration": 0,
+                    },
+                  },
+                  before
+                );
+              } else {
+                map.setLayoutProperty(tlLyrId, "visibility", isVisible ? "visible" : "none");
+                map.setPaintProperty(tlLyrId, "raster-opacity", isVisible && isCurrent ? targetOpacity : 0);
+              }
+            });
+            return;
+          }
+
+          // Sharp connected GeoJSON vector layer (e.g., FTW Cadastral Parcel Mesh)
+          if (layer.type === "geojson" && layer.geojsonData) {
+            const fillId = `${lyrId}-fill`;
+            const casingId = `${lyrId}-casing`;
+            const before = map.getLayer(PLOT_FILL) ? PLOT_FILL : undefined;
+            const existingGeo = map.getSource(srcId) as maplibregl.GeoJSONSource | undefined;
+
+            // If previously created as raster, clean up first
+            if (existingGeo && typeof existingGeo.setData !== "function") {
+              [fillId, casingId, lyrId].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+              map.removeSource(srcId);
+            }
+
+            const geoSrc = map.getSource(srcId) as maplibregl.GeoJSONSource | undefined;
+            if (geoSrc && typeof geoSrc.setData === "function") {
+              geoSrc.setData(layer.geojsonData as GeoJSON.FeatureCollection);
+            } else {
+              map.addSource(srcId, {
+                type: "geojson",
+                data: layer.geojsonData as GeoJSON.FeatureCollection,
+              });
+            }
+
+            if (!map.getLayer(fillId)) {
+              map.addLayer({
+                id: fillId,
+                type: "fill",
+                source: srcId,
+                paint: { "fill-color": "#00F5D4", "fill-opacity": 0.06 * targetOpacity },
+              }, before);
+            }
+            if (!map.getLayer(casingId)) {
+              map.addLayer({
+                id: casingId,
+                type: "line",
+                source: srcId,
+                layout: { "line-join": "round", "line-cap": "round" },
+                paint: { "line-color": "#052019", "line-width": 3.0, "line-opacity": 0.78 * targetOpacity },
+              }, before);
+            }
+            if (!map.getLayer(lyrId)) {
+              map.addLayer({
+                id: lyrId,
+                type: "line",
+                source: srcId,
+                layout: { "line-join": "round", "line-cap": "round" },
+                paint: {
+                  "line-color": [
+                    "match",
+                    ["get", "parcel_class"],
+                    "agroforestry_parcel",
+                    "#38BDF8",
+                    "#00F5D4",
+                  ],
+                  "line-width": 1.8,
+                  "line-opacity": targetOpacity,
+                },
+              }, before);
+            }
+
+            [fillId, casingId, lyrId].forEach(id => {
+              if (map.getLayer(id)) {
+                map.setLayoutProperty(id, "visibility", isVisible ? "visible" : "none");
+              }
+            });
+            if (map.getLayer(fillId)) map.setPaintProperty(fillId, "fill-opacity", 0.06 * targetOpacity);
+            if (map.getLayer(casingId)) map.setPaintProperty(casingId, "line-opacity", 0.78 * targetOpacity);
+            if (map.getLayer(lyrId)) map.setPaintProperty(lyrId, "line-opacity", targetOpacity);
+            return;
+          }
+
+          if (!layer.tileUrl) return;
 
           const existingSource = map.getSource(srcId) as maplibregl.RasterTileSource | undefined;
           const currentTileUrl = existingSource?.tiles?.[0];
@@ -742,12 +955,6 @@ function MapCanvasComponent() {
             map.addLayer({ id: lyrId, type: "raster", source: srcId, paint: { "raster-opacity": targetOpacity } }, before);
           }
           if (map.getLayer(lyrId)) {
-            const isVisible = (() => {
-              if (!compareMode) return layer.visible;
-              if (effectiveRightId === "basemap") return false;
-              if (effectiveRightId === "all-other") return layer.id !== effectiveLeftId && layer.visible;
-              return layer.id === effectiveRightId;
-            })();
             map.setLayoutProperty(lyrId, "visibility", isVisible ? "visible" : "none");
             map.setPaintProperty(lyrId, "raster-opacity", targetOpacity);
           }
@@ -760,10 +967,21 @@ function MapCanvasComponent() {
       try {
         const anchor = map.getLayer(PLOT_FILL) ? PLOT_FILL : undefined;
         for (let i = layers.length - 1; i >= 0; i--) {
-          const lyrId = `oxe-lyr-${layers[i].id}`;
-          if (map.getLayer(lyrId)) {
-            map.moveLayer(lyrId, anchor);
+          if (layers[i].id === "sentinel-timelapse") {
+            timelapseFrames.forEach(f => {
+              const tlId = `oxe-s2-tl-lyr-${f.year}`;
+              if (map.getLayer(tlId)) {
+                map.moveLayer(tlId, anchor);
+              }
+            });
+            continue;
           }
+          const baseId = `oxe-lyr-${layers[i].id}`;
+          [`${baseId}-fill`, `${baseId}-casing`, baseId].forEach(subId => {
+            if (map.getLayer(subId)) {
+              map.moveLayer(subId, anchor);
+            }
+          });
         }
 
         // 4. Guarantee that the yellow plot border is ALWAYS on top of all raster layers
@@ -774,12 +992,12 @@ function MapCanvasComponent() {
         console.warn("[MapCanvas] Warning restacking layers:", stackErr);
       }
     };
-    if (map.isStyleLoaded()) {
+    if (map.getStyle()?.layers?.length) {
       sync();
     } else {
-      map.once("styledata", sync);
+      map.once("load", sync);
     }
-  }, [layers, compareMode, effectiveLeftId, effectiveRightId]);
+  }, [layers, compareMode, effectiveLeftId, effectiveRightId, timelapseFrames, timelapseIndex, timelapseMode]);
 
   // -- flyToBbox -------------------------------------------------------------
   const flyToBbox = useCallback((bbox: [number, number, number, number]) => {
@@ -834,6 +1052,16 @@ function MapCanvasComponent() {
         </div>
       )}
 
+      {/* Custom GPS Pin -> Auto FTW Boundary Snap instructions */}
+      {droppingPin && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
+          <div className="flex items-center gap-2 bg-[#315F50] text-white rounded-lg px-4 py-2 shadow-lg text-[12px] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#00F5D4] animate-pulse" />
+            <span>Click any farm or point on the map to auto-snap FTW field boundary (Esc to cancel)</span>
+          </div>
+        </div>
+      )}
+
       {/* Coordinates HUD & Subtle Attribution */}
 
       {/* Real-time GPS Coordinates HUD - Positioned DIRECTLY ON TOP OF THE KM SCALE BAR (Bottom-Left) */}
@@ -874,7 +1102,7 @@ function MapCanvasComponent() {
 
       <div className="absolute bottom-1 left-36 z-10 pointer-events-none select-none">
 
-        <span className="text-[9px] text-white/70 font-sans drop-shadow-sm">ESRI · Maxar · OpenStreetMap · GEE</span>
+        <span className="text-[9px] text-white/70 font-sans drop-shadow-sm">ESRI · Maxar · OpenStreetMap · Copernicus</span>
       </div>
     </div>
   );

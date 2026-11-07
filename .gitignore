@@ -38,6 +38,7 @@ npm-debug.log*
 .eggs/
 
 # Misc
+backend/app/eudr/corpus/raw_eurlex/
 .gemini/
 docs/challenge/
 scratch/

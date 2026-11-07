@@ -184,15 +184,16 @@ class EUDRAnalysisRequest(BaseModel):
 
 
 class GEEMapLayer(BaseModel):
-    """A real GEE-derived XYZ tile layer for frontend rendering."""
+    """A real satellite-derived XYZ raster or GeoJSON vector layer for frontend rendering."""
     id: str
     label: str
-    tile_url: str                        # MapLibre-compatible XYZ tile URL from GEE
+    tile_url: str = ""                   # MapLibre-compatible XYZ tile URL (empty for pure GeoJSON vector layers)
+    geojson_data: Optional[dict[str, Any]] = None
     visible: bool = False
     opacity: float = 1.0
     legend: Optional[dict[str, Any]] = None
-    dataset: str = ""                    # GEE asset path (provenance)
-    layer_type: str = ""                 # e.g. hansen_loss, forest_typology
+    dataset: str = ""                    # Asset / sensor provenance
+    layer_type: str = ""                 # e.g. hansen_loss, forest_typology, ftw_boundaries
 
 
 class EUDRAnalysisResponse(BaseModel):

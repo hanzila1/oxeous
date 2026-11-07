@@ -321,6 +321,27 @@ export function PixelInspectorIcon(props: IconProps) {
   );
 }
 
+/** Custom GPS Pin -> Auto-snap field parcel boundary (Art. 9(1)(d)). */
+export function PinSnapIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      {/* Snapped isometric field boundary */}
+      <path
+        d="M4 17.2l8-3.4 8 3.4-8 3.6z"
+        fill="currentColor"
+        fillOpacity={TINT}
+      />
+      {/* GPS pin dropping onto parcel center */}
+      <path
+        d="M12 15.2s-4.5-4.1-4.5-7.4a4.5 4.5 0 1 1 9 0c0 3.3-4.5 7.4-4.5 7.4z"
+        fill="currentColor"
+        fillOpacity={0.12}
+      />
+      <circle cx="12" cy="7.8" r="1.5" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
 /** Audit plot: magnifier over a parcel. */
 export function AuditPlotIcon(props: IconProps) {
   return (

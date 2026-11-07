@@ -8,6 +8,7 @@ from __future__ import annotations
 import time
 from typing import Any
 from .models import SubagentFinding, SubagentType, AgentVerdict
+from ..azure_search_rag import get_eudr_rag_engine
 
 
 class StatutoryLegalSubagent:
@@ -22,6 +23,7 @@ class StatutoryLegalSubagent:
         plot_geometry: dict[str, Any],
         commodity: str,
         gee_summary: dict[str, Any],
+        country_code: str = "",
     ) -> SubagentFinding:
         t0 = time.monotonic()
 
@@ -76,6 +78,29 @@ class StatutoryLegalSubagent:
             citation = "EUDR Regulation 2023/1115 Article 3(a)"
             rebuttal = None
 
+        # Query Statutory & Customs RAG Index for Annex I HS codes + Country Article 3(b) statutes
+        rag_query = (
+            f"replanting Article 2(5) Annex I HS codes {commodity} {country_code}"
+            if is_replanting_exempt
+            else f"carve-out segregation Article 3(a) Article 3(b) Annex I HS codes {commodity} {country_code}"
+            if has_loss
+            else f"Article 3(a) Article 3(b) Annex I HS codes {commodity} {country_code}"
+        )
+        rag_hits, _ = await get_eudr_rag_engine().search(
+            query=rag_query,
+            commodity=commodity,
+            country_code=country_code,
+            top_k=3,
+        )
+        hs_codes_found = next(
+            (h["hs_codes"] for h in rag_hits if h.get("category") == "annex_i_hs_codes" and h.get("hs_codes") not in ("", "ALL")),
+            "Annex I Regulated Commodity",
+        )
+        sovereign_ref = next(
+            (f"{h['article_ref']}: {h['title']}" for h in rag_hits if h.get("category") == "sovereign_legality"),
+            "EUDR Article 3(b) Country-of-Production Legality Framework",
+        )
+
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
         return SubagentFinding(
@@ -94,12 +119,16 @@ class StatutoryLegalSubagent:
                 "statutory_loss_driver": loss_driver,
                 "is_plantation_replanting_exemption": is_replanting_exempt,
                 "statutory_article": "Article 2(4), 2(5) & Recital 37" if is_replanting_exempt else "Article 3(a)",
+                "annex_i_hs_codes": hs_codes_found,
+                "sovereign_legality_framework": sovereign_ref,
+                "retrieved_statutory_citations": [h["article_ref"] for h in rag_hits],
             },
             sensor_provenance=[
                 "European Commission Joint Research Centre (EC JRC GFC2020 10m - Recital 37)",
                 "Nature Trace Forest Typology 2020 & GEDI L4A LiDAR Canopy Structure",
-                "Google DeepMind / WRI Deforestation Drivers 2001-2025",
+                "WRI Global Forest Review Deforestation Drivers 2001-2025",
                 "Thünen Institute (Lippe et al., 2025) Agroforestry Rebuttal Methodology",
+                "EUDR Statutory & Annex I Customs Search Index (Articles 1-38)",
             ],
             mitigation_or_rebuttal=rebuttal,
             processing_time_ms=elapsed_ms,

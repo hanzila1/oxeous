@@ -27,7 +27,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Oxeous API",
         version=settings.version,
-        description="Map-first conversational Earth observation platform powered by IBM Granite + NASA Prithvi-EO.",
+        description="Map-first conversational Earth observation & EUDR spatial compliance platform.",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
@@ -48,17 +48,20 @@ def create_app() -> FastAPI:
     async def startup() -> None:
         granite = GraniteClient()
         app.state.granite = granite
+        active_provider = (
+            "azure" if (settings.azure_openai_api_key and settings.azure_openai_endpoint) else settings.granite_deployment
+        )
+        active_model = (
+            settings.azure_openai_deployment
+            if active_provider == "azure"
+            else (settings.gemini_model if settings.granite_deployment == "gemini" else settings.granite_model)
+        )
         logger.info(
             "Oxeous API v%s started | LLM=%s | model=%s",
             settings.version,
-            settings.granite_deployment,
-            settings.gemini_model if settings.granite_deployment == "gemini" else settings.granite_model,
+            active_provider,
+            active_model,
         )
-        if settings.granite_deployment == "gemini" and not settings.gemini_api_key:
-            logger.warning(
-                "GEMINI_API_KEY not set - Gemini explanations will use fallback text. "
-                "Set GEMINI_API_KEY in .env to enable LLM-generated explanations."
-            )
 
     @app.on_event("shutdown")
     async def shutdown() -> None:
