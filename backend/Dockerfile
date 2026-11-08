@@ -12,9 +12,8 @@ ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
 COPY pyproject.toml .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip \
-    && pip install -e "."
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -e "."
 
 COPY app/ ./app/
 
