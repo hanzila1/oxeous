@@ -80,48 +80,49 @@ def extract_assessment_fields(assessment: dict[str, Any]) -> dict[str, Any]:
     dds = assessment.get("dds") or {}
 
     plot_id = str(plot.get("plot_id") or assessment.get("plot_id") or "PLOT-AUDIT-01")
-    name = str(plot.get("name") or assessment.get("name") or "Declared Farm Parcel")
+    name = str(plot.get("name") or plot.get("plot_name") or assessment.get("name") or assessment.get("plot_name") or "Declared Farm Parcel")
     commodity = str(plot.get("commodity") or assessment.get("commodity") or "cocoa").lower()
-    country_code = str(plot.get("country_code") or assessment.get("country_code") or "GH").upper()
-    country_name = str(plot.get("country_name") or assessment.get("country_name") or "Ghana")
+    country_code = str(plot.get("country_code") or assessment.get("country_code") or assessment.get("country") or "GH").upper()
+    country_name = str(plot.get("country_name") or assessment.get("country_name") or ("Ghana" if country_code == "GH" else "Sovereign State"))
 
     area_ha = float(plot.get("area_ha") or deforest.get("total_parcel_ha") or assessment.get("area_ha") or 3.6)
-    overall_risk = str(risk.get("overall_risk") or assessment.get("overall_risk") or "compliant").lower()
+    raw_risk = str(risk.get("overall_risk") or assessment.get("overall_risk") or assessment.get("risk_level") or "compliant").lower()
+    overall_risk = "compliant" if ("compliant" in raw_risk and "non" not in raw_risk and "breach" not in raw_risk) else "non_compliant"
     risk_score = float(risk.get("risk_score") if risk.get("risk_score") is not None else assessment.get("risk_score", 0.0))
 
-    jrc_baseline_pct = float(deforest.get("jrc_forest_cover_2020_pct") or deforest.get("forest_cover_2020_pct") or 0.0)
-    forest_loss_pct = float(deforest.get("forest_loss_pct") or 0.0)
-    forest_loss_ha = float(deforest.get("forest_loss_ha") or 0.0)
+    jrc_baseline_pct = float(deforest.get("jrc_forest_cover_2020_pct") or deforest.get("forest_cover_2020_pct") or assessment.get("jrc_baseline_pct") or 0.0)
+    forest_loss_pct = float(deforest.get("forest_loss_pct") or assessment.get("forest_loss_pct") or 0.0)
+    forest_loss_ha = float(deforest.get("forest_loss_ha") or assessment.get("forest_loss_ha") or 0.0)
 
     statutory_deforestation_ha = float(
-        deforest.get("statutory_deforestation_ha") or (forest_loss_ha if overall_risk in ("non_compliant", "at_risk") else 0.0)
+        deforest.get("statutory_deforestation_ha") or assessment.get("statutory_deforestation_ha") or (forest_loss_ha if overall_risk in ("non_compliant", "at_risk") else 0.0)
     )
-    radd_alert_pct = float(deforest.get("radd_alert_pct") or 0.0)
+    radd_alert_pct = float(deforest.get("radd_alert_pct") or assessment.get("radd_alert_pct") or 0.0)
 
-    is_plantation_replanting_exemption = bool(deforest.get("is_plantation_replanting_exemption", False))
-    plantation_replanting_ha = float(deforest.get("plantation_replanting_ha") or 0.0)
-    is_silviculture_exemption = bool(deforest.get("is_silviculture_exemption", False))
+    is_plantation_replanting_exemption = bool(deforest.get("is_plantation_replanting_exemption") or assessment.get("is_plantation_replanting_exemption", False))
+    plantation_replanting_ha = float(deforest.get("plantation_replanting_ha") or assessment.get("plantation_replanting_ha") or 0.0)
+    is_silviculture_exemption = bool(deforest.get("is_silviculture_exemption") or assessment.get("is_silviculture_exemption", False))
 
-    overlaps_protected_area = bool(legality.get("overlaps_protected_area", False))
-    protected_area_overlap_pct = float(legality.get("protected_area_overlap_pct") or 0.0)
-    raw_reserves = legality.get("protected_area_names") or []
+    overlaps_protected_area = bool(legality.get("overlaps_protected_area") or assessment.get("overlaps_protected_area", False))
+    protected_area_overlap_pct = float(legality.get("protected_area_overlap_pct") or assessment.get("protected_area_overlap_pct") or 0.0)
+    raw_reserves = legality.get("protected_area_names") or assessment.get("protected_reserves") or []
     protected_reserves = [str(r) for r in raw_reserves if r]
-    country_risk_level = str(legality.get("country_risk_level") or "standard").lower()
+    country_risk_level = str(legality.get("country_risk_level") or assessment.get("country_risk_level") or "standard").lower()
 
     compliant_ha = float(
-        deforest.get("compliant_ha") or (area_ha if overall_risk == "compliant" else max(0.0, area_ha - statutory_deforestation_ha))
+        deforest.get("compliant_ha") or assessment.get("compliant_ha") or (area_ha if overall_risk == "compliant" else max(0.0, area_ha - statutory_deforestation_ha))
     )
     spatial_compliance_pct = float(
-        deforest.get("spatial_compliance_pct") or (100.0 if overall_risk == "compliant" else round((compliant_ha / max(area_ha, 0.001)) * 100, 1))
+        deforest.get("spatial_compliance_pct") or assessment.get("spatial_compliance_pct") or (100.0 if overall_risk == "compliant" else round((compliant_ha / max(area_ha, 0.001)) * 100, 1))
     )
     carveout_eligible_ha = float(
-        deforest.get("carveout_eligible_ha") or (compliant_ha if statutory_deforestation_ha > 0 else 0.0)
+        deforest.get("carveout_eligible_ha") or assessment.get("carveout_eligible_ha") or (compliant_ha if statutory_deforestation_ha > 0 else 0.0)
     )
 
-    confidence_score_pct = float(deforest.get("confidence_score_pct") or 96.4)
-    active_sensors_count = int(deforest.get("active_sensors_count") or 6)
+    confidence_score_pct = float(deforest.get("confidence_score_pct") or assessment.get("confidence_score_pct") or 96.4)
+    active_sensors_count = int(deforest.get("active_sensors_count") or assessment.get("active_sensors_count") or 6)
 
-    dds_id = str(dds.get("dds_id") or f"DDS-2026-EUDR-{country_code}-{plot_id[:8].upper()}")
+    dds_id = str(dds.get("dds_id") or assessment.get("dds_id") or f"DDS-2026-EUDR-{country_code}-{plot_id[:8].upper()}")
 
     return {
         "plot_id": plot_id,
@@ -694,7 +695,20 @@ async def resolve_statutory_advisory(
     ]
 
     # 3. Attempt dynamic LLM generation grounded in retrieved statutory clauses & active assessment
-    if granite_client:
+    if fields:
+        # Direct authoritative statutory queries should immediately return the validated audit report
+        prompt_lower = prompt.lower()
+        direct_statutory_triggers = [
+            "why compliant", "why is this compliant", "why is it compliant", "why this plot is compliant",
+            "why this plot", "why did it pass", "why pass", "how is it compliant", "is this compliant",
+            "why non-compliant", "why failed", "why did it fail", "why fail", "why not compliant",
+            "4 ha", "four ha", "smallholder", "single point", "delineat", "ftw",
+            "compare", "stats", "statistics", "benchmarking", "rules", "what happened",
+        ]
+        if any(t in prompt_lower for t in direct_statutory_triggers):
+            answer_text = generate_assessment_audit_report(prompt, fields)
+
+    if not answer_text and granite_client:
         try:
             import asyncio
             if fields:
@@ -754,9 +768,14 @@ async def resolve_statutory_advisory(
             answer_text = raw_gen if isinstance(raw_gen, str) else ""
 
             # Safeguard: if LLM issued a generic refusal despite active plot fields being provided, override with authoritative report
+            refusal_markers = [
+                "cannot confirm compliance", "cannot truthfully say", "without the plot data",
+                "need at least", "i cannot confirm", "cannot say this plot is compliant",
+                "not provided the plot evidence", "to confirm compliance, i need",
+                "missing evidence", "send me the plot", "if you send the polygon", "cannot say that this plot",
+            ]
             if fields and isinstance(answer_text, str) and any(
-                refusal in answer_text.lower()
-                for refusal in ["cannot confirm compliance", "cannot truthfully say", "without the plot data", "need at least: the plot polygon", "i cannot confirm"]
+                refusal in answer_text.lower() for refusal in refusal_markers
             ):
                 logger.warning("LLM generated generic refusal despite active plot fields; falling back to deterministic report")
                 answer_text = generate_assessment_audit_report(prompt, fields)
