@@ -16,11 +16,14 @@ const DRAW_LINE = "draw-preview-line";
 const DRAW_FILL = "draw-preview-fill";
 const DRAW_VERTICES = "draw-vertices";
 
-// Permanent polygon layer IDs
+// Permanent polygon & points layer IDs
 const PLOT_SRC = "oxeous-plot";
 const PLOT_FILL = "oxeous-plot-fill";
 const PLOT_CASING = "oxeous-plot-casing";
 const PLOT_LINE = "oxeous-plot-line";
+const PLOT_POINTS_PULSE = "oxeous-plot-points-pulse";
+const PLOT_POINTS = "oxeous-plot-points";
+const PLOT_POINTS_INNER = "oxeous-plot-points-inner";
 
 function isPointInPolygon(point: [number, number], polygon: number[][]): boolean {
   const [x, y] = point;
@@ -50,6 +53,7 @@ function MapCanvasComponent() {
     compareMode, comparePosition, compareLeftLayerId, compareRightLayerId,
     basemapMode,
     timelapseFrames, timelapseIndex, timelapseMode,
+    leftPanel, rightPanel, chatPanelExpanded, eudrPanelExpanded, customRightPanelWidth,
   } = useStore();
 
   const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
@@ -214,15 +218,27 @@ function MapCanvasComponent() {
 
     if (!geojson) {
       // Remove permanent polygon layers/source
-      [PLOT_FILL, PLOT_CASING, PLOT_LINE].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+      [PLOT_FILL, PLOT_CASING, PLOT_LINE, PLOT_POINTS_PULSE, PLOT_POINTS, PLOT_POINTS_INNER].forEach((id) => {
+        if (map.getLayer(id)) map.removeLayer(id);
+      });
       if (map.getSource(PLOT_SRC)) map.removeSource(PLOT_SRC);
       return;
     }
 
-    const data: GeoJSON.FeatureCollection = {
-      type: "FeatureCollection",
-      features: [{ type: "Feature", geometry: geojson as GeoJSON.Geometry, properties: {} }],
-    };
+    let data: GeoJSON.FeatureCollection;
+    if ((geojson as any).type === "FeatureCollection" && Array.isArray((geojson as any).features)) {
+      data = geojson as GeoJSON.FeatureCollection;
+    } else if ((geojson as any).type === "Feature") {
+      data = {
+        type: "FeatureCollection",
+        features: [geojson as GeoJSON.Feature],
+      };
+    } else {
+      data = {
+        type: "FeatureCollection",
+        features: [{ type: "Feature", geometry: geojson as GeoJSON.Geometry, properties: {} }],
+      };
+    }
 
     const src = map.getSource(PLOT_SRC) as maplibregl.GeoJSONSource | undefined;
     if (src) {
@@ -231,18 +247,20 @@ function MapCanvasComponent() {
     } else {
       // First time - add source + layers
       map.addSource(PLOT_SRC, { type: "geojson", data });
-      // 1. Transparent interior fill
+      // 1. Transparent interior fill for polygons
       map.addLayer({
         id: PLOT_FILL,
         type: "fill",
         source: PLOT_SRC,
-        paint: { "fill-color": "#FFE600", "fill-opacity": 0 },
+        filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
+        paint: { "fill-color": "#FFE600", "fill-opacity": 0.05 },
       });
       // 2. High-contrast dark casing under the yellow border
       map.addLayer({
         id: PLOT_CASING,
         type: "line",
         source: PLOT_SRC,
+        filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon", "LineString"], true, false],
         paint: { "line-color": "#000000", "line-width": 5.5, "line-opacity": 0.65 },
       });
       // 3. Crisp vivid yellow border line
@@ -250,13 +268,56 @@ function MapCanvasComponent() {
         id: PLOT_LINE,
         type: "line",
         source: PLOT_SRC,
+        filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon", "LineString"], true, false],
         paint: { "line-color": "#FFE600", "line-width": 3.5, "line-opacity": 1.0 },
+      });
+      // 4. Point outer pulse glow
+      map.addLayer({
+        id: PLOT_POINTS_PULSE,
+        type: "circle",
+        source: PLOT_SRC,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": 15,
+          "circle-color": "#FFE600",
+          "circle-opacity": 0.3,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#000000",
+          "circle-stroke-opacity": 0.7,
+        },
+      });
+      // 5. Point main ring
+      map.addLayer({
+        id: PLOT_POINTS,
+        type: "circle",
+        source: PLOT_SRC,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": 7,
+          "circle-color": "#FFE600",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#000000",
+        },
+      });
+      // 6. Point center core
+      map.addLayer({
+        id: PLOT_POINTS_INNER,
+        type: "circle",
+        source: PLOT_SRC,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": 3,
+          "circle-color": "#000000",
+        },
       });
     }
 
-    // Always elevate the polygon border above any raster layers
+    // Always elevate the polygon border and points above any raster layers
     if (map.getLayer(PLOT_CASING)) map.moveLayer(PLOT_CASING);
     if (map.getLayer(PLOT_LINE)) map.moveLayer(PLOT_LINE);
+    if (map.getLayer(PLOT_POINTS_PULSE)) map.moveLayer(PLOT_POINTS_PULSE);
+    if (map.getLayer(PLOT_POINTS)) map.moveLayer(PLOT_POINTS);
+    if (map.getLayer(PLOT_POINTS_INNER)) map.moveLayer(PLOT_POINTS_INNER);
   }, []);
 
   // -- Drawing mode: click to add vertex, dblclick to finish ----------------
@@ -558,16 +619,27 @@ function MapCanvasComponent() {
     }
 
     if (!geojson) {
-      if (cmp.getLayer(PLOT_CASING)) cmp.removeLayer(PLOT_CASING);
-      if (cmp.getLayer(PLOT_LINE)) cmp.removeLayer(PLOT_LINE);
+      [PLOT_CASING, PLOT_LINE, PLOT_POINTS].forEach((id) => {
+        if (cmp.getLayer(id)) cmp.removeLayer(id);
+      });
       if (cmp.getSource(PLOT_SRC)) cmp.removeSource(PLOT_SRC);
       return;
     }
 
-    const data: GeoJSON.FeatureCollection = {
-      type: "FeatureCollection",
-      features: [{ type: "Feature", geometry: geojson as GeoJSON.Geometry, properties: {} }],
-    };
+    let data: GeoJSON.FeatureCollection;
+    if ((geojson as any).type === "FeatureCollection" && Array.isArray((geojson as any).features)) {
+      data = geojson as GeoJSON.FeatureCollection;
+    } else if ((geojson as any).type === "Feature") {
+      data = {
+        type: "FeatureCollection",
+        features: [geojson as GeoJSON.Feature],
+      };
+    } else {
+      data = {
+        type: "FeatureCollection",
+        features: [{ type: "Feature", geometry: geojson as GeoJSON.Geometry, properties: {} }],
+      };
+    }
 
     const src = cmp.getSource(PLOT_SRC) as maplibregl.GeoJSONSource | undefined;
     if (src) {
@@ -578,18 +650,33 @@ function MapCanvasComponent() {
         id: PLOT_CASING,
         type: "line",
         source: PLOT_SRC,
+        filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon", "LineString"], true, false],
         paint: { "line-color": "#000000", "line-width": 5.5, "line-opacity": 0.65 },
       });
       cmp.addLayer({
         id: PLOT_LINE,
         type: "line",
         source: PLOT_SRC,
+        filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon", "LineString"], true, false],
         paint: { "line-color": "#FFE600", "line-width": 3.5, "line-opacity": 1.0 },
+      });
+      cmp.addLayer({
+        id: PLOT_POINTS,
+        type: "circle",
+        source: PLOT_SRC,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": 7,
+          "circle-color": "#FFE600",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#000000",
+        },
       });
     }
 
     if (cmp.getLayer(PLOT_CASING)) cmp.moveLayer(PLOT_CASING);
     if (cmp.getLayer(PLOT_LINE)) cmp.moveLayer(PLOT_LINE);
+    if (cmp.getLayer(PLOT_POINTS)) cmp.moveLayer(PLOT_POINTS);
   }, []);
 
   // -- Initialize & teardown compareMap --------------------------------------
@@ -1001,8 +1088,14 @@ function MapCanvasComponent() {
 
   // -- flyToBbox -------------------------------------------------------------
   const flyToBbox = useCallback((bbox: [number, number, number, number]) => {
-    mapRef.current?.fitBounds(bboxToLngLatBounds(bbox), { padding: 80, maxZoom: 15.5, duration: 1200 });
-  }, []);
+    const leftPad = leftPanel ? (eudrPanelExpanded ? 640 : 460) + 40 : 60;
+    const rightPad = rightPanel ? (customRightPanelWidth ?? (chatPanelExpanded ? 700 : 480)) + 40 : 60;
+    mapRef.current?.fitBounds(bboxToLngLatBounds(bbox), {
+      padding: { top: 70, bottom: 70, left: leftPad, right: rightPad },
+      maxZoom: 15.5,
+      duration: 1200,
+    });
+  }, [leftPanel, rightPanel, chatPanelExpanded, eudrPanelExpanded, customRightPanelWidth]);
 
   useEffect(() => {
     (window as Window & { oxeousFlyTo?: typeof flyToBbox }).oxeousFlyTo = flyToBbox;
@@ -1018,7 +1111,12 @@ function MapCanvasComponent() {
   }, [activeGeoJSON, drawingAOI, flyToBbox]);
 
   return (
-    <div className={basemapMode === "light" ? "relative w-full h-full bg-[#F8FAF9]" : "relative w-full h-full bg-[#0c141c]"}>
+    <div
+      style={{
+        "--map-ctrl-left": leftPanel ? `${(eudrPanelExpanded ? 640 : 460) + 10}px` : "10px",
+      } as React.CSSProperties}
+      className={basemapMode === "light" ? "relative w-full h-full bg-[#F8FAF9]" : "relative w-full h-full bg-[#0c141c]"}
+    >
       {/* Map fills entire area */}
       <div ref={containerRef} className={basemapMode === "light" ? "absolute inset-0 bg-[#F8FAF9]" : "absolute inset-0 bg-[#0c141c]"} />
 
@@ -1065,7 +1163,13 @@ function MapCanvasComponent() {
       {/* Coordinates HUD & Subtle Attribution */}
 
       {/* Real-time GPS Coordinates HUD - Positioned DIRECTLY ON TOP OF THE KM SCALE BAR (Bottom-Left) */}
-      <div className="absolute bottom-[45px] left-[10px] z-10 pointer-events-auto select-none group">
+      <div
+        style={{
+          left: leftPanel ? `${(eudrPanelExpanded ? 640 : 460) + 14}px` : "14px",
+          transition: "left 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+        className="absolute bottom-[45px] z-10 pointer-events-auto select-none group"
+      >
         <div
           title="Click to copy coordinates"
           onClick={() => {
@@ -1100,7 +1204,13 @@ function MapCanvasComponent() {
         </div>
       </div>
 
-      <div className="absolute bottom-1 left-36 z-10 pointer-events-none select-none">
+      <div
+        style={{
+          left: leftPanel ? `${(eudrPanelExpanded ? 640 : 460) + 140}px` : "140px",
+          transition: "left 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+        className="absolute bottom-1 z-10 pointer-events-none select-none"
+      >
 
         <span className="text-[9px] text-white/70 font-sans drop-shadow-sm">ESRI · Maxar · OpenStreetMap · Copernicus</span>
       </div>

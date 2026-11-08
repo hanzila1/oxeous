@@ -27,6 +27,11 @@ dependencies = [
     "python-dotenv>=1.0",
     "aiohttp>=3.9",
     "cachetools>=5.3",
+    "scipy>=1.11",
+    "scikit-image>=0.22",
+    "opencv-python-headless>=4.8",
+    "earthengine-api>=1.4",
+    "Pillow>=10.0",
 ]
 
 [project.optional-dependencies]

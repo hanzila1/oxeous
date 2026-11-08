@@ -5,6 +5,7 @@ import type {
   MapViewport,
   EUDRAnalysisResponse,
 } from "@oxeous/shared-types";
+import type { BatchPlotItem } from "./plotParser";
 
 export type SidePanelType = "eudr" | "chat" | "layers" | "timelapse" | "audit" | null;
 export type LeftPanelType = "eudr" | "timelapse" | null;
@@ -144,12 +145,26 @@ interface OxeousState {
   // Expanded EUDR Workbench & Analytics Deck Modal
   eudrPanelExpanded: boolean;
   setEudrPanelExpanded: (expanded: boolean | ((prev: boolean) => boolean)) => void;
+  chatPanelExpanded: boolean;
+  setChatPanelExpanded: (expanded: boolean | ((prev: boolean) => boolean)) => void;
+  customRightPanelWidth: number | null;
+  setCustomRightPanelWidth: (width: number | null) => void;
   activeAnalyticsResult: EUDRAnalysisResponse | null;
   setActiveAnalyticsResult: (res: EUDRAnalysisResponse | null) => void;
 
   // Spatial Pixel Inspector Modal
   pixelInspectorOpen: boolean;
   setPixelInspectorOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+
+  // Multi-Plot Batch Upload & Farm Queue
+  batchPlots: BatchPlotItem[];
+  setBatchPlots: (plots: BatchPlotItem[]) => void;
+  activeBatchPlotIndex: number | null;
+  setActiveBatchPlotIndex: (idx: number | null) => void;
+  updateBatchPlot: (index: number, patch: Partial<BatchPlotItem>) => void;
+  batchAuditing: boolean;
+  setBatchAuditing: (v: boolean) => void;
+  clearBatchPlots: () => void;
 }
 
 export function resolveCompareLayerIds(
@@ -204,6 +219,13 @@ export const useStore = create<OxeousState>((set) => ({
     set((s) => ({
       eudrPanelExpanded: typeof expanded === "function" ? expanded(s.eudrPanelExpanded) : expanded,
     })),
+  chatPanelExpanded: false,
+  setChatPanelExpanded: (expanded) =>
+    set((s) => ({
+      chatPanelExpanded: typeof expanded === "function" ? expanded(s.chatPanelExpanded) : expanded,
+    })),
+  customRightPanelWidth: null,
+  setCustomRightPanelWidth: (width) => set({ customRightPanelWidth: width }),
   activeAnalyticsResult: null,
   setActiveAnalyticsResult: (res) => set({ activeAnalyticsResult: res }),
 
@@ -335,4 +357,17 @@ export const useStore = create<OxeousState>((set) => ({
   swapCompareLayers: () => set((s) => { const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(s.layers, s.compareLeftLayerId, s.compareRightLayerId); return { compareLeftLayerId: effectiveRightId, compareRightLayerId: effectiveLeftId }; }),
   activePrithviJob: null,
   setActivePrithviJob: (id) => set({ activePrithviJob: id }),
+
+  // Multi-Plot Batch Upload & Farm Queue
+  batchPlots: [],
+  setBatchPlots: (plots) => set({ batchPlots: plots, activeBatchPlotIndex: plots.length > 0 ? 0 : null }),
+  activeBatchPlotIndex: null,
+  setActiveBatchPlotIndex: (idx) => set({ activeBatchPlotIndex: idx }),
+  updateBatchPlot: (index, patch) =>
+    set((s) => ({
+      batchPlots: s.batchPlots.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    })),
+  batchAuditing: false,
+  setBatchAuditing: (v) => set({ batchAuditing: v }),
+  clearBatchPlots: () => set({ batchPlots: [], activeBatchPlotIndex: null, batchAuditing: false }),
 }));

@@ -34,10 +34,11 @@ def create_app() -> FastAPI:
     )
 
     # -- CORS ------------------------------------------------------------------
-    origins = [o.strip() for o in settings.cors_origins.split(",")]
+    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
+        allow_origin_regex=r"^https:\/\/.*\.azurestaticapps\.net$|^http:\/\/localhost(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

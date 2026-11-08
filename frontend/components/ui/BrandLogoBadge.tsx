@@ -2,8 +2,14 @@
 
 import { useStore } from "@/lib/store";
 import { EULogoSeal } from "@/components/icons/EOIcons";
+import { cn } from "@/lib/utils";
 
-export default function BrandLogoBadge() {
+interface BrandLogoBadgeProps {
+  style?: React.CSSProperties;
+  className?: string;
+}
+
+export default function BrandLogoBadge({ style, className }: BrandLogoBadgeProps = {}) {
   const { eudrPanelOpen, setEudrPanelOpen, compareMode } = useStore();
 
   // If the EUDR dashboard is open or compare mode is active, keep header clear
@@ -13,7 +19,11 @@ export default function BrandLogoBadge() {
     <button
       onClick={() => setEudrPanelOpen(true)}
       title="Open EUDR Compliance Suite"
-      className="absolute top-3 left-3 z-20 flex items-center gap-2.5 bg-white/95 border border-[#C8CFD5] shadow-sm hover:shadow hover:border-[#AAB3BB] px-3 py-1.5 rounded-xl select-none hover:bg-white transition-all cursor-pointer group"
+      style={style}
+      className={cn(
+        "absolute top-3 left-3 z-20 flex items-center gap-2.5 bg-white/95 border border-[#C8CFD5] shadow-sm hover:shadow hover:border-[#AAB3BB] px-3 py-1.5 rounded-xl select-none hover:bg-white transition-all cursor-pointer group",
+        className
+      )}
     >
       <img
         src="/oxeous-logo-tight.png"

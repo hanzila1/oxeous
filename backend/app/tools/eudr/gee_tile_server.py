@@ -26,8 +26,23 @@ def _init() -> bool:
     if _initialized:
         return True
     try:
+        import base64
+        import os
         import ee
-        ee.Initialize(project=GEE_PROJECT)
+        import ee.oauth
+
+        cred_path = ee.oauth.get_credentials_path()
+        if not os.path.exists(cred_path):
+            b64_cred = os.environ.get("GEE_CREDENTIALS_B64", "").strip()
+            raw_cred = os.environ.get("GEE_CREDENTIALS_JSON", "").strip()
+            if b64_cred or raw_cred:
+                os.makedirs(os.path.dirname(cred_path), exist_ok=True)
+                content = base64.b64decode(b64_cred).decode("utf-8") if b64_cred else raw_cred
+                with open(cred_path, "w", encoding="utf-8") as fh:
+                    fh.write(content)
+
+        project = os.environ.get("GEE_PROJECT", "").strip() or GEE_PROJECT
+        ee.Initialize(project=project)
         _initialized = True
         return True
     except Exception as exc:
@@ -725,7 +740,7 @@ def get_all_map_layers(commodity: str, bbox: tuple[float, float, float, float] |
             "id": "gee-hansen-treecover",
             "label": tc["label"],
             "tile_url": tc["tile_url"],
-            "visible": True,
+            "visible": False,
             "opacity": 1.0,
             "legend": tc["legend"],
             "dataset": tc.get("dataset", ""),
@@ -739,7 +754,7 @@ def get_all_map_layers(commodity: str, bbox: tuple[float, float, float, float] |
             "id": "gee-esa-worldcover",
             "label": esa["label"],
             "tile_url": esa["tile_url"],
-            "visible": True,
+            "visible": False,
             "opacity": 1.0,
             "legend": esa["legend"],
             "dataset": esa.get("dataset", ""),
@@ -753,7 +768,7 @@ def get_all_map_layers(commodity: str, bbox: tuple[float, float, float, float] |
             "id": "gee-wri-drivers",
             "label": dr["label"],
             "tile_url": dr["tile_url"],
-            "visible": True,
+            "visible": False,
             "opacity": 1.0,
             "legend": dr["legend"],
             "dataset": dr.get("dataset", ""),

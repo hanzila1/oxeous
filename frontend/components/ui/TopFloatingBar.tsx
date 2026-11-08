@@ -267,7 +267,12 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
   },
 ];
 
-export default function TopFloatingBar() {
+interface TopFloatingBarProps {
+  style?: React.CSSProperties;
+  className?: string;
+}
+
+export default function TopFloatingBar({ style, className }: TopFloatingBarProps = {}) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const {
@@ -308,7 +313,13 @@ export default function TopFloatingBar() {
   };
 
   return (
-    <div className="absolute bottom-4 right-3 z-30 flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur-md border border-[#C8CFD5] shadow-panel rounded-xl p-1.5 select-none transition-all">
+    <div
+      style={style}
+      className={cn(
+        "absolute bottom-4 right-3 z-30 flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur-md border border-[#C8CFD5] shadow-panel rounded-xl p-1.5 select-none transition-all",
+        className
+      )}
+    >
 
       {/* 1. Map Zoom In & Zoom Out Controls */}
       <button

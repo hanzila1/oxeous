@@ -16,13 +16,27 @@ import math
 from collections import defaultdict
 from typing import Any, Optional
 
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
 import httpx
 import numpy as np
-from scipy import ndimage
+
+try:
+    from scipy import ndimage
+except ImportError:
+    ndimage = None
+
 from shapely.geometry import LineString, Point as ShpPoint, Polygon, mapping, shape
 from shapely.validation import make_valid
-from skimage.segmentation import slic, watershed
+
+try:
+    from skimage.segmentation import slic, watershed
+except ImportError:
+    slic = None
+    watershed = None
 
 from ..data.stac_client import search_planetary_computer_bitemporal
 from .spatial_jurisdiction import compute_geodesic_metrics, resolve_jurisdiction_from_coordinates
@@ -106,25 +120,25 @@ def _fetch_bitemporal_s2_patch_sync(
 
         region = ee.Geometry.Rectangle(list(bbox))
 
-        def _s2_window(start: str, end: str) -> ee.Image:
-            col = (
-                ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-                .filterBounds(region)
-                .filterDate(start, end)
-                .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 40))
-                .limit(5)
-            )
-            def _mask(img: ee.Image) -> ee.Image:
-                scl = img.select("SCL")
-                good = scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
-                return img.select(["B4", "B3", "B2", "B8"]).updateMask(good)
+        col_all = (
+            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            .filterBounds(region)
+            .filterDate("2023-01-01", "2026-11-01")
+            .sort("CLOUDY_PIXEL_PERCENTAGE")
+        )
 
-            return col.map(_mask).median()
+        def _mask(img: ee.Image) -> ee.Image:
+            scl = img.select("SCL")
+            good = scl.neq(3).And(scl.neq(8)).And(scl.neq(9))
+            return img.select(["B4", "B3", "B2", "B8"]).updateMask(good)
 
-        raw_a = _s2_window("2024-11-01", "2025-04-30")
-        raw_b = _s2_window("2025-05-01", "2025-11-30")
-        win_a = raw_a.unmask(raw_b).unmask(800).rename(["B4_A", "B3_A", "B2_A", "B8_A"])
-        win_b = raw_b.unmask(raw_a).unmask(800).rename(["B4_B", "B3_B", "B2_B", "B8_B"])
+        raw_a = col_all.limit(5).map(_mask).median()
+        raw_b_col = col_all.filter(ee.Filter.calendarRange(6, 12, "month")).limit(5)
+        raw_b = ee.Image(ee.Algorithms.If(raw_b_col.size().gt(0), raw_b_col.map(_mask).median(), raw_a))
+
+        s2_bands = ["B4", "B3", "B2", "B8"]
+        win_a = ee.Image.cat([raw_a.select(b).unmask(raw_b.select(b)).unmask(800) for b in s2_bands]).rename(["B4_A", "B3_A", "B2_A", "B8_A"])
+        win_b = ee.Image.cat([raw_b.select(b).unmask(raw_a.select(b)).unmask(800) for b in s2_bands]).rename(["B4_B", "B3_B", "B2_B", "B8_B"])
 
         try:
             nat_prob = (
@@ -569,6 +583,8 @@ def extract_ftw_parcel_network_sync(geometry: dict[str, Any]) -> Optional[dict[s
         cache_key = f"ftw_v3:{round(seed_lng, 4)}:{round(seed_lat, 4)}:{round(half_m, -1)}"
         if cache_key in _FTW_MESH_CACHE:
             return _FTW_MESH_CACHE[cache_key]
+        if cv2 is None or slic is None or watershed is None:
+            return None
         tensor_raw, bbox = _fetch_bitemporal_s2_patch_sync(seed_lng, seed_lat, half_m, grid_size=112)
         if tensor_raw is None:
             return None
@@ -595,7 +611,7 @@ def _segment_ftw_parcel(
     """
     min_lng, min_lat, max_lng, max_lat = bbox
 
-    if tensor_8ch is not None and tensor_8ch.ndim == 3 and tensor_8ch.shape[0] >= 32:
+    if tensor_8ch is not None and tensor_8ch.ndim == 3 and tensor_8ch.shape[0] >= 32 and cv2 is not None and watershed is not None:
         h, w, _ = tensor_8ch.shape
         norm = np.clip(tensor_8ch[:, :, :8] / 4000.0, 0.0, 1.5)
 
@@ -680,17 +696,30 @@ def _segment_ftw_parcel(
                     poly = make_valid(Polygon(raw_pts))
                     if poly.geom_type == "MultiPolygon":
                         poly = max(poly.geoms, key=lambda g: g.area)
+                    elif poly.geom_type == "GeometryCollection":
+                        polys = [g for g in poly.geoms if g.geom_type == "Polygon"]
+                        if polys:
+                            poly = max(polys, key=lambda g: g.area)
                     # Sharp straight cadastral simplification (no blurry rounding)
                     tol = max(max_lng - min_lng, max_lat - min_lat) * 0.018
                     simp = poly.simplify(tol, preserve_topology=True)
-                    ring = [
-                        [round(float(x), 6), round(float(y), 6)]
-                        for x, y in simp.exterior.coords
-                    ]
-                    if ring[0] != ring[-1]:
-                        ring.append(ring[0])
-                    if len(ring) >= 4:
-                        return {"type": "Polygon", "coordinates": [ring]}, confidence
+                    if simp.geom_type == "MultiPolygon":
+                        simp = max(simp.geoms, key=lambda g: g.area)
+                    elif simp.geom_type == "GeometryCollection":
+                        polys = [g for g in simp.geoms if g.geom_type == "Polygon"]
+                        if polys:
+                            simp = max(polys, key=lambda g: g.area)
+                        else:
+                            simp = poly
+                    if hasattr(simp, "exterior") and simp.exterior is not None:
+                        ring = [
+                            [round(float(x), 6), round(float(y), 6)]
+                            for x, y in simp.exterior.coords
+                        ]
+                        if ring[0] != ring[-1]:
+                            ring.append(ring[0])
+                        if len(ring) >= 4:
+                            return {"type": "Polygon", "coordinates": [ring]}, confidence
 
     area_m2 = max(4.5, target_area_ha) * 10_000.0
     half_side_m = math.sqrt(area_m2) * 0.5

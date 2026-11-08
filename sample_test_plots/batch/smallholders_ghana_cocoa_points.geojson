@@ -1,0 +1,132 @@
+{
+  "type": "FeatureCollection",
+  "name": "Ghana Juaboso Cocoa Smallholders Batch",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "GH-COCOA-01",
+      "properties": {
+        "id": "GH-COCOA-01",
+        "name": "Kofi Mensah Smallholder Plot",
+        "farmer": "Kofi Mensah",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 1.8,
+        "notes": "Smallholder shaded cocoa parcel, Juaboso"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.7812,
+          6.2145
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GH-COCOA-02",
+      "properties": {
+        "id": "GH-COCOA-02",
+        "name": "Abena Osei Organic Farm",
+        "farmer": "Abena Osei",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 2.2,
+        "notes": "Certified organic cocoa smallholder, Sefwi-Wiawso"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.7745,
+          6.223
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GH-COCOA-03",
+      "properties": {
+        "id": "GH-COCOA-03",
+        "name": "Kwame Boateng Sourcing Plot",
+        "farmer": "Kwame Boateng",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 1.5,
+        "notes": "Family-run agroforestry cocoa plot"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.789,
+          6.2088
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GH-COCOA-04",
+      "properties": {
+        "id": "GH-COCOA-04",
+        "name": "Akua Sarpong Shade Cocoa",
+        "farmer": "Akua Sarpong",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 2.8,
+        "notes": "Canopy shade native trees cocoa parcel"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.768,
+          6.231
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GH-COCOA-05",
+      "properties": {
+        "id": "GH-COCOA-05",
+        "name": "Yaw Asante Cooperative Member",
+        "farmer": "Yaw Asante",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 1.9,
+        "notes": "Kuapa Kokoo cooperative supplier"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.795,
+          6.219
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GH-COCOA-06",
+      "properties": {
+        "id": "GH-COCOA-06",
+        "name": "Efua Appiah Forest Margin Parcel",
+        "farmer": "Efua Appiah",
+        "commodity": "cocoa",
+        "country_code": "GH",
+        "country_name": "Ghana",
+        "area_ha": 2.4,
+        "notes": "Monitored smallholder border parcel"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.762,
+          6.205
+        ]
+      }
+    }
+  ]
+}

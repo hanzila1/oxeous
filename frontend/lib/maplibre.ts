@@ -162,6 +162,20 @@ export function extractBboxFromGeometry(
     ];
   }
 
+  // Handle FeatureCollection
+  if (g.type === "FeatureCollection" && Array.isArray(g.features)) {
+    const bboxes = g.features
+      .map((f: any) => extractBboxFromGeometry(f))
+      .filter((b: any): b is [number, number, number, number] => Array.isArray(b) && b.length === 4);
+    if (bboxes.length === 0) return null;
+    return [
+      Math.min(...bboxes.map((b) => b[0])),
+      Math.min(...bboxes.map((b) => b[1])),
+      Math.max(...bboxes.map((b) => b[2])),
+      Math.max(...bboxes.map((b) => b[3])),
+    ];
+  }
+
   // Handle Feature
   if (g.type === "Feature" && g.geometry) {
     return extractBboxFromGeometry(g.geometry);

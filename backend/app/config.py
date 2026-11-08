@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     max_aoi_deg2: float = 4.0
     cache_ttl_seconds: int = 3600
     log_level: str = "INFO"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,https://happy-mushroom-060bb441e.6.azurestaticapps.net"
 
     # WDPA / Protected Planet
     wdpa_api_key: str = ""

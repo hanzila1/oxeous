@@ -1,0 +1,9 @@
+Plot_ID,Farmer_Name,Latitude,Longitude,Commodity,Declared_Area_Ha,Country_Code,Region
+CI-SML-101,Amadou Coulibaly,5.8012,-6.6245,cocoa,1.8,CI,Bas-Sassandra (Soubre)
+CI-SML-102,Fatou Traore,5.7845,-6.6090,cocoa,2.1,CI,Bas-Sassandra (Soubre)
+CI-SML-103,Ibrahim Kone,5.8150,-6.6380,rubber,3.4,CI,Nawa Region
+GH-SML-201,Emmanuel Antwi,6.2145,-2.7812,cocoa,1.7,GH,Western North (Juaboso)
+GH-SML-202,Grace Mensah,6.2280,-2.7690,cocoa,2.0,GH,Western North (Sefwi)
+ID-SML-301,Budi Santoso,0.3120,102.1450,palm_oil,2.5,ID,Riau Province (Siak)
+ID-SML-302,Siti Rahayu,0.2980,102.1620,rubber,2.0,ID,Riau Province (Pelalawan)
+CO-SML-401,Carlos Rodriguez,5.0680,-75.5170,coffee,1.6,CO,Caldas (Chinchina)

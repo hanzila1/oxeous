@@ -1,7 +1,30 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useId } from "react";
-import { Send, Bot, User, Loader2, AlertCircle, X, FileJson2, ChevronRight, ArrowRight, FileText, Coffee, Trees, CircleDot, Palmtree, Leaf } from "lucide-react";
+import {
+  SendHorizontal,
+  Send,
+  Bot,
+  User,
+  Loader2,
+  AlertCircle,
+  X,
+  FileJson2,
+  ChevronRight,
+  ArrowRight,
+  FileText,
+  Coffee,
+  Trees,
+  CircleDot,
+  Palmtree,
+  Leaf,
+  Play,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import OxeousOrbitIcon from "@/components/ui/OxeousOrbitIcon";
 import { api } from "@/lib/api";
@@ -29,17 +52,112 @@ const COMMODITY_ICON: Record<string, typeof Coffee> = {
   soya: Leaf,
 };
 
+const PROMPTS_TO_TYPE = [
+  "How does the 2020 deforestation cutoff apply?",
+  "Can single GPS points be accepted under Art. 9?",
+  "How to segregate clean hectares with plot carve-out?",
+  "Why is cyclical crop replanting exempt under Art. 2?",
+  "How does 10m PWRI consensus beat legacy 30m alerts?",
+];
+
+function useTypewriter(prompts: string[], typingSpeed = 38, pauseTime = 2200, deletingSpeed = 18) {
+  const [index, setIndex] = useState(0);
+  const [subIndex, setSubIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (isPaused) {
+      const timeout = setTimeout(() => {
+        setIsPaused(false);
+        setIsDeleting(true);
+      }, pauseTime);
+      return () => clearTimeout(timeout);
+    }
+
+    if (isDeleting) {
+      if (subIndex === 0) {
+        setIsDeleting(false);
+        setIndex((prev) => (prev + 1) % prompts.length);
+        return;
+      }
+      const timeout = setTimeout(() => {
+        setSubIndex((prev) => prev - 1);
+      }, deletingSpeed);
+      return () => clearTimeout(timeout);
+    }
+
+    // Typing
+    if (subIndex === prompts[index].length) {
+      setIsPaused(true);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setSubIndex((prev) => prev + 1);
+    }, typingSpeed);
+    return () => clearTimeout(timeout);
+  }, [subIndex, index, isDeleting, isPaused, prompts, typingSpeed, pauseTime, deletingSpeed]);
+
+  return {
+    typedText: prompts[index].substring(0, subIndex),
+    fullPrompt: prompts[index],
+  };
+}
+
+const AGENT_BUSY_KEYWORDS = [
+  "Orbiting...",
+  "Searching...",
+  "Scanning 10m...",
+  "Triangulating...",
+  "Synthesizing...",
+  "Verifying...",
+  "Cross-checking...",
+  "Grounding...",
+];
 
 export default function ConversationPanel({ onClose }: { onClose?: () => void }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [busyKeywordIdx, setBusyKeywordIdx] = useState(0);
+  const { typedText, fullPrompt } = useTypewriter(PROMPTS_TO_TYPE);
   const [panelTab, setPanelTab] = useState<"agent" | "law">("agent");
   const [expandedMsgIds, setExpandedMsgIds] = useState<Record<string, boolean>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const uid = useId();
-  const { messages, addMessage, updateMessage, conversationHistory, appendHistory, viewport, addLayer, setActiveGeoJSON, addDDSHistory, isScanning, setIsScanning, setActiveDossier, setEudrPanelOpen, setEudrPanelExpanded } = useStore();
+  const {
+    messages,
+    addMessage,
+    updateMessage,
+    conversationHistory,
+    appendHistory,
+    viewport,
+    addLayer,
+    setActiveGeoJSON,
+    addDDSHistory,
+    isScanning,
+    setIsScanning,
+    setActiveDossier,
+    setEudrPanelOpen,
+    setEudrPanelExpanded,
+    chatPanelExpanded,
+    setChatPanelExpanded,
+    setCustomRightPanelWidth,
+    ddsHistory,
+    activeAnalyticsResult,
+    batchPlots,
+    activeBatchPlotIndex,
+  } = useStore();
   const isBusy = sending || isScanning || messages.some((m) => m.isLoading);
+
+  // Active assessment currently in scope (selected batch plot, recent DDS, or active analytics)
+  const activeAssessment =
+    activeAnalyticsResult ||
+    (activeBatchPlotIndex !== null && activeBatchPlotIndex >= 0 ? batchPlots[activeBatchPlotIndex]?.auditResult : null) ||
+    ddsHistory[0] ||
+    messages.slice().reverse().find((m) => m.eudrResult)?.eudrResult ||
+    null;
 
   const buildAgentLogs = useCallback(
     (prompt: string, response?: AnalysisResponse | null): AgentLogEntry[] => {
@@ -62,6 +180,17 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
     },
     [viewport.bbox]
   );
+
+  useEffect(() => {
+    if (!isBusy) {
+      setBusyKeywordIdx(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setBusyKeywordIdx((prev) => (prev + 1) % AGENT_BUSY_KEYWORDS.length);
+    }, 1300);
+    return () => clearInterval(timer);
+  }, [isBusy]);
 
   useEffect(() => {
     const ta = textareaRef.current; if (!ta) return;
@@ -147,7 +276,28 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
         };
       }
 
-      const res = await api.chat({ prompt, conversation_history: conversationHistory, map_viewport: effectiveViewport });
+      const storeState = useStore.getState();
+      const effectiveHistory =
+        storeState.conversationHistory && storeState.conversationHistory.length > 0
+          ? storeState.conversationHistory
+          : conversationHistory;
+
+      const effectiveAssessment =
+        storeState.activeAnalyticsResult ||
+        (storeState.activeBatchPlotIndex !== null && storeState.activeBatchPlotIndex >= 0
+          ? storeState.batchPlots[storeState.activeBatchPlotIndex]?.auditResult
+          : null) ||
+        storeState.ddsHistory[0] ||
+        storeState.messages.slice().reverse().find((m) => m.eudrResult)?.eudrResult ||
+        activeAssessment ||
+        null;
+
+      const res = await api.chat({
+        prompt,
+        conversation_history: effectiveHistory,
+        map_viewport: effectiveViewport,
+        active_assessment: effectiveAssessment as Record<string, unknown> | null,
+      });
       if (stageTimer) clearTimeout(stageTimer);
       updateMessage(botId, { content: res.explanation, isLoading: false, analysisResult: res });
       appendHistory({ role: "assistant", content: res.explanation });
@@ -167,7 +317,7 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
     } finally {
       setSending(false);
     }
-  }, [sending, uid, addMessage, updateMessage, appendHistory, conversationHistory, viewport, addLayer, buildAgentLogs]);
+  }, [sending, uid, addMessage, updateMessage, appendHistory, conversationHistory, viewport, addLayer, buildAgentLogs, activeAssessment]);
 
   const handleInspectInEUDR = useCallback((eudrResult: EUDRAnalysisResponse) => {
     setEudrPanelOpen(true);
@@ -342,15 +492,19 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
                 }, 450);
 
                 if (data.map_layers && data.map_layers.length > 0) {
+                  const hasPwri = data.map_layers.some(
+                    (l) => l.id.includes("pwri") || l.id.includes("intersection") || (l as any).layer_type === "intersection"
+                  );
                   data.map_layers.forEach((lyr) => {
                     const gj = (lyr as { geojson_data?: object | null }).geojson_data ?? undefined;
+                    const isPwri = lyr.id.includes("pwri") || lyr.id.includes("intersection") || (lyr as any).layer_type === "intersection";
                     addLayer({
                       id: lyr.id,
                       label: lyr.label,
                       type: gj ? "geojson" : "raster",
                       tileUrl: lyr.tile_url || undefined,
                       geojsonData: gj,
-                      visible: lyr.visible,
+                      visible: hasPwri ? isPwri : Boolean(lyr.visible),
                       opacity: lyr.opacity,
                       legend: lyr.legend as ActiveLayer["legend"] | undefined,
                       analysisType: (lyr as { layer_type?: string }).layer_type || "land_disturbance",
@@ -386,7 +540,21 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
 
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(input); setInput(""); }
+    if (e.key === "Tab" && !input.trim() && fullPrompt) {
+      e.preventDefault();
+      setInput(fullPrompt);
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (input.trim() && !sending && !isBusy) {
+        submit(input);
+        setInput("");
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+        }
+      }
+    }
   }
 
   return (
@@ -404,16 +572,18 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
                 Oxeous Earth Agent
               </h2>
               <span className={cn(
-                "flex items-center gap-1.5 text-[9.5px] font-mono font-semibold px-2 py-0.5 rounded-full border transition-colors",
+                "flex items-center gap-1.5 text-[9.5px] font-mono font-semibold px-2 py-0.5 rounded-full border transition-all duration-300 min-w-[74px] justify-center",
                 isBusy
-                  ? "bg-[#315F50]/10 text-[#315F50] border-[#315F50]/30"
+                  ? "bg-[#315F50]/10 text-[#315F50] border-[#315F50]/30 shadow-2xs"
                   : "bg-[#F4F5F6] text-[#343B42] border-[#C8CFD5]"
               )}>
                 <span className={cn(
-                  "w-1.5 h-1.5 rounded-full",
+                  "w-1.5 h-1.5 rounded-full flex-shrink-0",
                   isBusy ? "bg-[#315F50] animate-ping" : "bg-[#315F50]"
                 )} />
-                {isBusy ? "Auditing..." : "Ready"}
+                <span className="truncate">
+                  {isBusy ? AGENT_BUSY_KEYWORDS[busyKeywordIdx] : "Ready"}
+                </span>
               </span>
             </div>
 
@@ -447,6 +617,29 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
               EUR-Lex
             </button>
           </div>
+
+          {/* Width Expansion Arrow Toggle (Icon Only) */}
+          <button
+            type="button"
+            onClick={() => {
+              setCustomRightPanelWidth(null);
+              setChatPanelExpanded((prev) => !prev);
+            }}
+            className={cn(
+              "p-1.5 rounded-lg transition-all cursor-pointer border flex items-center justify-center",
+              chatPanelExpanded
+                ? "bg-[#315F50]/10 text-[#315F50] border-[#315F50]/30 hover:bg-[#315F50]/20"
+                : "bg-white text-[#5B6773] border-[#C8CFD5] hover:text-[#1D2227] hover:border-[#9AA5AF] shadow-2xs"
+            )}
+            title={chatPanelExpanded ? "Collapse panel width (480px)" : "Expand panel width (700px)"}
+            aria-label={chatPanelExpanded ? "Collapse panel" : "Expand panel"}
+          >
+            {chatPanelExpanded ? (
+              <ChevronsRight className="w-3.5 h-3.5 text-[#315F50]" />
+            ) : (
+              <ChevronsLeft className="w-3.5 h-3.5 text-[#5B6773]" />
+            )}
+          </button>
 
           {onClose && (
             <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
@@ -587,21 +780,137 @@ export default function ConversationPanel({ onClose }: { onClose?: () => void })
       </div>
 
       {/* Input */}
-      <footer className="flex-shrink-0 border-t border-[#C8CFD5] p-3 bg-[#F4F5F6]">
-        <div className="flex items-end gap-2 bg-white border border-[#C8CFD5] rounded-xl focus-within:border-[#7A8791] transition-all px-2.5 py-2">
-          <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
-            placeholder="Ask about EUDR compliance, Article 3(a) cutoff, carve-outs, or audit a plot…"
-            rows={1} className="flex-1 bg-transparent text-[12px] text-[#1D2227] placeholder:text-[#AAB3BB] resize-none outline-none leading-relaxed"
-          />
-          <button onClick={() => { if (input.trim()) { submit(input); setInput(""); } }} disabled={!input.trim() || sending}
-            className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all flex-shrink-0",
-              input.trim() && !sending ? "bg-[#315F50] text-white hover:bg-[#274d40]" : "bg-[#E3E7EA] text-[#AAB3BB] cursor-not-allowed"
-            )}
-          >
-            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-          </button>
-        </div>
+      <footer className="flex-shrink-0 border-t border-[#C8CFD5] p-3 bg-[#F4F5F6] space-y-2">
+        {/* Active Plot Situational Awareness Pill & Quick Inquiries */}
+        {activeAssessment && (
+          <div className="flex flex-col gap-1.5 animate-fade-in">
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-white border border-[#C8CFD5] rounded-lg text-[11px] shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full flex-shrink-0",
+                    activeAssessment.risk_assessment?.overall_risk === "compliant" ? "bg-[#315F50]" : "bg-[#A64B45]"
+                  )}
+                />
+                <span className="font-semibold text-[#1D2227] text-[11.5px] truncate max-w-[140px]" title={activeAssessment.plot?.name || "Active Parcel"}>
+                  {activeAssessment.plot?.name || "Active Parcel"}
+                </span>
+                <span className="text-[#747F88] text-[10px] font-mono whitespace-nowrap flex-shrink-0">
+                  ({(activeAssessment.plot?.commodity || "cocoa").toUpperCase()} • {Number(activeAssessment.plot?.area_ha ?? 3.6).toFixed(1)} ha • {activeAssessment.plot?.country_name || "GH"})
+                </span>
+              </div>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold uppercase tracking-wider flex-shrink-0",
+                  activeAssessment.risk_assessment?.overall_risk === "compliant"
+                    ? "bg-[#315F50]/10 text-[#315F50]"
+                    : "bg-[#A64B45]/10 text-[#A64B45]"
+                )}
+              >
+                {activeAssessment.risk_assessment?.overall_risk?.replace(/_/g, " ") || "COMPLIANT"} ({Number(activeAssessment.risk_assessment?.risk_score ?? 0).toFixed(0)}/100)
+              </span>
+            </div>
 
+            {/* Situational Follow-Up Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 px-0.5 no-scrollbar scroll-smooth">
+              {(activeAssessment.risk_assessment?.overall_risk === "compliant"
+                ? [
+                    `Why is this plot compliant under Art. 3(a)?`,
+                    `How does the 4 ha rule apply to this farm?`,
+                    `Compare analysis stats with EUDR rules`,
+                    `Check TRACES NT customs export status`,
+                  ]
+                : [
+                    `Why did this plot fail under Art. 3(a)?`,
+                    `How does May 2026 plot carve-out work here?`,
+                    `Compare analysis stats with EUDR rules`,
+                    `What documents prove sovereign legality?`,
+                  ]
+              ).map((chipText) => (
+                <button
+                  key={chipText}
+                  type="button"
+                  onClick={() => {
+                    setInput("");
+                    submit(chipText);
+                  }}
+                  disabled={sending || isBusy}
+                  className="px-2 py-1 rounded-md bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 text-[#343B42] hover:text-[#315F50] text-[10px] font-medium whitespace-nowrap transition-all cursor-pointer shadow-2xs flex-shrink-0"
+                >
+                  {chipText}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 bg-white border border-[#C8CFD5] hover:border-[#9AA5AF] focus-within:border-[#315F50] focus-within:ring-2 focus-within:ring-[#315F50]/15 rounded-2xl shadow-xs transition-all px-3 py-2">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                activeAssessment
+                  ? `Ask about ${activeAssessment.plot?.name || "this plot"}'s stats, Art. 3(a), or 4 ha rule…`
+                  : typedText
+                  ? `Ask: "${typedText}"`
+                  : "Ask any EUDR compliance or statutory question…"
+              }
+              rows={1}
+              className="flex-1 bg-transparent text-[12px] text-[#1D2227] placeholder:text-[#8E99A4] resize-none outline-none leading-relaxed min-h-[24px] max-h-28"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (input.trim() && !sending && !isBusy) {
+                  submit(input);
+                  setInput("");
+                  if (textareaRef.current) {
+                    textareaRef.current.style.height = "auto";
+                  }
+                }
+              }}
+              disabled={!input.trim() || sending || isBusy}
+              title={input.trim() ? "Send inquiry (Enter)" : "Enter a message to send"}
+              className={cn(
+                "w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 flex-shrink-0 group",
+                input.trim() && !sending && !isBusy
+                  ? "bg-[#315F50] text-white hover:bg-[#274d40] border border-[#274d40] shadow-xs active:scale-95 cursor-pointer"
+                  : "bg-[#F4F5F6] text-[#8E99A4] border border-[#D8DFE4] cursor-not-allowed opacity-80"
+              )}
+            >
+              {sending ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#315F50]" />
+              ) : (
+                <SendHorizontal
+                  className={cn(
+                    "w-4 h-4 transition-transform duration-150",
+                    input.trim() && !sending && !isBusy ? "group-hover:translate-x-0.5 text-white" : "text-[#8E99A4]"
+                  )}
+                />
+              )}
+            </button>
+          </div>
+          <div className="flex items-center justify-between text-[9px] font-mono text-[#8E99A4] px-1 select-none">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1 py-0.2 bg-[#F4F5F6] border border-[#D8DFE4] rounded text-[8.5px] font-semibold text-[#5B6773]">Enter ↵</kbd>
+              <span>to send</span>
+              <span className="text-[#C8CFD5]">·</span>
+              <kbd className="px-1 py-0.2 bg-[#F4F5F6] border border-[#D8DFE4] rounded text-[8.5px] font-semibold text-[#5B6773]">Tab ⇥</kbd>
+              <span>fill prompt</span>
+            </span>
+            <span className="text-[#315F50] font-semibold flex items-center gap-1.5 transition-all">
+              <span className={cn("w-1.5 h-1.5 rounded-full bg-[#315F50]", isBusy && "animate-ping")} />
+              <span>{isBusy ? AGENT_BUSY_KEYWORDS[busyKeywordIdx] : "EUDR Statutory RAG"}</span>
+            </span>
+          </div>
+        </div>
       </footer>
       </>
       )}
@@ -636,6 +945,42 @@ function summarizeEvidence(result: AnalysisResponse) {
   return facts.slice(0, 6);
 }
 
+const FEATURED_PLAYBOOKS = [
+  {
+    caseId: "06_Cote_dIvoire_Cocoa",
+    title: "Côte d'Ivoire Agroforestry",
+    commodity: "Cocoa",
+    badge: "Compliant · 5/100",
+    badgeStyle: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    chipStyle: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    icon: Trees,
+    scenario: "Art. 3(a) Canopy Baseline",
+    description: "Agroforestry parcel · 0% loss under Art. 3(a)",
+  },
+  {
+    caseId: "02_Ghana_Cocoa",
+    title: "Ghana Cocoa Cooperative",
+    commodity: "Cocoa",
+    badge: "Breach · 100/100",
+    badgeStyle: "bg-red-50 border-red-200 text-red-700",
+    chipStyle: "bg-red-50 text-red-800 border-red-200",
+    icon: AlertCircle,
+    scenario: "Art. 10 Carve-Out Protocol",
+    description: "Post-cutoff clearing · Art. 10 carve-out audit",
+  },
+  {
+    caseId: "03_Thailand_Rubber",
+    title: "Thailand River Bend",
+    commodity: "Rubber",
+    badge: "Exemption · 18/100",
+    badgeStyle: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    chipStyle: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    icon: CircleDot,
+    scenario: "Art. 2(5) Replanting Exemption",
+    description: "Cyclical agroforestry · Art. 2(5) exempt rotation",
+  },
+];
+
 function Welcome({
   disabled,
   onSelectBenchmark,
@@ -647,120 +992,176 @@ function Welcome({
   onSelectPrompt?: (prompt: string) => void;
   isSpinning?: boolean;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const benchmarkMap = new Map(BENCHMARK_CASES.map((c) => [c.id, c]));
+  const remainingCases = BENCHMARK_CASES.filter(
+    (c) => !FEATURED_PLAYBOOKS.some((f) => f.caseId === c.id)
+  );
+
   return (
-    <div className="py-2 space-y-4 animate-fade-in">
-      {/* Agent Identity / Mission */}
-      <div className="flex flex-col items-center justify-center text-center space-y-1.5 pt-1">
-        <div className="w-11 h-11 rounded-2xl bg-white border border-[#C8CFD5] flex items-center justify-center shadow-xs">
-          <OxeousOrbitIcon size={24} isSpinning={isSpinning} className={isSpinning ? "text-[#315F50]" : "text-[#1D2227]"} />
+    <div className="py-1 space-y-3 animate-fade-in">
+      {/* Top Header Badge */}
+      <div className="flex items-center justify-between px-1 pt-0.5">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.2)] text-[10px] font-mono font-bold text-[#315F50]">
+          <Sparkles className="w-3 h-3 text-[#315F50]" />
+          <span>EUDR STATUTORY INTELLIGENCE</span>
         </div>
-        <div>
-          <h3 className="text-[13px] font-bold text-[#1D2227] tracking-tight">EUDR Compliance & Spatial AI</h3>
-          <p className="text-[11px] text-[#747F88] mt-0.5 max-w-[310px] mx-auto leading-relaxed">
-            Select a sample plot to audit live, or ask any EU 2023/1115 question below.
-          </p>
-        </div>
+        <span className="text-[9.5px] font-mono text-[#747F88]">EU 2023/1115 AI Grounded</span>
       </div>
 
-      {/* Compact Benchmark Test Chips */}
-      <div className="space-y-2 pt-1">
+      {/* 3 Curated Interactive Playbooks */}
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between px-1">
           <span className="text-[9.5px] text-[#747F88] uppercase tracking-wider font-mono font-bold">
-            Quick-Audit Sample Plots
+            Practical 1-Click Audits
           </span>
-          <span className="text-[9px] text-[#AAB3BB] font-mono">
-            1-Click Live Run
+          <span className="text-[9px] text-[#315F50] font-mono font-semibold">
+            Interactive Playbooks
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5">
-          {BENCHMARK_CASES.map((c) => {
-            const Icon = COMMODITY_ICON[c.commodityKey] ?? Trees;
-            const isCompliant = c.verdict.startsWith("COMPLIANT");
+        <div className="space-y-1.5">
+          {FEATURED_PLAYBOOKS.map((item) => {
+            const targetCase = benchmarkMap.get(item.caseId) || BENCHMARK_CASES[0];
             return (
               <button
-                key={c.id}
+                key={item.caseId}
+                type="button"
                 disabled={disabled}
-                onClick={() => onSelectBenchmark(c)}
+                onClick={() => onSelectBenchmark(targetCase)}
                 className={cn(
-                  "flex items-center gap-2 p-2 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] transition-all text-left shadow-2xs hover:shadow-xs group cursor-pointer active:scale-[0.98]",
-                  disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#315F50]/5"
+                  "w-full text-left p-2.5 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 transition-all group shadow-2xs cursor-pointer active:scale-[0.99] flex items-center justify-between gap-2.5",
+                  disabled && "opacity-50 cursor-not-allowed"
                 )}
-                title={"Run full 6-agent EUDR assessment on " + c.label}
+                title={`Launch 1-click live spatial audit for ${item.title}`}
               >
-                <div
-                  className={cn(
-                    "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border transition-colors",
-                    isCompliant
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 group-hover:bg-emerald-100"
-                      : "bg-red-50 border-red-200 text-red-700 group-hover:bg-red-100"
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[11px] font-bold text-[#1D2227] group-hover:text-[#315F50] transition-colors truncate">
-                      {c.country}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-[8.5px] font-mono font-bold px-1 rounded border",
-                        isCompliant
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          : "bg-red-50 text-red-800 border-red-200"
-                      )}
-                    >
-                      {c.score}/100
-                    </span>
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border mt-0.5 transition-colors",
+                      item.badgeStyle
+                    )}
+                  >
+                    <item.icon className="w-3.5 h-3.5" />
                   </div>
-                  <p className="text-[9.5px] text-[#747F88] font-mono truncate capitalize">
-                    {c.commodity.replace(/_/g, " ")}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11.5px] font-bold text-[#1D2227] group-hover:text-[#315F50] transition-colors truncate">
+                        {item.title}
+                      </span>
+                      <span className={cn("text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded border", item.chipStyle)}>
+                        {item.badge}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[#747F88] leading-tight mt-0.5 truncate">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-[#315F50]/10 text-[#315F50] border border-[#315F50]/20 group-hover:bg-[#315F50] group-hover:text-white transition-all flex-shrink-0">
+                  <Play className="w-2.5 h-2.5 fill-current" />
+                  <span>Run</span>
                 </div>
               </button>
             );
           })}
         </div>
+
+        {/* Optional Expand for Other 3 Cases */}
+        <div className="pt-0.5">
+          <button
+            type="button"
+            onClick={() => setShowAll(!showAll)}
+            className="w-full py-1 text-center text-[10px] text-[#747F88] hover:text-[#315F50] font-mono flex items-center justify-center gap-1 transition-colors cursor-pointer select-none"
+          >
+            <span>{showAll ? "Hide extra benchmark plots" : `Or explore 3 more benchmark plots (${remainingCases.map(c => c.country).join(", ")})`}</span>
+            {showAll ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {showAll && (
+            <div className="grid grid-cols-3 gap-1.5 pt-1.5 animate-in fade-in duration-150">
+              {remainingCases.map((c) => {
+                const Icon = COMMODITY_ICON[c.commodityKey] ?? Trees;
+                const isCompliant = c.verdict.startsWith("COMPLIANT");
+                return (
+                  <button
+                    key={c.id}
+                    disabled={disabled}
+                    onClick={() => onSelectBenchmark(c)}
+                    className="p-1.5 rounded-lg bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 text-left transition-all group shadow-2xs cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <Icon className="w-3 h-3 text-[#747F88] group-hover:text-[#315F50]" />
+                      <span className={cn(
+                        "text-[8px] font-mono font-bold px-1 rounded border",
+                        isCompliant ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-red-50 text-red-800 border-red-200"
+                      )}>
+                        {c.score}/100
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-semibold text-[#1D2227] group-hover:text-[#315F50] truncate">
+                      {c.country}
+                    </p>
+                    <p className="text-[8.5px] text-[#747F88] font-mono truncate capitalize">
+                      {c.commodity}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Suggested Starter Prompts */}
-      <div className="space-y-1.5 pt-1">
+      {/* High-Impact Strategic Inquiries in Clean 2x2 Grid */}
+      <div className="space-y-1.5 pt-0.5">
         <div className="flex items-center justify-between px-1">
           <span className="text-[9.5px] text-[#747F88] uppercase tracking-wider font-mono font-bold">
-            High-Impact Strategic Inquiries
+            Popular Statutory Inquiries
           </span>
           <span className="text-[9px] text-[#AAB3BB] font-mono">
             1-Click Ask
           </span>
         </div>
-        <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-1.5">
           {[
             {
-              label: "How does Oxeous compare to legacy 30m satellite tools?",
-              prompt: "How does Oxeous compare to legacy 30m satellite tools in the market?",
+              short: "Art. 3(a) 2020 Cutoff",
+              desc: "How does 2020 baseline apply?",
+              prompt: "How does the EUDR Article 3(a) December 31, 2020 deforestation cutoff apply, and what satellite baseline is required?",
             },
             {
-              label: "How does the May 2026 plot carve-out work for my farm?",
-              prompt: "How does the May 2026 plot carve-out segregation protocol work for a farm with partial deforestation?",
+              short: "Art. 9(1)(d) <4ha Rules",
+              desc: "Single GPS point requirements",
+              prompt: "What are the EUDR Article 9(1)(d) geolocation rules for smallholder plots under 4 hectares, and how does Oxeous polygon snap help?",
             },
             {
-              label: "Which rubber and tyre HS codes are regulated under Annex I?",
-              prompt: "Which rubber and tyre HS codes (like 4001 and 4011) are regulated under EUDR Annex I, and what is the rule for synthetic rubber?",
+              short: "May 2026 Carve-Outs",
+              desc: "Segregating clean hectares",
+              prompt: "How does the May 2026 plot carve-out segregation protocol work for a farm with partial deforestation to avoid full rejection?",
             },
             {
-              label: "Why is cyclical crop replanting exempt under Article 2(5)?",
-              prompt: "Why is cyclical crop replanting exempt under EUDR Article 2(5), and how does Oxeous prevent false alarms?",
+              short: "Oxeous vs 30m Legacy",
+              desc: "Why 10m PWRI consensus wins",
+              prompt: "How does Oxeous true 10m pixel-wise raster intersection compare to legacy 30m satellite tools in the market?",
             },
           ].map((item) => (
             <button
-              key={item.label}
+              key={item.short}
+              type="button"
               disabled={disabled}
               onClick={() => onSelectPrompt?.(item.prompt)}
-              className="w-full text-left p-2 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 text-[11px] text-[#343B42] hover:text-[#1D2227] transition-all flex items-center justify-between group shadow-2xs cursor-pointer active:scale-[0.99]"
+              className="text-left p-2 rounded-xl bg-white border border-[#C8CFD5] hover:border-[#315F50] hover:bg-[#315F50]/5 transition-all group shadow-2xs cursor-pointer active:scale-[0.98] flex flex-col justify-between"
             >
-              <span className="truncate flex-1">{item.label}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#7A8791] group-hover:text-[#315F50] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1.5" />
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10.5px] font-bold text-[#1D2227] group-hover:text-[#315F50] transition-colors truncate">
+                  {item.short}
+                </span>
+                <ArrowRight className="w-3 h-3 text-[#7A8791] group-hover:text-[#315F50] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              </div>
+              <span className="text-[9.5px] text-[#747F88] leading-tight line-clamp-1 mt-0.5">
+                {item.desc}
+              </span>
             </button>
           ))}
         </div>

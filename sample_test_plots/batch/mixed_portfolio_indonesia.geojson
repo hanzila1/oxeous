@@ -1,0 +1,141 @@
+{
+  "type": "FeatureCollection",
+  "name": "Riau Province Agroforestry Batch",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "ID-ESTATE-POLY-01",
+      "properties": {
+        "id": "ID-ESTATE-POLY-01",
+        "name": "Siak Agro Plantation Block A (Polygon)",
+        "commodity": "palm_oil",
+        "country_code": "ID",
+        "country_name": "Indonesia",
+        "area_ha": 8.4
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              102.14,
+              0.31
+            ],
+            [
+              102.148,
+              0.31
+            ],
+            [
+              102.148,
+              0.302
+            ],
+            [
+              102.14,
+              0.302
+            ],
+            [
+              102.14,
+              0.31
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ID-ESTATE-POLY-02",
+      "properties": {
+        "id": "ID-ESTATE-POLY-02",
+        "name": "Pelalawan Rubber Estate (Polygon)",
+        "commodity": "rubber",
+        "country_code": "ID",
+        "country_name": "Indonesia",
+        "area_ha": 6.2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              102.155,
+              0.295
+            ],
+            [
+              102.162,
+              0.295
+            ],
+            [
+              102.162,
+              0.288
+            ],
+            [
+              102.155,
+              0.288
+            ],
+            [
+              102.155,
+              0.295
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ID-SML-PT-03",
+      "properties": {
+        "id": "ID-SML-PT-03",
+        "name": "Agus Wijaya Smallholder Palm Point",
+        "commodity": "palm_oil",
+        "country_code": "ID",
+        "country_name": "Indonesia",
+        "area_ha": 2.1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          102.135,
+          0.318
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ID-SML-PT-04",
+      "properties": {
+        "id": "ID-SML-PT-04",
+        "name": "Dewi Lestari Rubber Farm Point",
+        "commodity": "rubber",
+        "country_code": "ID",
+        "country_name": "Indonesia",
+        "area_ha": 1.7
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          102.17,
+          0.304
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ID-SML-PT-05",
+      "properties": {
+        "id": "ID-SML-PT-05",
+        "name": "Hendra Pratama Mixed Agroforestry Point",
+        "commodity": "palm_oil",
+        "country_code": "ID",
+        "country_name": "Indonesia",
+        "area_ha": 2.4
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          102.152,
+          0.325
+        ]
+      }
+    }
+  ]
+}

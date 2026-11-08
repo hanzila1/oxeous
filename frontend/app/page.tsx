@@ -17,11 +17,12 @@ import AnalyticsDeckModal from "@/components/eudr/AnalyticsDeckModal";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-/** Shared panel widths - upgraded default from 380px to 460px (and 640px expanded) so cards and charts have ample room to breathe */
+/** Shared panel widths - standardized left panels (EUDR & Timelapse) to 460px to eliminate distracting width jumps */
 const EUDR_PANEL_WIDTH_DEFAULT = 460;
 const EUDR_PANEL_WIDTH_EXPANDED = 640;
-const TIMELAPSE_PANEL_WIDTH = 420;
-const RIGHT_PANEL_WIDTH = 400;
+const TIMELAPSE_PANEL_WIDTH = EUDR_PANEL_WIDTH_DEFAULT;
+const RIGHT_PANEL_WIDTH_DEFAULT = 480; // comfortable standard width for chat & tables
+const RIGHT_PANEL_WIDTH_EXPANDED = 700; // wide mode with arrow toggle for deep reading
 
 function AppShell() {
   const {
@@ -30,6 +31,10 @@ function AppShell() {
     eudrPanelExpanded,
     rightPanel,
     setRightPanel,
+    chatPanelExpanded,
+    setChatPanelExpanded,
+    customRightPanelWidth,
+    setCustomRightPanelWidth,
     activeDossier,
     setActiveDossier,
     activeAnalyticsResult,
@@ -38,6 +43,30 @@ function AppShell() {
     timelapseFrames,
     setTimelapseIndex,
   } = useStore();
+
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
+  // Allow fluid interactive drag-resizing on the left edge of the right panel
+  useEffect(() => {
+    if (!isResizingRight) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      const clampedWidth = Math.max(420, Math.min(880, newWidth));
+      setCustomRightPanelWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingRight(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizingRight, setCustomRightPanelWidth]);
 
   // Keep Timelapse map animation advancing globally even when user switches left/right panels
   useEffect(() => {
@@ -68,25 +97,35 @@ function AppShell() {
   }, [rightPanel]);
   const shownRightPanel = rightPanel ?? lastRightPanel;
 
+  const activeRightWidth = customRightPanelWidth
+    ? customRightPanelWidth
+    : chatPanelExpanded
+    ? RIGHT_PANEL_WIDTH_EXPANDED
+    : RIGHT_PANEL_WIDTH_DEFAULT;
+
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#F4F5F6]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#F4F5F6] select-none">
 
       {/* -- 1. Navigation Rail - fixed left ------------------------ */}
-      <NavigationRail />
+      <div className="absolute top-0 bottom-0 left-0 w-[68px] z-40 bg-[#F4F5F6]">
+        <NavigationRail />
+      </div>
 
-      {/* -- 2. Left Panel (EUDR Suite OR Standalone Plot Timelapse) - slides in from left */}
+      {/* -- 2. Left Panel (EUDR Suite OR Standalone Plot Timelapse) - slides in from behind rail */}
       <div
-        className="flex-shrink-0 h-full overflow-hidden flex justify-end transition-[width] duration-300 ease-panel"
-        style={{ width: leftPanel ? activeLeftWidth : 0 }}
+        className={cn(
+          "absolute top-0 bottom-0 left-[68px] z-20 flex overflow-hidden",
+          "border-r border-[#C8CFD5] bg-[#F4F5F6] shadow-[8px_0_32px_rgba(29,34,39,0.08)]",
+          "transition-transform duration-300 ease-panel will-change-transform"
+        )}
+        style={{
+          width: activeLeftWidth,
+          transform: leftPanel ? "translateX(0)" : "translateX(-100%)",
+          pointerEvents: leftPanel ? "auto" : "none",
+        }}
         aria-hidden={!leftPanel}
       >
-        <div
-          className={cn(
-            "relative h-full flex-shrink-0 border-r border-[#C8CFD5] bg-[#F4F5F6] transition-all duration-300 ease-panel",
-            leftPanel ? "opacity-100" : "opacity-0 pointer-events-none"
-          )}
-          style={{ width: activeLeftWidth }}
-        >
+        <div className="relative w-full h-full">
           <div
             className={cn(
               "absolute inset-0 transition-opacity duration-200 ease-panel",
@@ -108,28 +147,64 @@ function AppShell() {
         </div>
       </div>
 
-      {/* -- 3. Map with Top Floating Bar -------------------------- */}
-      <div className="relative flex-1 min-w-0 h-full overflow-hidden">
-        <BrandLogoBadge />
-        <CloudTelemetryBadge />
-        <TopFloatingBar />
+      {/* -- 3. Map (Fixed Full-Bleed Viewport: Zero resize, zero canvas stretching, zero WebGL stutter) -- */}
+      <div className="absolute top-0 bottom-0 left-[68px] right-0 z-0 overflow-hidden bg-[#0c141c]">
         <MapCanvas />
+        <BrandLogoBadge
+          style={{
+            left: leftPanel ? `${activeLeftWidth + 14}px` : "14px",
+            transition: "left 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        />
+        <CloudTelemetryBadge
+          style={{
+            right: rightPanel ? `${activeRightWidth + 14}px` : "14px",
+            transition: isResizingRight ? "none" : "right 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        />
+        <TopFloatingBar
+          style={{
+            right: rightPanel ? `${activeRightWidth + 14}px` : "14px",
+            transition: isResizingRight ? "none" : "right 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        />
         <ProgressOverlay />
       </div>
 
-      {/* -- 4 & 5. Right panel (chat or layers) - slides in from right */}
+      {/* -- 4 & 5. Right panel (Agent Chat or Raster Layers) - slides in from right as hardware-accelerated overlay */}
       <div
-        className="flex-shrink-0 h-full overflow-hidden transition-[width] duration-300 ease-panel"
-        style={{ width: rightPanel ? RIGHT_PANEL_WIDTH : 0 }}
+        className={cn(
+          "absolute top-0 bottom-0 right-0 z-20 overflow-hidden",
+          "border-l border-[#C8CFD5] bg-[#F4F5F6] shadow-[-8px_0_32px_rgba(29,34,39,0.08)] will-change-transform"
+        )}
+        style={{
+          width: activeRightWidth,
+          transform: rightPanel ? "translateX(0)" : "translateX(100%)",
+          pointerEvents: rightPanel ? "auto" : "none",
+          transition: isResizingRight
+            ? "none"
+            : "transform 300ms cubic-bezier(0.16, 1, 0.3, 1), width 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
         aria-hidden={!rightPanel}
       >
-        <div
-          className={cn(
-            "relative h-full border-l border-[#C8CFD5] bg-[#F4F5F6] transition-opacity duration-300 ease-panel",
-            rightPanel ? "opacity-100" : "opacity-0 pointer-events-none"
+        <div className="relative w-full h-full">
+          {/* Interactive Drag-Resize Handle on Left Border */}
+          {rightPanel && (
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizingRight(true);
+              }}
+              onDoubleClick={() => {
+                setCustomRightPanelWidth(null);
+                setChatPanelExpanded((prev) => !prev);
+              }}
+              className="absolute top-0 bottom-0 left-0 w-2.5 -translate-x-1.5 cursor-ew-resize hover:bg-[#315F50]/20 z-30 group flex items-center justify-center select-none"
+              title="Drag to resize panel width · Double-click to toggle wide mode"
+            >
+              <div className="w-0.5 h-10 rounded-full bg-[#C8CFD5] group-hover:bg-[#315F50] transition-colors" />
+            </div>
           )}
-          style={{ width: RIGHT_PANEL_WIDTH }}
-        >
           {/* Both views stay mounted so switching crossfades and closing never flashes empty */}
           <div
             className={cn(

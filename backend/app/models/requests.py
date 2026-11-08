@@ -41,3 +41,4 @@ class ChatRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=1024)
     conversation_history: list[ConversationMessage] = Field(default_factory=list)
     map_viewport: MapViewport
+    active_assessment: Optional[dict[str, Any]] = None

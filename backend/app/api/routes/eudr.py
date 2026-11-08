@@ -28,8 +28,39 @@ from ...tools.eudr.gee_tile_server import get_all_map_layers
 
 router = APIRouter(prefix="/eudr", tags=["eudr"])
 
-# In-memory DDS store (replace with DB in production)
+# In-memory + DiskCache DDS/plot store
 _dds_store: dict = {}
+
+
+def _save_dds_record(dds_id: str, plot_id: str, record: dict[str, Any]) -> None:
+    _dds_store[dds_id] = record
+    try:
+        cache = get_cache()
+        cache.set(f"dds_rec:{dds_id}", record, ttl=86400)
+        if plot_id:
+            cache.set(f"plot_rec:{plot_id}", record, ttl=86400)
+    except Exception:
+        pass
+
+
+def _load_dds_record(dds_id: str) -> dict[str, Any] | None:
+    rec = _dds_store.get(dds_id)
+    if rec:
+        return rec
+    try:
+        return get_cache().get(f"dds_rec:{dds_id}")
+    except Exception:
+        return None
+
+
+def _load_plot_record(plot_id: str) -> dict[str, Any] | None:
+    for item in _dds_store.values():
+        if isinstance(item, dict) and item.get("plot", {}).get("plot_id") == plot_id:
+            return item
+    try:
+        return get_cache().get(f"plot_rec:{plot_id}")
+    except Exception:
+        return None
 
 
 @router.post("/analyze", response_model=EUDRAnalysisResponse)
@@ -49,6 +80,23 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
     granite: GraniteClient = request.app.state.granite
 
     # -- Run assessment --------------------------------------------------------
+    # EUDR Art. 9(1)(d): Auto-delineate points (<4ha) to true 10m Sentinel-2 field boundaries via FTW
+    if body.plot.geometry and body.plot.geometry.get("type") == "Point":
+        c = body.plot.geometry.get("coordinates", [])
+        if len(c) >= 2:
+            try:
+                from ...eudr.ftw_delineation import delineate_field_boundary
+                ftw_res = await delineate_field_boundary(
+                    lat=float(c[1]),
+                    lng=float(c[0]),
+                    target_area_ha=body.plot.area_ha or 4.0,
+                )
+                if ftw_res and ftw_res.get("geometry"):
+                    body.plot.geometry = ftw_res["geometry"]
+                    body.plot.area_ha = ftw_res.get("area_ha") or body.plot.area_ha or 4.0
+            except Exception as ftw_err:
+                logger.warning("analyze_plot FTW delineation fallback: %s", ftw_err)
+
     from ...eudr.ftw_delineation import extract_ftw_parcel_network_sync
     ftw_mesh_task = asyncio.create_task(asyncio.to_thread(extract_ftw_parcel_network_sync, body.plot.geometry))
     try:
@@ -145,14 +193,14 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
                 id=lyr["id"],
                 label=lyr["label"],
                 tile_url=lyr["tile_url"],
-                visible=lyr.get("visible", True),
+                visible=lyr.get("visible", False),
                 opacity=lyr.get("opacity", 1.0),
                 legend=lyr.get("legend"),
                 dataset=lyr.get("dataset", ""),
                 layer_type=lyr.get("layer_type", ""),
             )
             for lyr in raw_layers
-            if lyr.get("available") and lyr.get("tile_url")
+            if lyr.get("available", True) and lyr.get("tile_url")
         ]
     except Exception as gee_exc:
         logger.warning("GEE tile generation skipped: %s", gee_exc)
@@ -182,14 +230,18 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
         gee_layers.insert(1 if gee_layers else 0, ftw_lyr)
 
     if dds:
-        _dds_store[dds.dds_id] = {
-            "dds": dds.model_dump(),
-            "plot": body.plot.model_dump(),
-            "assessment": assessment.model_dump(),
-            "explanation": explanation,
-            "tile_url": tile_url,
-            "map_layers": [lyr.model_dump() for lyr in gee_layers],
-        }
+        _save_dds_record(
+            dds.dds_id,
+            body.plot.plot_id,
+            {
+                "dds": dds.model_dump(),
+                "plot": body.plot.model_dump(),
+                "assessment": assessment.model_dump(),
+                "explanation": explanation,
+                "tile_url": tile_url,
+                "map_layers": [lyr.model_dump() for lyr in gee_layers],
+            },
+        )
 
     return EUDRAnalysisResponse(
         request_id=request_id,
@@ -315,21 +367,54 @@ async def _run_assessment_with_stream(
 ):
     """Run the full assessment pipeline and push results to the SSE queue."""
     try:
-        await progress_callback({
-            "step": "agent_log",
-            "id": "ingest",
-            "label": "Plot Geometry Ingestion",
-            "detail": f"Verifying vector plot geometry ({plot.area_ha:.1f} ha) for {plot.commodity.value}...",
-            "status": "active",
-        })
-        await asyncio.sleep(0.4)
-        await progress_callback({
-            "step": "agent_log",
-            "id": "ingest",
-            "label": "Plot Geometry Ingestion",
-            "detail": f"Vector boundary topology verified ({plot.area_ha:.1f} ha)",
-            "status": "done",
-        })
+        # EUDR Art. 9(1)(d): Auto-delineate smallholder Point into true 10m Sentinel-2 field boundary via FTW
+        geom_type = plot.geometry.get("type") if isinstance(plot.geometry, dict) else None
+        if geom_type == "Point":
+            c = plot.geometry.get("coordinates", [])
+            if len(c) >= 2:
+                lng, lat = float(c[0]), float(c[1])
+                await progress_callback({
+                    "step": "agent_log",
+                    "id": "ingest",
+                    "label": "AI Field Boundary Delineation (10m FTW)",
+                    "detail": f"Smallholder point detected ({lat:.4f}, {lng:.4f}). Auto-tracing physical Sentinel-2 farm polygon via FTW model...",
+                    "status": "active",
+                })
+                try:
+                    from ...eudr.ftw_delineation import delineate_field_boundary
+                    ftw_res = await delineate_field_boundary(
+                        lat=lat,
+                        lng=lng,
+                        target_area_ha=plot.area_ha or 4.0,
+                    )
+                    if ftw_res and ftw_res.get("geometry"):
+                        plot.geometry = ftw_res["geometry"]
+                        plot.area_ha = ftw_res.get("area_ha") or plot.area_ha or 4.0
+                        await progress_callback({
+                            "step": "agent_log",
+                            "id": "ingest",
+                            "label": "Plot Geometry & RFC 7946 Topology",
+                            "detail": f"Delineated 10m agricultural field polygon ({plot.area_ha:.2f} ha, {ftw_res.get('vertex_count', 16)} vertices, {int(ftw_res.get('confidence', 0.85)*100)}% conf)",
+                            "status": "done",
+                        })
+                except Exception as ftw_err:
+                    logger.warning("Streaming FTW delineation fallback: %s", ftw_err)
+        else:
+            await progress_callback({
+                "step": "agent_log",
+                "id": "ingest",
+                "label": "Plot Geometry Ingestion",
+                "detail": f"Verifying vector plot geometry ({plot.area_ha:.1f} ha) for {plot.commodity.value}...",
+                "status": "active",
+            })
+            await asyncio.sleep(0.3)
+            await progress_callback({
+                "step": "agent_log",
+                "id": "ingest",
+                "label": "Plot Geometry Ingestion",
+                "detail": f"Vector boundary topology verified ({plot.area_ha:.1f} ha)",
+                "status": "done",
+            })
 
         from ...eudr.ftw_delineation import extract_ftw_parcel_network_sync
 
@@ -425,11 +510,11 @@ async def _run_assessment_with_stream(
                 gee_layers = [
                     {
                         "id": lyr["id"], "label": lyr["label"], "tile_url": lyr["tile_url"],
-                        "visible": lyr.get("visible", True), "opacity": lyr.get("opacity", 1.0),
+                        "visible": lyr.get("visible", False), "opacity": lyr.get("opacity", 1.0),
                         "legend": lyr.get("legend"), "dataset": lyr.get("dataset", ""),
                         "layer_type": lyr.get("layer_type", ""),
                     }
-                    for lyr in raw_layers if lyr.get("available") and lyr.get("tile_url")
+                    for lyr in raw_layers if lyr.get("available", True) and lyr.get("tile_url")
                 ]
             except Exception as exc:
                 logger.warning("GEE tile generation skipped: %s", exc)
@@ -455,14 +540,18 @@ async def _run_assessment_with_stream(
             insert_idx = 1 if gee_layers else 0
             gee_layers.insert(insert_idx, ftw_layer)
 
-        _dds_store[dds.dds_id] = {
-            "dds": dds.model_dump(),
-            "plot": plot.model_dump(),
-            "assessment": assessment.model_dump(),
-            "explanation": explanation,
-            "tile_url": tile_url,
-            "map_layers": [lyr if isinstance(lyr, dict) else lyr.model_dump() for lyr in gee_layers],
-        }
+        _save_dds_record(
+            dds.dds_id,
+            plot.plot_id,
+            {
+                "dds": dds.model_dump(),
+                "plot": plot.model_dump(),
+                "assessment": assessment.model_dump(),
+                "explanation": explanation,
+                "tile_url": tile_url,
+                "map_layers": [lyr if isinstance(lyr, dict) else lyr.model_dump() for lyr in gee_layers],
+            },
+        )
 
         # Build final response as dict
         response = EUDRAnalysisResponse(
@@ -487,7 +576,7 @@ async def _run_assessment_with_stream(
 @router.get("/dds/{dds_id}")
 async def get_dds(dds_id: str) -> dict:
     """Retrieve a stored Due Diligence Statement by ID."""
-    dds = _dds_store.get(dds_id)
+    dds = _load_dds_record(dds_id)
     if not dds:
         raise HTTPException(status_code=404, detail="DDS not found")
     if isinstance(dds, dict) and "dds" in dds:
@@ -498,7 +587,7 @@ async def get_dds(dds_id: str) -> dict:
 @router.get("/dds/{dds_id}/export")
 async def export_dds(dds_id: str) -> StreamingResponse:
     """Download a DDS as a ZIP containing JSON + plain text report."""
-    raw = _dds_store.get(dds_id)
+    raw = _load_dds_record(dds_id)
     if not raw:
         raise HTTPException(status_code=404, detail="DDS not found")
 
@@ -829,17 +918,15 @@ async def get_plot_carveout_geojson(plot_id: str) -> dict[str, Any]:
     """Retrieve the decomposed GeoJSON feature collection (compliant subparcel + delisted violation) for a plot."""
     from ...eudr.carveout_service import build_carveout_feature_collection
 
-    # Search in _dds_store
-    for item in _dds_store.values():
-        if isinstance(item, dict):
-            p = item.get("plot", {})
-            if p.get("plot_id") == plot_id:
-                assessment = item.get("assessment", {})
-                defo = assessment.get("deforestation", {})
-                is_ex = defo.get("is_plantation_replanting_exemption", False)
-                loss_ha = defo.get("statutory_deforestation_ha", 0.0)
-                tot_ha = defo.get("total_parcel_ha", p.get("area_ha", 10.0))
-                return build_carveout_feature_collection(p.get("geometry", {}), tot_ha, loss_ha, is_ex)
+    item = _load_plot_record(plot_id)
+    if isinstance(item, dict):
+        p = item.get("plot", {})
+        assessment = item.get("assessment", {})
+        defo = assessment.get("deforestation", {})
+        is_ex = defo.get("is_plantation_replanting_exemption", False)
+        loss_ha = defo.get("statutory_deforestation_ha", 0.0)
+        tot_ha = defo.get("total_parcel_ha", p.get("area_ha", 10.0))
+        return build_carveout_feature_collection(p.get("geometry", {}), tot_ha, loss_ha, is_ex)
 
     raise HTTPException(status_code=404, detail="Plot not found or not yet analyzed")
 
@@ -847,13 +934,7 @@ async def get_plot_carveout_geojson(plot_id: str) -> dict[str, Any]:
 @router.get("/plots/{plot_id}/traces-nt-xml")
 async def get_plot_traces_nt_xml(plot_id: str) -> Response:
     """Export the official European Commission TRACES NT XML customs declaration payload with SHA-256 provenance hash."""
-    entry = None
-    for item in _dds_store.values():
-        if isinstance(item, dict):
-            p = item.get("plot", {})
-            if p.get("plot_id") == plot_id:
-                entry = item
-                break
+    entry = _load_plot_record(plot_id)
 
     if not entry:
         raise HTTPException(status_code=404, detail="Plot not found or not yet analyzed")

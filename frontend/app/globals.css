@@ -28,8 +28,13 @@ html, body, #__next {
   border: 1px solid #C8CFD5 !important;
 }
 .maplibregl-ctrl-attrib a { color: #315F50 !important; }
-.maplibregl-ctrl-bottom-right,
-.maplibregl-ctrl-bottom-left { bottom: 10px !important; }
+
+.maplibregl-ctrl-bottom-right { bottom: 10px !important; }
+.maplibregl-ctrl-bottom-left {
+  bottom: 10px !important;
+  left: var(--map-ctrl-left, 10px) !important;
+  transition: left 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
 
 .maplibregl-ctrl-group {
   background: rgba(255,255,255,0.62) !important;

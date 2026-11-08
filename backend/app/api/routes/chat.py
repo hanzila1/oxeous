@@ -47,10 +47,11 @@ async def chat(body: ChatRequest, request: Request) -> AnalysisResponse:
     settings = get_settings()
     granite: GraniteClient = request.app.state.granite
 
-    logger.info("Chat request %s: %s", request_id, body.prompt[:80])
+    logger.info("Chat request %s: %s (has_assessment=%s)", request_id, body.prompt[:80], bool(body.active_assessment))
     # -- 0. Conversational, statutory, legal, or follow-up advisory inquiries --
     history = [m.model_dump() for m in body.conversation_history]
-    if is_conversational_or_advisory(body.prompt, history):
+    has_active_assessment = bool(body.active_assessment)
+    if is_conversational_or_advisory(body.prompt, history, has_active_assessment=has_active_assessment):
         logger.info("Routing %s to EUDR statutory advisory engine", request_id)
         return await resolve_statutory_advisory(
             prompt=body.prompt,
@@ -58,6 +59,7 @@ async def chat(body: ChatRequest, request: Request) -> AnalysisResponse:
             viewport=body.map_viewport.model_dump(),
             request_id=request_id,
             granite_client=granite,
+            active_assessment=body.active_assessment,
         )
 
     # -- 1. Granite intent extraction -----------------------------------------

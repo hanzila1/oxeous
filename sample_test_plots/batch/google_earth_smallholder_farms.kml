@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Oxeous Sample Smallholder Cooperatives</name>
+    <description>EUDR Due Diligence Batch Sample</description>
+    <Placemark>
+      <name>Finca El Mirador Coffee (Polygon)</name>
+      <description>commodity: coffee, area: 4.8 ha, country: CO</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -75.522,5.072,0
+              -75.516,5.072,0
+              -75.516,5.066,0
+              -75.522,5.066,0
+              -75.522,5.072,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mateo Vargas Smallholder Coffee Pin</name>
+      <description>commodity: coffee, area: 1.8 ha, country: CO</description>
+      <Point>
+        <coordinates>-75.5120,5.0780,0</coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>Lucia Gomez Organic Micro-Lot</name>
+      <description>commodity: coffee, area: 2.2 ha, country: CO</description>
+      <Point>
+        <coordinates>-75.5280,5.0610,0</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>

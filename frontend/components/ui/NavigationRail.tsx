@@ -44,7 +44,7 @@ export default function NavigationRail() {
 
   return (
     <nav
-      className="flex flex-col items-center flex-shrink-0 h-full glass border-r border-[#C8CFD5] z-20 shadow-[1px_0_4px_rgba(0,0,0,0.03)]"
+      className="flex flex-col items-center flex-shrink-0 h-full bg-[#F4F5F6] border-r border-[#C8CFD5] z-40 shadow-[1px_0_4px_rgba(0,0,0,0.03)]"
       style={{ width: 68 }}
     >
 

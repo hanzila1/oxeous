@@ -59,6 +59,7 @@ export interface ChatRequest {
   prompt: string;
   conversation_history: ConversationMessage[];
   map_viewport: MapViewport;
+  active_assessment?: Record<string, unknown> | null;
 }
 
 // ─── Analysis Response ────────────────────────────────────────────────────────
