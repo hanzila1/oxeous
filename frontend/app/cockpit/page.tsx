@@ -19,3 +19,4 @@ const CockpitApp = dynamic(() => import("@/components/cockpit/CockpitApp"), {
 export default function CockpitPage() {
   return <CockpitApp />;
 }
+

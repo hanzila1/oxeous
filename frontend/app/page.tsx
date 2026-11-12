@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import LandingNavbar from "@/components/landing/LandingNavbar";
 import HeroSection from "@/components/landing/HeroSection";
-import RadarSpectralComparator from "@/components/landing/RadarSpectralComparator";
-import SurgicalRemediationWidget from "@/components/landing/SurgicalRemediationWidget";
-import ArchitecturePipeline from "@/components/landing/ArchitecturePipeline";
-import RegulatoryCalculator from "@/components/landing/RegulatoryCalculator";
-import MissionManifesto from "@/components/landing/MissionManifesto";
+import RadarAdvantageSection from "@/components/landing/RadarAdvantageSection";
+import DossierShowcaseSection from "@/components/landing/DossierShowcaseSection";
+import ArchitectureSection from "@/components/landing/ArchitectureSection";
+import SmallholderMissionSection from "@/components/landing/SmallholderMissionSection";
+import InstitutionalPartnersSection from "@/components/landing/InstitutionalPartnersSection";
 import LandingFooter from "@/components/landing/LandingFooter";
 import EnterprisePilotModal from "@/components/landing/EnterprisePilotModal";
 
@@ -15,32 +15,32 @@ export default function LandingPage() {
   const [pilotModalOpen, setPilotModalOpen] = useState(false);
 
   return (
-    <main className="min-h-screen bg-[#060A10] text-[#1D2227] selection:bg-[#00F2FE]/30 selection:text-white">
-      {/* Sticky Glassmorphic Copernicus Navigation */}
+    <main className="min-h-screen bg-[#F4F5F6] text-[#1D2227] selection:bg-[rgba(49,95,80,0.18)] selection:text-[#1D2227]">
+      {/* Editorial Navigation */}
       <LandingNavbar onOpenPilotModal={() => setPilotModalOpen(true)} />
 
-      {/* Hero Section with Live Radar Console */}
+      {/* Hero Section with Real Cockpit Interface Frame */}
       <HeroSection onOpenPilotModal={() => setPilotModalOpen(true)} />
 
-      {/* Dual-Sensor Spectral Physics Comparator (Radar vs Optical) */}
-      <RadarSpectralComparator />
+      {/* Remote Sensing Physics: Radar vs Optical */}
+      <RadarAdvantageSection />
 
-      {/* Surgical Polygon Remediation Sandbox */}
-      <SurgicalRemediationWidget />
+      {/* Real Earth Observation Audit Dossier Portfolio */}
+      <DossierShowcaseSection />
 
-      {/* 4-Agent Pipeline Architecture */}
-      <ArchitecturePipeline />
+      {/* Cloud-Native 4-Node Pipeline Architecture */}
+      <ArchitectureSection />
 
-      {/* EUDR Article 25 Regulatory Fine & ROI Calculator */}
-      <RegulatoryCalculator onOpenPilotModal={() => setPilotModalOpen(true)} />
+      {/* Smallholder Inclusion & Human-Centered Mission */}
+      <SmallholderMissionSection />
 
-      {/* Mission & Smallholder Protection Manifesto */}
-      <MissionManifesto />
+      {/* Institutional Backing & Ecosystem Partners */}
+      <InstitutionalPartnersSection />
 
-      {/* Institutional Backing & Legal Footer */}
+      {/* Light Steel Editorial Footer */}
       <LandingFooter />
 
-      {/* Enterprise Pilot Request Modal */}
+      {/* Enterprise Pilot Modal */}
       <EnterprisePilotModal
         isOpen={pilotModalOpen}
         onClose={() => setPilotModalOpen(false)}
