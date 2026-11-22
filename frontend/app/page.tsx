@@ -1,50 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
-import LandingNavbar from "@/components/landing/LandingNavbar";
-import HeroSection from "@/components/landing/HeroSection";
-import RadarAdvantageSection from "@/components/landing/RadarAdvantageSection";
-import DossierShowcaseSection from "@/components/landing/DossierShowcaseSection";
-import ArchitectureSection from "@/components/landing/ArchitectureSection";
-import SmallholderMissionSection from "@/components/landing/SmallholderMissionSection";
-import InstitutionalPartnersSection from "@/components/landing/InstitutionalPartnersSection";
-import LandingFooter from "@/components/landing/LandingFooter";
-import EnterprisePilotModal from "@/components/landing/EnterprisePilotModal";
+import { useState } from "react";
+import SiteNav from "@/components/site/SiteNav";
+import Hero from "@/components/site/Hero";
+import RegulationSection from "@/components/site/RegulationSection";
+import ProductSection from "@/components/site/ProductSection";
+import SiteFooter from "@/components/site/SiteFooter";
+import PilotModal from "@/components/site/PilotModal";
+import CommandPalette from "@/components/site/CommandPalette";
 
-export default function LandingPage() {
-  const [pilotModalOpen, setPilotModalOpen] = useState(false);
+export default function HomePage() {
+  const [pilotOpen, setPilotOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
 
   return (
-    <main className="min-h-screen bg-[#F4F5F6] text-[#1D2227] selection:bg-[rgba(49,95,80,0.18)] selection:text-[#1D2227]">
-      {/* Editorial Navigation */}
-      <LandingNavbar onOpenPilotModal={() => setPilotModalOpen(true)} />
+    <div className="site-root min-h-screen bg-paper text-ink selection:bg-canopy/20 selection:text-ink">
+      {/* Raycast / Linear Floating Glass Pill Navigation with ⌘K Trigger */}
+      <SiteNav
+        onPilot={() => setPilotOpen(true)}
+        onCommand={() => setCmdOpen(true)}
+      />
 
-      {/* Hero Section with Real Cockpit Interface Frame */}
-      <HeroSection onOpenPilotModal={() => setPilotModalOpen(true)} />
+      {/* Full-Bleed Poster Hero (matches docs/oxeous-hero-banner.png) */}
+      <Hero onPilot={() => setPilotOpen(true)} />
 
-      {/* Remote Sensing Physics: Radar vs Optical */}
-      <RadarAdvantageSection />
+      {/* EUDR Regulation & 7 Key Commodities Wheel (matches docs/EUDR Regulation.png) */}
+      <RegulationSection />
 
-      {/* Real Earth Observation Audit Dossier Portfolio */}
-      <DossierShowcaseSection />
+      {/* Precision Bento Grid, Mapbox-Style Spatial Stage & Impact Calculator */}
+      <ProductSection onPilot={() => setPilotOpen(true)} />
 
-      {/* Cloud-Native 4-Node Pipeline Architecture */}
-      <ArchitectureSection />
+      {/* Co-Branded Footer (Oxeous | Imagine Cup By Microsoft for Startups) */}
+      <SiteFooter onPilot={() => setPilotOpen(true)} />
 
-      {/* Smallholder Inclusion & Human-Centered Mission */}
-      <SmallholderMissionSection />
-
-      {/* Institutional Backing & Ecosystem Partners */}
-      <InstitutionalPartnersSection />
-
-      {/* Light Steel Editorial Footer */}
-      <LandingFooter />
+      {/* Raycast / Linear ⌘K Command Palette */}
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        onPilot={() => setPilotOpen(true)}
+      />
 
       {/* Enterprise Pilot Modal */}
-      <EnterprisePilotModal
-        isOpen={pilotModalOpen}
-        onClose={() => setPilotModalOpen(false)}
-      />
-    </main>
+      <PilotModal open={pilotOpen} onClose={() => setPilotOpen(false)} />
+    </div>
   );
 }

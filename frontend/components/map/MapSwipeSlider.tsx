@@ -10,7 +10,7 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react";
-import { useStore, resolveCompareLayerIds, type ActiveLayer } from "@/lib/store";
+import { useStore, resolveCompareLayerIds, type ActiveLayer, type LeftPanelType, type RightPanelType } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 function getLayerDisplayInfo(
@@ -44,7 +44,7 @@ function getLayerDisplayInfo(
     return {
       title: "Sentinel-2 Plot Timelapse",
       shortTitle: "S2 Timelapse",
-      subtitle: "Annual 10m Multi-Temporal S2 Series (2020–2025)",
+      subtitle: "Annual 10m Multi-Temporal S2 Series (2020–2026)",
       color: "#315F50",
       badge: "10m VIDEO",
     };
@@ -164,7 +164,7 @@ export default function MapSwipeSlider() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [savedPanels, setSavedPanels] = useState<{ left: "eudr" | "timelapse" | null; right: "chat" | "layers" | null } | null>(null);
+  const [savedPanels, setSavedPanels] = useState<{ left: LeftPanelType; right: RightPanelType } | null>(null);
   const [isBarCollapsed, setIsBarCollapsed] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);

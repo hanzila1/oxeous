@@ -131,13 +131,13 @@ export function parseGeoJSONContent(json: any, filename: string): ParsedPlot[] {
     features = json.map((item, idx) =>
       item.type === "Feature" ? item : { type: "Feature", geometry: item, properties: { id: `item_${idx + 1}` } }
     );
-  } else if (json.type && ["Polygon", "MultiPolygon", "Point"].includes(json.type)) {
+  } else if (json.type && ["Polygon", "MultiPolygon", "Point", "MultiPoint"].includes(json.type)) {
     features = [{ type: "Feature", geometry: json, properties: {} }];
   }
 
   features.forEach((feat, idx) => {
     const geom = feat.geometry || feat;
-    if (!geom || !["Polygon", "MultiPolygon", "Point"].includes(geom.type)) return;
+    if (!geom || !["Polygon", "MultiPolygon", "Point", "MultiPoint"].includes(geom.type)) return;
 
     const props = feat.properties || {};
     const id = String(props.id || props.plot_id || feat.id || `plot_${idx + 1}`);
@@ -146,6 +146,32 @@ export function parseGeoJSONContent(json: any, filename: string): ParsedPlot[] {
     const countryCode = String(props.country_code || props.country || "");
     const countryName = String(props.country_name || "");
     const areaHa = typeof props.area_ha === "number" ? props.area_ha : undefined;
+
+    if (geom.type === "MultiPoint" && Array.isArray(geom.coordinates)) {
+      const perPointArea =
+        areaHa && geom.coordinates.length > 0 ? Number((areaHa / geom.coordinates.length).toFixed(2)) : undefined;
+      geom.coordinates.forEach((coord: any, ptIdx: number) => {
+        if (!Array.isArray(coord) || coord.length < 2) return;
+        const lng = Number(coord[0]);
+        const lat = Number(coord[1]);
+        if (Number.isNaN(lng) || Number.isNaN(lat)) return;
+        const ptGeom = { type: "Point", coordinates: [lng, lat] };
+        plots.push({
+          id: `${id}_pt_${ptIdx + 1}`,
+          name: `${name} · Pt ${ptIdx + 1}`,
+          commodity,
+          countryCode,
+          countryName,
+          areaHa: perPointArea,
+          geometry: ptGeom,
+          originalGeometry: JSON.parse(JSON.stringify(ptGeom)),
+          isPoint: true,
+          pointCoords: [lng, lat],
+          sourceFile: filename,
+        });
+      });
+      return;
+    }
 
     const isPoint = geom.type === "Point";
     const pointCoords = isPoint && Array.isArray(geom.coordinates) ? [geom.coordinates[0], geom.coordinates[1]] as [number, number] : undefined;

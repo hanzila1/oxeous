@@ -39,7 +39,7 @@ export default function AgentTelemetryStepper({ logs }: Props) {
   );
 
   return (
-    <div className="w-full max-w-full rounded-2xl border border-[#C8CFD5] bg-white p-3.5 shadow-sm space-y-2.5 animate-fade-in overflow-hidden select-none">
+    <div className="w-full max-w-full rounded-2xl border border-[#C8CFD5] bg-white p-3.5 shadow-sm space-y-2.5 overflow-hidden select-none">
       {/* Unified Header with Spinning Orbit Icon & Stage Counter */}
       <div className="space-y-2 border-b border-[#E3E7EA] pb-2.5">
         <div className="flex items-center justify-between gap-2">
@@ -58,7 +58,7 @@ export default function AgentTelemetryStepper({ logs }: Props) {
           </div>
 
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#315F50]/10 border border-[#315F50]/25 text-[#315F50] font-mono text-[9px] font-bold flex-shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#315F50] animate-ping" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#315F50]" />
             <span>
               STAGE {currentStageNum}/{displayLogs.length}
             </span>
@@ -68,13 +68,13 @@ export default function AgentTelemetryStepper({ logs }: Props) {
         {/* Continuous Pipeline Progress Bar */}
         <div className="h-1 w-full bg-[#E3E7EA] rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#315F50] rounded-full transition-all duration-500 ease-out"
+            className="h-full bg-[#315F50] rounded-full transition-[width] duration-300 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
 
-      {/* Connected 6-Node Stepper with Vertical Dotted Lines */}
+      {/* Connected 6-Node Stepper with Fixed Row Heights (Zero Vertical Jitter) */}
       <div className="space-y-0 relative w-full pt-0.5">
         {displayLogs.map((stage, idx) => {
           const isDone = stage.status === "done";
@@ -85,60 +85,53 @@ export default function AgentTelemetryStepper({ logs }: Props) {
           return (
             <div
               key={stage.id}
-              className="relative flex items-stretch gap-2.5 w-full transition-all duration-300"
+              className="relative flex items-stretch gap-2.5 w-full"
             >
               {/* Left Column: Node Dot & Vertical Dotted Connector Line */}
-              <div className="relative flex flex-col items-center flex-shrink-0 w-4 pt-1">
-                {/* Node Dot */}
+              <div className="relative flex flex-col items-center flex-shrink-0 w-4 pt-1.5">
                 <div
                   className={cn(
-                    "w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 z-10 flex-shrink-0",
+                    "w-4 h-4 rounded-full flex items-center justify-center transition-colors duration-200 z-10 flex-shrink-0",
                     isDone
-                      ? "bg-[#315F50] text-white shadow-2xs"
+                      ? "bg-[#315F50] text-white"
                       : isActive
-                      ? "bg-[#315F50] ring-4 ring-[#315F50]/20 text-white scale-105"
+                      ? "bg-[#315F50] ring-2 ring-[#315F50]/25 text-white"
                       : "border border-[#C8CFD5] bg-[#F4F5F6]"
                   )}
                 >
                   {isDone ? (
                     <Check className="w-2.5 h-2.5 stroke-[2.5]" />
                   ) : isActive ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" />
                   ) : (
                     <span className="w-1.5 h-1.5 rounded-full bg-[#C8CFD5]" />
                   )}
                 </div>
 
-                {/* Vertical Dotted Connector Line to Next Dot */}
                 {!isLast && (
                   <div
                     className={cn(
-                      "relative w-0 flex-1 my-0.5 min-h-[14px] border-r-2 border-dotted overflow-visible transition-colors duration-300",
+                      "relative w-0 flex-1 my-0.5 min-h-[14px] border-r-2 border-dotted transition-colors duration-200",
                       isDone
                         ? "border-[#315F50]/65"
                         : isActive
                         ? "border-[#315F50]/45"
                         : "border-[#C8CFD5]"
                     )}
-                  >
-                    {/* Animated Traveling Signal Pulse Dot */}
-                    {(isDone || isActive) && (
-                      <span className="absolute -left-[3px] w-1.5 h-1.5 rounded-full bg-[#315F50] shadow-2xs pointer-events-none animate-pulse-travel" />
-                    )}
-                  </div>
+                  />
                 )}
               </div>
 
-              {/* Right Column: Stage Row */}
+              {/* Right Column: Fixed-Height Stage Row (Zero Up/Down Shift) */}
               <div
                 className={cn(
-                  "flex-1 min-w-0 rounded-lg px-2 py-1 mb-1 transition-all duration-300",
+                  "flex-1 min-w-0 rounded-lg px-2 py-1 mb-1 transition-colors duration-200 border",
                   isActive
-                    ? "bg-[#F2F7F5] border border-[#315F50]/25 shadow-2xs"
-                    : "border border-transparent"
+                    ? "bg-[#F2F7F5] border-[#315F50]/25"
+                    : "bg-transparent border-transparent"
                 )}
               >
-                <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center justify-between gap-1.5 h-4">
                   <span
                     className={cn(
                       "text-[10.5px] truncate transition-colors",
@@ -153,7 +146,7 @@ export default function AgentTelemetryStepper({ logs }: Props) {
                   </span>
 
                   {isActive ? (
-                    <span className="px-1.5 py-0.2 rounded text-[7.5px] font-mono font-bold bg-[#315F50] text-white animate-pulse flex-shrink-0">
+                    <span className="px-1.5 py-0.5 leading-none rounded text-[7.5px] font-mono font-bold bg-[#315F50] text-white flex-shrink-0">
                       ACTIVE
                     </span>
                   ) : isDone ? (
@@ -167,19 +160,19 @@ export default function AgentTelemetryStepper({ logs }: Props) {
                   )}
                 </div>
 
-                {/* Detail Message: Shown for Active and Done stages; hidden for Pending to keep compact */}
-                {!isPending && stage.detail && (
-                  <p
-                    className={cn(
-                      "text-[9.5px] leading-snug break-words transition-all duration-200 mt-0.5 font-mono",
-                      isActive
-                        ? "text-[#315F50] font-medium animate-fade-in"
-                        : "text-[#64748B]"
-                    )}
-                  >
-                    {stage.detail}
-                  </p>
-                )}
+                {/* Always render a single truncated line so height never jumps when status changes */}
+                <p
+                  className={cn(
+                    "text-[9.5px] leading-[14px] h-[14px] truncate mt-0.5 font-mono transition-colors duration-200",
+                    isActive
+                      ? "text-[#315F50] font-medium"
+                      : isDone
+                      ? "text-[#64748B]"
+                      : "text-[#B6C0C8]"
+                  )}
+                >
+                  {stage.detail || (isPending ? "Queued" : "")}
+                </p>
               </div>
             </div>
           );

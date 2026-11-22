@@ -4,12 +4,25 @@ import type {
   ConversationMessage,
   MapViewport,
   EUDRAnalysisResponse,
+  EUDRCommodity,
 } from "@oxeous/shared-types";
 import type { BatchPlotItem } from "./plotParser";
+import { extractBboxFromGeometry } from "./maplibre";
 
-export type SidePanelType = "eudr" | "chat" | "layers" | "timelapse" | "audit" | null;
+export type SidePanelType = "eudr" | "chat" | "layers" | "timelapse" | "suppliers" | "audit" | null;
 export type LeftPanelType = "eudr" | "timelapse" | null;
 export type EudrAuditTabType = "charts" | "overview" | "pwri" | "layers" | "legality";
+
+export interface PendingSupplierAudit {
+  geometry: object;
+  commodity: EUDRCommodity;
+  countryCode: string;
+  countryName: string;
+  areaHa?: number;
+  supplierName?: string;
+  supplierToken?: string;
+  ts: number;
+}
 
 export interface TimelapseFrameItem {
   year: number;
@@ -36,6 +49,13 @@ export interface ActiveLayer {
   legend?: AnalysisResponse["legend"];
   analysisType: string;
   layer_type?: string;
+  /** Analysis / location grouping so multiple audits never collide in LayerSidebar */
+  groupId?: string;
+  groupLabel?: string;
+  groupCountry?: string;
+  groupCommodity?: string;
+  groupBbox?: [number, number, number, number];
+  groupGeometry?: object;
 }
 
 export interface AgentLogEntry {
@@ -56,7 +76,7 @@ interface ChatMessage {
   error?: string;
 }
 
-export type RightPanelType = "chat" | "layers" | null;
+export type RightPanelType = "chat" | "layers" | "suppliers" | null;
 export type BasemapMode = "satellite" | "light";
 
 interface OxeousState {
@@ -105,6 +125,7 @@ interface OxeousState {
   // Map Raster Layers
   layers: ActiveLayer[];
   addLayer: (layer: ActiveLayer) => void;
+  addAuditLayers: (res: EUDRAnalysisResponse, fallbackLabel?: string) => void;
   removeLayer: (id: string) => void;
   updateLayer: (id: string, patch: Partial<ActiveLayer>) => void;
   reorderLayers: (newLayers: ActiveLayer[]) => void;
@@ -117,9 +138,16 @@ interface OxeousState {
   conversationHistory: ConversationMessage[];
   appendHistory: (msg: ConversationMessage) => void;
 
-  // EUDR DDS Audit History
+  // EUDR DDS Audit History & Active Persisted Result
+  activeEudrResult: EUDRAnalysisResponse | null;
+  setActiveEudrResult: (res: EUDRAnalysisResponse | null) => void;
   ddsHistory: EUDRAnalysisResponse[];
   addDDSHistory: (res: EUDRAnalysisResponse) => void;
+  reopenAudit: (res: EUDRAnalysisResponse) => void;
+  clearMessages: () => void;
+  hydrateWorkspace: (userKey?: string) => void;
+  persistWorkspace: (userKey?: string) => void;
+  workspaceHydrated: boolean;
 
   // Additional UI State
   compareMode: boolean;
@@ -165,6 +193,14 @@ interface OxeousState {
   batchAuditing: boolean;
   setBatchAuditing: (v: boolean) => void;
   clearBatchPlots: () => void;
+
+  // Supplier Magic-Link One-Click Audit Trigger
+  pendingSupplierAudit: PendingSupplierAudit | null;
+  setPendingSupplierAudit: (req: PendingSupplierAudit | null) => void;
+
+  // Interactive First-Time Onboarding Walkthrough
+  tourOpen: boolean;
+  setTourOpen: (open: boolean) => void;
 }
 
 export function resolveCompareLayerIds(
@@ -278,7 +314,7 @@ export const useStore = create<OxeousState>((set) => ({
           activePanel: nextLeft,
         };
       }
-      if (panel === "chat" || panel === "layers") {
+      if (panel === "chat" || panel === "layers" || panel === "suppliers") {
         const nextRight = s.rightPanel === panel ? null : panel;
         return { rightPanel: nextRight, activePanel: nextRight };
       }
@@ -286,9 +322,9 @@ export const useStore = create<OxeousState>((set) => ({
     }),
 
   viewport: {
-    center: [-55.5, -12.5],
-    zoom: 5.5,
-    bbox: [-60, -15, -50, -10],
+    center: [12, 14],
+    zoom: 1.65,
+    bbox: [-110, -45, 140, 62],
   },
   setViewport: (v) =>
     set((s) => ({ viewport: { ...s.viewport, ...v } })),
@@ -313,6 +349,74 @@ export const useStore = create<OxeousState>((set) => ({
         layer,
       ],
     })),
+  addAuditLayers: (res, fallbackLabel) =>
+    set((s) => {
+      const groupId = res.dds?.dds_id || res.request_id || res.plot?.plot_id || `audit-${Date.now()}`;
+      const comm = (res.plot?.commodity || "eudr").replace(/_/g, " ");
+      const commTitle = comm.charAt(0).toUpperCase() + comm.slice(1);
+      const loc = res.plot?.country_name || res.plot?.country_code || "";
+      const groupLabel = fallbackLabel || res.plot?.name || (loc ? `${commTitle} · ${loc}` : `${commTitle} Audit`);
+      const groupGeometry = res.plot?.geometry ?? undefined;
+      const groupBbox = groupGeometry ? extractBboxFromGeometry(groupGeometry) ?? undefined : undefined;
+
+      const built: ActiveLayer[] = [];
+      const hasWdpaOverlap = Boolean(res.risk_assessment?.legality?.overlaps_protected_area);
+      if (res.map_layers && res.map_layers.length > 0) {
+        const hasPwri = res.map_layers.some(
+          (l) => l.id.includes("pwri") || l.id.includes("intersection") || (l as { layer_type?: string }).layer_type === "intersection"
+        );
+        res.map_layers.forEach((lyr) => {
+          const gj = (lyr as { geojson_data?: object | null }).geojson_data ?? undefined;
+          const idLower = lyr.id.toLowerCase();
+          const lType = ((lyr as { layer_type?: string }).layer_type || "").toLowerCase();
+          const isPwri = idLower.includes("pwri") || idLower.includes("intersection") || lType === "intersection";
+          const isWdpa = idLower.includes("protected") || idLower.includes("wdpa") || lType === "protected_areas";
+          built.push({
+            id: `${groupId}::${lyr.id}`,
+            label: lyr.label,
+            type: gj ? "geojson" : "raster",
+            tileUrl: lyr.tile_url || undefined,
+            geojsonData: gj,
+            // Auto-enable PWRI + auto-enable WDPA whenever the plot intersects a protected reserve
+            visible: hasPwri ? (isPwri || (hasWdpaOverlap && isWdpa)) : Boolean(lyr.visible),
+            opacity: lyr.opacity ?? 0.95,
+            legend: lyr.legend as ActiveLayer["legend"] | undefined,
+            analysisType: (lyr as { layer_type?: string }).layer_type || "land_disturbance",
+            layer_type: (lyr as { layer_type?: string }).layer_type,
+            groupId,
+            groupLabel,
+            groupCountry: loc,
+            groupCommodity: res.plot?.commodity,
+            groupBbox,
+            groupGeometry,
+          });
+        });
+      } else if (res.tile_url) {
+        built.push({
+          id: `${groupId}::pwri`,
+          label: `PWRI 3D Map Algebra (${commTitle})`,
+          type: "raster",
+          tileUrl: res.tile_url,
+          visible: true,
+          opacity: 1.0,
+          legend: { title: "PWRI 3D Algebra", colormap: "RdYlGn", min: 0, max: 1, units: "" },
+          analysisType: "land_disturbance",
+          layer_type: "intersection",
+          groupId,
+          groupLabel,
+          groupCountry: loc,
+          groupCommodity: res.plot?.commodity,
+          groupBbox,
+          groupGeometry,
+        });
+      }
+
+      if (built.length === 0) return s;
+
+      // Place newest analysis group at top of the stack while keeping previous locations intact
+      const remaining = s.layers.filter((l) => l.groupId !== groupId && !built.some((b) => b.id === l.id));
+      return { layers: [...built, ...remaining] };
+    }),
   removeLayer: (id) =>
     set((s) => ({ layers: s.layers.filter((l) => l.id !== id) })),
   updateLayer: (id, patch) =>
@@ -341,10 +445,101 @@ export const useStore = create<OxeousState>((set) => ({
     set((s) => ({ conversationHistory: [...s.conversationHistory, msg] })),
 
   ddsHistory: [],
+  activeEudrResult: null,
+  workspaceHydrated: false,
+  setActiveEudrResult: (res) => set({ activeEudrResult: res }),
   addDDSHistory: (res) =>
     set((s) => ({
-      ddsHistory: [res, ...s.ddsHistory.filter((item) => item.dds?.dds_id !== res.dds?.dds_id)],
+      ddsHistory: [
+        res,
+        ...s.ddsHistory.filter(
+          (item) =>
+            (item.dds?.dds_id && item.dds.dds_id !== res.dds?.dds_id) ||
+            (!item.dds?.dds_id && item.request_id !== res.request_id)
+        ),
+      ].slice(0, 15),
     })),
+  reopenAudit: (res) => {
+    useStore.getState().addAuditLayers(res);
+    set((s) => ({
+      activeEudrResult: res,
+      leftPanel: "eudr",
+      eudrPanelOpen: true,
+      activeGeoJSON: res.plot?.geometry ?? s.activeGeoJSON,
+    }));
+  },
+  clearMessages: () => set({ messages: [], conversationHistory: [] }),
+  hydrateWorkspace: (userKey) => {
+    if (typeof window === "undefined") return;
+    const key = `oxeous_workspace_v1_${(userKey || "guest").toLowerCase().replace(/[^a-z0-9@._-]/g, "_")}`;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        set({ workspaceHydrated: true });
+        return;
+      }
+      const saved = JSON.parse(raw);
+      set((s) => ({
+        activeEudrResult: saved.activeEudrResult ?? null,
+        ddsHistory: Array.isArray(saved.ddsHistory) ? saved.ddsHistory : [],
+        activeGeoJSON: saved.activeGeoJSON ?? null,
+        layers: Array.isArray(saved.layers) ? saved.layers : [],
+        messages: Array.isArray(saved.messages)
+          ? saved.messages.filter((m: ChatMessage) => !m.isLoading)
+          : [],
+        conversationHistory: Array.isArray(saved.conversationHistory) ? saved.conversationHistory : [],
+        leftPanel: saved.leftPanel ?? (saved.activeEudrResult ? "eudr" : s.leftPanel),
+        eudrPanelOpen: (saved.leftPanel ?? (saved.activeEudrResult ? "eudr" : s.leftPanel)) === "eudr",
+        rightPanel: saved.rightPanel !== undefined ? saved.rightPanel : s.rightPanel,
+        eudrAuditTab: saved.eudrAuditTab ?? s.eudrAuditTab,
+        viewport: saved.activeGeoJSON && saved.viewport ? saved.viewport : s.viewport,
+        workspaceHydrated: true,
+      }));
+    } catch {
+      set({ workspaceHydrated: true });
+    }
+  },
+  persistWorkspace: (userKey) => {
+    if (typeof window === "undefined") return;
+    const s = useStore.getState();
+    if (!s.workspaceHydrated) return;
+    const key = `oxeous_workspace_v1_${(userKey || "guest").toLowerCase().replace(/[^a-z0-9@._-]/g, "_")}`;
+    const cleanMessages = s.messages.filter((m) => !m.isLoading).slice(-35);
+    const payload = {
+      activeEudrResult: s.activeEudrResult,
+      ddsHistory: s.ddsHistory.slice(0, 12),
+      activeGeoJSON: s.activeGeoJSON,
+      layers: s.layers,
+      messages: cleanMessages,
+      conversationHistory: s.conversationHistory.slice(-35),
+      leftPanel: s.leftPanel,
+      rightPanel: s.rightPanel,
+      eudrAuditTab: s.eudrAuditTab,
+      viewport: s.viewport,
+    };
+    try {
+      window.localStorage.setItem(key, JSON.stringify(payload));
+    } catch {
+      // Fallback lean payload if large GeoJSON pushes past localStorage quota
+      try {
+        const lean = {
+          activeEudrResult: s.activeEudrResult,
+          ddsHistory: s.ddsHistory.slice(0, 5),
+          activeGeoJSON: s.activeGeoJSON,
+          layers: s.layers.map((l) => (l.type === "geojson" ? { ...l, geojsonData: undefined } : l)),
+          messages: cleanMessages.slice(-12).map((m) => ({ ...m, eudrResult: undefined })),
+          conversationHistory: s.conversationHistory.slice(-15),
+          leftPanel: s.leftPanel,
+          rightPanel: s.rightPanel,
+          eudrAuditTab: s.eudrAuditTab,
+          viewport: s.viewport,
+        };
+        window.localStorage.setItem(key, JSON.stringify(lean));
+      } catch {
+        // Ignore storage errors in private browsing mode
+      }
+    }
+  },
 
   compareMode: false,
   setCompareMode: (v) => set({ compareMode: v }),
@@ -370,4 +565,10 @@ export const useStore = create<OxeousState>((set) => ({
   batchAuditing: false,
   setBatchAuditing: (v) => set({ batchAuditing: v }),
   clearBatchPlots: () => set({ batchPlots: [], activeBatchPlotIndex: null, batchAuditing: false }),
+
+  pendingSupplierAudit: null,
+  setPendingSupplierAudit: (req) => set({ pendingSupplierAudit: req }),
+
+  tourOpen: false,
+  setTourOpen: (open) => set({ tourOpen: open }),
 }));

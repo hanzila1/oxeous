@@ -21,7 +21,7 @@ export default function TimelapseSidebar({ onClose }: { onClose?: () => void }) 
           <h2 className="text-[13px] font-bold text-[#1D2227] flex items-center gap-2">
             <span>Plot Timelapse</span>
             <span className="text-[9.5px] font-mono font-bold text-[#315F50] bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.2)] px-2 py-0.5 rounded-chip">
-              2020–2025
+              2020–2026
             </span>
           </h2>
         </div>

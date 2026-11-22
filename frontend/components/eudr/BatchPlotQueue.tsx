@@ -43,6 +43,7 @@ export default function BatchPlotQueue({ onSelectPlot, onAuditFinished }: Props)
     clearBatchPlots,
     setActiveGeoJSON,
     addLayer,
+    addAuditLayers,
     addDDSHistory,
     setActiveAnalyticsResult,
     addMessage,
@@ -570,26 +571,7 @@ export default function BatchPlotQueue({ onSelectPlot, onAuditFinished }: Props)
           });
           appendHistory({ role: "assistant", content: finalResult.explanation });
 
-          if (finalResult.map_layers && finalResult.map_layers.length > 0) {
-            const hasPwri = finalResult.map_layers.some(
-              (l) => l.id.includes("pwri") || l.id.includes("intersection") || (l as any).layer_type === "intersection"
-            );
-            finalResult.map_layers.forEach((lyr) => {
-              const gj = (lyr as { geojson_data?: object | null }).geojson_data ?? undefined;
-              const isPwri = lyr.id.includes("pwri") || lyr.id.includes("intersection") || (lyr as any).layer_type === "intersection";
-              addLayer({
-                id: lyr.id,
-                label: lyr.label,
-                type: gj ? "geojson" : "raster",
-                tileUrl: lyr.tile_url || undefined,
-                geojsonData: gj ?? undefined,
-                visible: hasPwri ? isPwri : false,
-                opacity: 0.9,
-                legend: lyr.legend as unknown as import("@oxeous/shared-types").AnalysisResponse["legend"],
-                analysisType: isPwri ? "deforestation" : "land_disturbance",
-              });
-            });
-          }
+          addAuditLayers(finalResult, plot.name);
 
           return true;
         } else {

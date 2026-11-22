@@ -25,8 +25,32 @@ from ...core.granite_client import GraniteClient
 from ...utils.tracing import new_request_id
 from ...cache.store import get_cache
 from ...tools.eudr.gee_tile_server import get_all_map_layers
+from .tiles import get_public_base_url, register_gee_tile_spec
 
 router = APIRouter(prefix="/eudr", tags=["eudr"])
+
+
+def _proxify_layer_url(
+    layer_id: str,
+    layer_type: str,
+    tile_url: str,
+    geometry: dict[str, Any] | None,
+    bbox: tuple[float, float, float, float] | None,
+    commodity: str,
+    public_base: str,
+) -> str:
+    """Wrap ephemeral GEE XYZ URLs in our auto-healing Oxeous tile proxy."""
+    if not tile_url or "{z}" not in tile_url or "earthengine.googleapis.com" not in tile_url:
+        return tile_url
+    key = layer_type or layer_id
+    return register_gee_tile_spec(
+        layer_key=key,
+        upstream_url=tile_url,
+        geometry=geometry,
+        bbox=bbox,
+        commodity=commodity,
+        public_base_url=public_base,
+    )
 
 # In-memory + DiskCache DDS/plot store
 _dds_store: dict = {}
@@ -187,12 +211,21 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
             return (min(lngs), min(lats), max(lngs), max(lats))
 
         bbox = _geom_to_bbox(geom)
+        public_base = get_public_base_url(request)
         raw_layers = get_all_map_layers(body.plot.commodity.value, bbox=bbox, geometry=geom)
         gee_layers = [
             GEEMapLayer(
                 id=lyr["id"],
                 label=lyr["label"],
-                tile_url=lyr["tile_url"],
+                tile_url=_proxify_layer_url(
+                    lyr["id"],
+                    lyr.get("layer_type", ""),
+                    lyr["tile_url"],
+                    geom,
+                    bbox,
+                    body.plot.commodity.value,
+                    public_base,
+                ),
                 visible=lyr.get("visible", False),
                 opacity=lyr.get("opacity", 1.0),
                 legend=lyr.get("legend"),
@@ -206,7 +239,19 @@ async def analyze_plot(body: EUDRAnalysisRequest, request: Request) -> EUDRAnaly
         logger.warning("GEE tile generation skipped: %s", gee_exc)
 
     if not gee_layers and gee_summary and gee_summary.get("tile_urls"):
+        public_base = get_public_base_url(request)
         fallback_raw = _build_fallback_map_layers(gee_summary.get("tile_urls", {}), body.plot.commodity.value)
+        for lyr in fallback_raw:
+            if lyr.get("tile_url"):
+                lyr["tile_url"] = _proxify_layer_url(
+                    lyr["id"],
+                    lyr.get("layer_type", ""),
+                    lyr["tile_url"],
+                    body.plot.geometry,
+                    None,
+                    body.plot.commodity.value,
+                    public_base,
+                )
         gee_layers = [GEEMapLayer(**lyr) for lyr in fallback_raw]
 
     if ftw_geojson and ftw_geojson.get("features"):
@@ -325,10 +370,12 @@ async def stream_analyze_plot(body: EUDRPlotUploadRequest, request: Request):
         await queue.put(data)
         await asyncio.sleep(0.12)
 
+    public_base = get_public_base_url(request)
+
     async def event_generator():
         # Start assessment in background task
         task = asyncio.create_task(_run_assessment_with_stream(
-            plot, request_id, granite, body, queue, progress_callback
+            plot, request_id, granite, body, queue, progress_callback, public_base
         ))
 
         # Stream progress events as SSE
@@ -364,6 +411,7 @@ async def _run_assessment_with_stream(
     body: EUDRPlotUploadRequest,
     queue: asyncio.Queue,
     progress_callback,
+    public_base: str = "",
 ):
     """Run the full assessment pipeline and push results to the SSE queue."""
     try:
@@ -496,17 +544,18 @@ async def _run_assessment_with_stream(
 
         assessment.summary = explanation
 
-        # GEE map layers
+        # GEE map layers (wrapped in auto-healing Oxeous tile proxy so GEE tokens never 401!)
         gee_layers = []
+        from ...eudr.analysis_engine import _geometry_to_bbox as gtb
+        stream_bbox = gtb(plot.geometry)
+
         # Generate GEE tile layers directly from pre-computed tile_urls (instant, no redundant GEE calls)
         if gee_summary and gee_summary.get("tile_urls"):
             gee_layers = _build_fallback_map_layers(gee_summary["tile_urls"], plot.commodity.value)
 
         if not gee_layers:
             try:
-                from ...eudr.analysis_engine import _geometry_to_bbox as gtb
-                bbox = gtb(plot.geometry)
-                raw_layers = get_all_map_layers(plot.commodity.value, bbox=bbox, geometry=plot.geometry)
+                raw_layers = get_all_map_layers(plot.commodity.value, bbox=stream_bbox, geometry=plot.geometry)
                 gee_layers = [
                     {
                         "id": lyr["id"], "label": lyr["label"], "tile_url": lyr["tile_url"],
@@ -518,6 +567,19 @@ async def _run_assessment_with_stream(
                 ]
             except Exception as exc:
                 logger.warning("GEE tile generation skipped: %s", exc)
+
+        if public_base:
+            for lyr in gee_layers:
+                if isinstance(lyr, dict) and lyr.get("tile_url"):
+                    lyr["tile_url"] = _proxify_layer_url(
+                        str(lyr.get("id", "")),
+                        str(lyr.get("layer_type", "")),
+                        str(lyr["tile_url"]),
+                        plot.geometry,
+                        stream_bbox,
+                        plot.commodity.value,
+                        public_base,
+                    )
 
         if ftw_geojson and ftw_geojson.get("features"):
             ftw_layer = {
@@ -986,6 +1048,243 @@ async def get_plot_traces_nt_xml(plot_id: str) -> Response:
         media_type="application/xml",
         headers={"Content-Disposition": f'attachment; filename="TRACES_NT_{plot_id}.xml"'},
     )
+
+
+@router.post("/verify-claim")
+async def verify_supplier_claim_against_satellite(request: Request) -> dict[str, Any]:
+    """
+    Supplier Claim vs. Satellite Ground Truth Contradiction Engine (EUDR Art. 3a / 3b / 16).
+    Parses a supplier's written/PDF declaration and cross-checks every assertion
+    directly against Oxeous's multi-sensor satellite ground truth and FAO biophysical
+    yield ceilings—exposing deceptive declarations that document-only compliance tools miss.
+    """
+    import hashlib
+    import re
+
+    body = await request.json()
+    claim_text = str(body.get("claim_text") or "").strip()
+    filename = str(body.get("filename") or "supplier_declaration.txt")
+    commodity = str(body.get("commodity") or "coffee").lower()
+    area_ha = float(body.get("area_ha") or 10.0)
+    compliant_ha = float(body.get("compliant_ha") if body.get("compliant_ha") is not None else area_ha)
+    stat_loss_ha = float(body.get("statutory_deforestation_ha") or 0.0)
+    raw_loss_ha = float(body.get("forest_loss_ha") or stat_loss_ha)
+    overlaps_pa = bool(body.get("overlaps_protected_area", False))
+    pa_names = body.get("protected_area_names") or []
+    explicit_mass_kg = body.get("declared_mass_kg")
+
+    if not claim_text:
+        raise HTTPException(status_code=400, detail="Please enter or upload a supplier declaration to verify.")
+
+    text_lower = claim_text.lower()
+    doc_sha256 = hashlib.sha256(claim_text.encode("utf-8")).hexdigest()
+
+    # FAO biophysical ceiling (kg/ha/yr) for anti-laundering cross-check
+    yield_ceilings = {
+        "coffee": 2600.0,
+        "cocoa": 1800.0,
+        "rubber": 2500.0,
+        "palm_oil": 6500.0,
+        "soya": 4200.0,
+        "cattle": 450.0,
+        "wood": 15000.0,
+    }
+    ceiling_kg_ha = yield_ceilings.get(commodity, 2500.0)
+    max_possible_kg = max(100.0, compliant_ha * ceiling_kg_ha)
+
+    # Extract declared tonnage / kg from supplier text if present
+    parsed_mass_kg: float | None = float(explicit_mass_kg) if explicit_mass_kg else None
+    m_tonnes = re.search(r"(\d[\d,\.]*)\s*(?:metric\s+)?(?:tonnes|tons|mt\b|t\b)", text_lower)
+    m_kg = re.search(r"(\d[\d,\.]*)\s*(?:kg|kilograms)\b", text_lower)
+    if m_tonnes:
+        try:
+            parsed_mass_kg = float(m_tonnes.group(1).replace(",", "")) * 1000.0
+        except ValueError:
+            pass
+    elif m_kg:
+        try:
+            parsed_mass_kg = float(m_kg.group(1).replace(",", ""))
+        except ValueError:
+            pass
+
+    claims_no_clearing = bool(
+        re.search(
+            r"(no\s+(?:recent\s+)?(?:clearing|deforestation|forest\s+loss)|zero\s+deforestation|deforestation[- ]free|cleared\s+in\s+20(?:0\d|1\d)|since\s+20(?:0\d|1\d)|traditional\s+shade)",
+            text_lower,
+        )
+    )
+    claims_legal_land = bool(
+        re.search(
+            r"(legal|tenure|permit|private\s+land|titled|outside\s+(?:protected|reserve|park)|authorized|compliant)",
+            text_lower,
+        )
+    )
+
+    checks: list[dict[str, Any]] = []
+    contradictions = 0
+
+    # Check 1: Post-2020 Deforestation Claim vs Satellite Truth
+    if stat_loss_ha > 0.01:
+        if claims_no_clearing:
+            contradictions += 1
+            checks.append({
+                "dimension": "Art. 3(a) Deforestation-Free Claim",
+                "supplier_claim": "Claims zero post-2020 clearing / pre-2020 established land",
+                "satellite_truth": f"{stat_loss_ha:.2f} ha statutory post-2020 canopy loss detected on 2020 forest baseline",
+                "status": "contradiction",
+                "severity": "critical",
+                "article": "Article 3(a) · Cutoff Violation",
+            })
+        else:
+            contradictions += 1
+            checks.append({
+                "dimension": "Art. 3(a) Omitted Post-2020 Clearing",
+                "supplier_claim": "Declaration omits post-2020 forest clearing disclosure",
+                "satellite_truth": f"{stat_loss_ha:.2f} ha statutory post-2020 clearing detected (requires May 2026 carve-out)",
+                "status": "contradiction",
+                "severity": "high",
+                "article": "Article 3(a) · Omission",
+            })
+    else:
+        checks.append({
+            "dimension": "Art. 3(a) Deforestation-Free Claim",
+            "supplier_claim": "Claims deforestation-free origin" if claims_no_clearing else "No clearing claimed",
+            "satellite_truth": f"Confirmed: 0.00 ha statutory post-2020 deforestation ({raw_loss_ha:.2f} ha total cycle)",
+            "status": "consistent",
+            "severity": "none",
+            "article": "Article 3(a) · Verified",
+        })
+
+    # Check 2: Legality & Protected Area Claim vs WDPA Ground Truth
+    if overlaps_pa:
+        contradictions += 1
+        reserve_str = ", ".join(pa_names[:2]) if pa_names else "designated IUCN reserve"
+        checks.append({
+            "dimension": "Art. 3(b) Sovereign Land Legality",
+            "supplier_claim": "Claims legal private tenure / harvest permits" if claims_legal_land else "No reserve overlap disclosed",
+            "satellite_truth": f"Geometry intersects protected area ({reserve_str}) in UNEP-WCMC WDPA",
+            "status": "contradiction",
+            "severity": "critical",
+            "article": "Article 3(b) · Protected Area",
+        })
+    else:
+        checks.append({
+            "dimension": "Art. 3(b) Sovereign Land Legality",
+            "supplier_claim": "Land tenure / harvest legality attested" if claims_legal_land else "Standard origin declaration",
+            "satellite_truth": "Zero overlap with IUCN protected reserves or national parks (WDPA Clear)",
+            "status": "consistent",
+            "severity": "none",
+            "article": "Article 3(b) · Verified",
+        })
+
+    # Check 3: Biophysical Yield / Volume Laundering Check (Agent A6)
+    if parsed_mass_kg and parsed_mass_kg > 0:
+        ratio = parsed_mass_kg / max_possible_kg
+        if ratio > 1.0:
+            contradictions += 1
+            checks.append({
+                "dimension": "Art. 16(3) Biophysical Yield Cap",
+                "supplier_claim": f"Declares {parsed_mass_kg/1000:.1f} tonnes from {compliant_ha:.1f} ha compliant land",
+                "satellite_truth": f"Exceeds physical ceiling ({max_possible_kg/1000:.1f} t max at {ceiling_kg_ha:.0f} kg/ha) by {ratio:.1f}× — volume laundering risk",
+                "status": "contradiction",
+                "severity": "critical",
+                "article": "Article 16(3) · Anti-Laundering",
+            })
+        else:
+            checks.append({
+                "dimension": "Art. 16(3) Biophysical Yield Cap",
+                "supplier_claim": f"Declares {parsed_mass_kg/1000:.1f} tonnes from {compliant_ha:.1f} ha compliant land",
+                "satellite_truth": f"Physically plausible ({ratio*100:.0f}% of {max_possible_kg/1000:.1f} t FAO biophysical ceiling)",
+                "status": "consistent",
+                "severity": "none",
+                "article": "Article 16(3) · Verified",
+            })
+
+    trust_score = max(0, 100 - contradictions * 42)
+    verdict = "VERIFIED_CONSISTENT" if contradictions == 0 else "CONTRADICTION_DETECTED"
+    naive_llm_would_pass = bool((claims_no_clearing or claims_legal_land) and contradictions > 0)
+
+    return {
+        "verdict": verdict,
+        "claim_trust_score": trust_score,
+        "contradictions_count": contradictions,
+        "naive_document_ai_verdict": "FALSE_PASS" if naive_llm_would_pass else ("PASS" if contradictions == 0 else "UNCERTAIN"),
+        "oxeous_verdict": "VERIFIED" if contradictions == 0 else "BLOCKED_CONTRADICTION",
+        "filename": filename,
+        "doc_sha256": doc_sha256,
+        "checks": checks,
+    }
+
+
+@router.post("/traces-submit")
+async def submit_traces_nt_sandbox(request: Request) -> dict[str, Any]:
+    """
+    Simulated European Commission TRACES NT Acceptance Sandbox submission.
+    Validates EUDR DDS payload and mints an official-format Reference Number
+    and Verification Number for Customs Box 44 (TARIC C716) testing.
+    """
+    import secrets
+
+    body = await request.json()
+    dds_id = str(body.get("dds_id") or f"DDS-{uuid.uuid4().hex[:8].upper()}")
+    commodity = str(body.get("commodity") or "coffee").upper()
+    country_code = str(body.get("country_code") or "CO").upper()
+    compliant_ha = float(body.get("compliant_ha") or 0.0)
+
+    year_prefix = datetime.utcnow().strftime("%y")
+    ref_number = f"{year_prefix}EU{secrets.token_hex(5).upper()}"
+    verification_code = secrets.token_hex(4).upper()
+    submitted_at = datetime.utcnow().isoformat() + "Z"
+
+    return {
+        "status": "ACCEPTED_SANDBOX",
+        "environment": "EC TRACES NT Acceptance Sandbox (v2.1)",
+        "dds_id": dds_id,
+        "traces_reference_number": ref_number,
+        "traces_verification_number": verification_code,
+        "customs_box44_code": f"C716:{ref_number}:{verification_code}",
+        "commodity": commodity,
+        "country_code": country_code,
+        "certified_export_ha": round(compliant_ha, 2),
+        "submitted_at": submitted_at,
+    }
+
+
+@router.post("/refresh-tiles")
+async def refresh_plot_tiles(request: Request) -> dict[str, Any]:
+    """
+    On-demand tile refresh endpoint called by MapLibre's self-healing 401/403
+    error handler. Mints fresh GEE XYZ tile URLs and wraps them in our
+    auto-healing Oxeous tile proxy.
+    """
+    from ...eudr.analysis_engine import _geometry_to_bbox
+
+    body = await request.json()
+    geometry = body.get("geometry")
+    commodity = str(body.get("commodity") or "coffee").lower()
+    if not geometry:
+        raise HTTPException(status_code=400, detail="Missing plot geometry")
+
+    bbox = _geometry_to_bbox(geometry)
+    public_base = get_public_base_url(request)
+    loop = asyncio.get_event_loop()
+    raw_layers = await loop.run_in_executor(
+        None, lambda: get_all_map_layers(commodity, bbox=bbox, geometry=geometry)
+    )
+    refreshed = []
+    for lyr in raw_layers:
+        if lyr.get("available", True) and lyr.get("tile_url"):
+            proxied = _proxify_layer_url(
+                str(lyr["id"]),
+                str(lyr.get("layer_type", "")),
+                str(lyr["tile_url"]),
+                geometry,
+                bbox,
+                commodity,
+                public_base,
+            )
+            refreshed.append({"id": lyr["id"], "tile_url": proxied, "layer_type": lyr.get("layer_type", "")})
+    return {"map_layers": refreshed}
 
 
 @router.post("/timelapse")

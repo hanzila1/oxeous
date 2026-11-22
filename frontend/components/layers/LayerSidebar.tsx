@@ -16,6 +16,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore, resolveCompareLayerIds, type ActiveLayer } from "@/lib/store";
@@ -82,7 +83,7 @@ const CLASS_LEGENDS: Record<string, Array<{ label: string; color: string }>> = {
   ],
   timelapse: [
     { label: "Dec 2020 Statutory Cutoff Baseline (10m S2)", color: "#C58A3A" },
-    { label: "Annual Canopy & Field Trajectory (2021–2025)", color: "#315F50" },
+    { label: "Annual Canopy & Field Trajectory (2021–2026)", color: "#315F50" },
     { label: "Post-Cutoff Loss Pinpoint Highlight", color: "#D93C4A" },
   ],
 };
@@ -278,7 +279,7 @@ function getLayerMeta(layer: ActiveLayer): LayerMeta {
   if (id === "sentinel-timelapse" || id.includes("timelapse")) {
     return {
       title: "Sentinel-2 Plot Timelapse",
-      subtitle: "Annual 10m S2 Video (2020–2025 · Drag to Restack)",
+      subtitle: "Annual 10m S2 Video (2020–2026 · Drag to Restack)",
       category: "statutory",
       categoryLabel: "Statutory Cutoff",
       resolution: "10m Video",
@@ -346,6 +347,7 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
     basemapMode,
     setBasemapMode,
     setTimelapsePlaying,
+    setActiveGeoJSON,
   } = useStore();
 
   const { effectiveLeftId, effectiveRightId } = resolveCompareLayerIds(
@@ -357,6 +359,7 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
   const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<"all" | "visible" | "statutory" | "alerts" | "canopy">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const visibleCount = layers.filter((l) => l.visible).length;
 
@@ -383,6 +386,64 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
       return true;
     });
   }, [layers, filterCategory, searchQuery]);
+
+  // Group filtered layers by Analysis / Location so multiple audits never get mixed up
+  const groupedLayers = useMemo(() => {
+    const groups: Array<{
+      groupId: string;
+      label: string;
+      country?: string;
+      commodity?: string;
+      bbox?: [number, number, number, number];
+      geometry?: object;
+      items: ActiveLayer[];
+    }> = [];
+    const byId = new Map<string, (typeof groups)[number]>();
+
+    filteredLayers.forEach((lyr) => {
+      const gid = lyr.groupId || "__ungrouped__";
+      let grp = byId.get(gid);
+      if (!grp) {
+        grp = {
+          groupId: gid,
+          label: lyr.groupLabel || "Active Map Session",
+          country: lyr.groupCountry,
+          commodity: lyr.groupCommodity,
+          bbox: lyr.groupBbox,
+          geometry: lyr.groupGeometry,
+          items: [],
+        };
+        byId.set(gid, grp);
+        groups.push(grp);
+      }
+      if (!grp.bbox && lyr.groupBbox) grp.bbox = lyr.groupBbox;
+      if (!grp.geometry && lyr.groupGeometry) grp.geometry = lyr.groupGeometry;
+      grp.items.push(lyr);
+    });
+    return groups;
+  }, [filteredLayers]);
+
+  const focusAndToggleGroup = (grp: (typeof groupedLayers)[number], idx: number) => {
+    // 1. Fly directly to this audited farm's location & restore its outline
+    if (grp.geometry) {
+      setActiveGeoJSON(grp.geometry);
+    }
+    if (grp.bbox) {
+      (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo?.(grp.bbox);
+    }
+    // 2. Toggle expand/collapse (default: first/latest group open, older groups collapsed)
+    const currentlyCollapsed = collapsedGroups[grp.groupId] ?? idx > 0;
+    setCollapsedGroups((prev) => ({ ...prev, [grp.groupId]: !currentlyCollapsed }));
+  };
+
+  const toggleGroupVisibility = (grp: (typeof groupedLayers)[number]) => {
+    const anyVisible = grp.items.some((l) => l.visible);
+    grp.items.forEach((l) => updateLayer(l.id, { visible: !anyVisible }));
+    if (!anyVisible && grp.bbox) {
+      if (grp.geometry) setActiveGeoJSON(grp.geometry);
+      (window as Window & { oxeousFlyTo?: (b: [number, number, number, number]) => void }).oxeousFlyTo?.(grp.bbox);
+    }
+  };
 
   // Quick Action: Enable Statutory Core Preset (JRC + Hansen Loss + PWRI)
   const applyStatutoryPreset = () => {
@@ -589,59 +650,134 @@ export default function LayerSidebar({ onClose }: { onClose?: () => void }) {
           </button>
         </div>
       )}
-      {/* Layer List */}
-      <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-2.5">
-        {filteredLayers.length > 0 ? (
-          filteredLayers.map((layer) => {
-            const rawIndex = layers.findIndex((l) => l.id === layer.id);
-            const isFirstVisible = layers.filter((l) => l.visible)[0]?.id === layer.id;
+      {/* Layer List Grouped by Analysis Location */}
+      <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-3">
+        {groupedLayers.length > 0 ? (
+          groupedLayers.map((grp, groupIdx) => {
+            const isCollapsed = searchQuery.trim()
+              ? false
+              : (collapsedGroups[grp.groupId] ?? groupIdx > 0);
+            const activeInGroup = grp.items.filter((l) => l.visible).length;
+
             return (
-              <EnhancedLayerRow
-                key={layer.id}
-                layer={layer}
-                index={rawIndex}
-                totalLayers={layers.length}
-                isTopLayer={rawIndex === 0 || isFirstVisible}
-                compareMode={compareMode}
-                isCompareLeft={layer.id === effectiveLeftId}
-                isCompareRight={layer.id === effectiveRightId}
-                onSetCompareLeft={() => setCompareLeftLayerId(layer.id)}
-                onSetCompareRight={() => setCompareRightLayerId(layer.id)}
-                isDragged={draggedLayerId === layer.id}
-                isDragOver={dragOverLayerId === layer.id}
-                onUpdate={updateLayer}
-                onRemove={(id) => {
-                  if (id === "sentinel-timelapse") setTimelapsePlaying(false);
-                  removeLayer(id);
-                }}
-                onMoveUp={() => handleMoveStep(layer.id, "up")}
-                onMoveDown={() => handleMoveStep(layer.id, "down")}
-                onBringToTop={() => handleBringToTop(layer.id)}
-                onDragStart={(e) => {
-                  setDraggedLayerId(layer.id);
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", layer.id);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (dragOverLayerId !== layer.id) {
-                    setDragOverLayerId(layer.id);
-                  }
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggedLayerId && draggedLayerId !== layer.id) {
-                    handleMoveLayer(draggedLayerId, layer.id);
-                  }
-                  setDraggedLayerId(null);
-                  setDragOverLayerId(null);
-                }}
-                onDragEnd={() => {
-                  setDraggedLayerId(null);
-                  setDragOverLayerId(null);
-                }}
-              />
+              <div
+                key={grp.groupId}
+                className="rounded-xl border border-[#C8CFD5] bg-white/70 overflow-hidden shadow-2xs"
+              >
+                {/* Clickable Analysis Group Header -> Flies map to location & expands/collapses its layers */}
+                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#F4F5F6] border-b border-[#E3E7EA]">
+                  <button
+                    type="button"
+                    onClick={() => focusAndToggleGroup(grp, groupIdx)}
+                    title="Fly map to this location & expand/collapse its layers"
+                    className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer group"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-[rgba(49,95,80,0.12)] border border-[rgba(49,95,80,0.25)] flex items-center justify-center flex-shrink-0 group-hover:bg-[#315F50] transition-colors">
+                      <MapPin className="w-3.5 h-3.5 text-[#315F50] group-hover:text-white transition-colors" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11.5px] font-bold text-[#1D2227] group-hover:text-[#315F50] truncate transition-colors">
+                          {grp.label}
+                        </span>
+                        {grp.commodity && (
+                          <span className="text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 leading-none rounded bg-white border border-[#C8CFD5] text-[#5B6773] flex-shrink-0">
+                            {grp.commodity.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[9.5px] font-mono text-[#747F88]">
+                        {activeInGroup}/{grp.items.length} active · Click to fly & {isCollapsed ? "expand" : "collapse"}
+                      </span>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGroupVisibility(grp);
+                      }}
+                      title={activeInGroup > 0 ? "Hide all layers for this analysis" : "Show all layers for this analysis"}
+                      className={cn(
+                        "p-1 rounded-md border transition-colors cursor-pointer",
+                        activeInGroup > 0
+                          ? "bg-[rgba(49,95,80,0.12)] border-[rgba(49,95,80,0.25)] text-[#315F50]"
+                          : "bg-white border-[#C8CFD5] text-[#AAB3BB] hover:text-[#1D2227]"
+                      )}
+                    >
+                      {activeInGroup > 0 ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => focusAndToggleGroup(grp, groupIdx)}
+                      aria-label={isCollapsed ? "Expand analysis layers" : "Collapse analysis layers"}
+                      className="p-1 rounded-md text-[#747F88] hover:text-[#1D2227] hover:bg-white transition-colors cursor-pointer"
+                    >
+                      <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-150", isCollapsed && "-rotate-90")} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Nested Layers Inside This Analysis Group */}
+                {!isCollapsed && (
+                  <div className="p-2 space-y-2 bg-[#F8FAF9]">
+                    {grp.items.map((layer) => {
+                      const rawIndex = layers.findIndex((l) => l.id === layer.id);
+                      const isFirstVisible = layers.filter((l) => l.visible)[0]?.id === layer.id;
+                      return (
+                        <EnhancedLayerRow
+                          key={layer.id}
+                          layer={layer}
+                          index={rawIndex}
+                          totalLayers={layers.length}
+                          isTopLayer={rawIndex === 0 || isFirstVisible}
+                          compareMode={compareMode}
+                          isCompareLeft={layer.id === effectiveLeftId}
+                          isCompareRight={layer.id === effectiveRightId}
+                          onSetCompareLeft={() => setCompareLeftLayerId(layer.id)}
+                          onSetCompareRight={() => setCompareRightLayerId(layer.id)}
+                          isDragged={draggedLayerId === layer.id}
+                          isDragOver={dragOverLayerId === layer.id}
+                          onUpdate={updateLayer}
+                          onRemove={(id) => {
+                            if (id === "sentinel-timelapse") setTimelapsePlaying(false);
+                            removeLayer(id);
+                          }}
+                          onMoveUp={() => handleMoveStep(layer.id, "up")}
+                          onMoveDown={() => handleMoveStep(layer.id, "down")}
+                          onBringToTop={() => handleBringToTop(layer.id)}
+                          onDragStart={(e) => {
+                            setDraggedLayerId(layer.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", layer.id);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                            if (dragOverLayerId !== layer.id) {
+                              setDragOverLayerId(layer.id);
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (draggedLayerId && draggedLayerId !== layer.id) {
+                              handleMoveLayer(draggedLayerId, layer.id);
+                            }
+                            setDraggedLayerId(null);
+                            setDragOverLayerId(null);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedLayerId(null);
+                            setDragOverLayerId(null);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })
         ) : (

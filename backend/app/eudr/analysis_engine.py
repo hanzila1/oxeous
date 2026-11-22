@@ -539,13 +539,13 @@ async def assess_plot(
 
     deforestation_geojson = carveout_geojson
 
-    # Cache result
+    # Cache result (45-min TTL so embedded GEE getMapId tile URLs never expire into 401 Unauthorized)
     cache.set(cache_key, {
         "assessment": assessment.model_dump(),
         "tile_url": tile_url,
         "geojson": deforestation_geojson,
         "carveout_geojson": carveout_geojson,
-    }, ttl=3600 * 12)
+    }, ttl=45 * 60)
 
     # -- Step 7: Log LLM decision ----------------------------------------------
     traj.log_llm_decision(

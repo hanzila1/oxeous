@@ -847,14 +847,15 @@ def get_sentinel2_timelapse(
     Returns both True-Color RGB (B4/B3/B2) and False-Color NIR Vegetation (B8/B4/B3) XYZ tiles
     and plot-framed thumbnail URLs for each year.
     """
-    target_years = years or [2020, 2021, 2022, 2023, 2024, 2025]
+    target_years = years or [2020, 2021, 2022, 2023, 2024, 2025, 2026]
     year_labels = {
         2020: "2020 · Statutory Cutoff (Dec 31, 2020)",
         2021: "2021 · Post-Cutoff Year 1",
         2022: "2022 · Post-Cutoff Year 2",
         2023: "2023 · Post-Cutoff Year 3",
         2024: "2024 · Post-Cutoff Year 4",
-        2025: "2025 · Present Verification",
+        2025: "2025 · Post-Cutoff Year 5",
+        2026: "2026 · Latest (Jan–Oct 2026)",
     }
 
     if not _init():
@@ -922,8 +923,12 @@ def get_sentinel2_timelapse(
 
         def _build_year_frame(yr: int) -> dict[str, Any]:
             try:
-                start_d = f"{yr}-01-01"
-                end_d = f"{yr}-12-31" if yr < 2025 else "2026-11-01"
+                if yr >= 2026:
+                    start_d = "2026-01-01"
+                    end_d = "2026-10-31"
+                else:
+                    start_d = f"{yr}-01-01"
+                    end_d = f"{yr}-12-31"
 
                 col = (
                     ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
@@ -940,13 +945,21 @@ def get_sentinel2_timelapse(
                     return img.updateMask(mask)
 
                 # Sort by lowest cloud cover and take top 12 cleanest scenes for fast 10m median composite
+                cloud_cap = 55 if yr >= 2026 else 40
                 clean_col = (
-                    col.filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 40))
+                    col.filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cloud_cap))
                     .sort("CLOUDY_PIXEL_PERCENTAGE")
                     .limit(12)
                     .map(_mask_s2_clouds)
                 )
-                fallback_img = col.sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median()
+                if yr >= 2026:
+                    # Ensure every global location (even persistently cloudy tropics) gets a valid 2026 composite
+                    wide_2026 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterDate("2025-11-01", "2026-10-31")
+                    if region is not None:
+                        wide_2026 = wide_2026.filterBounds(region)
+                    fallback_img = wide_2026.sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median()
+                else:
+                    fallback_img = col.sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median()
                 composite = clean_col.median().unmask(fallback_img)
 
                 # Strict clip inside the plot polygon so timelapse sticks inside the plot on the map
@@ -1051,7 +1064,7 @@ def get_sentinel2_timelapse(
                     "sensor": "Sentinel-2 L2A (10m)",
                 }
 
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with ThreadPoolExecutor(max_workers=7) as pool:
             frames = list(pool.map(_build_year_frame, target_years))
 
         frames.sort(key=lambda f: f["year"])

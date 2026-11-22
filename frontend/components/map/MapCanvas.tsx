@@ -45,8 +45,10 @@ function MapCanvasComponent() {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const drawPointsRef = useRef<[number, number][]>([]);
   const [vertexCount, setVertexCount] = useState(0);
+  const [healingTiles, setHealingTiles] = useState(false);
+  const lastTileHealAtRef = useRef<number>(0);
   const {
-    setViewport, layers, activeGeoJSON, viewport,
+    setViewport, layers, updateLayer, activeGeoJSON, viewport,
     drawingAOI, setDrawingAOI, droppingPin, setDroppingPin, setPendingPinCoords,
     setActiveGeoJSON, setActivePanel,
     ddsHistory, setEudrPanelOpen, isScanning,
@@ -1086,6 +1088,72 @@ function MapCanvasComponent() {
     }
   }, [layers, compareMode, effectiveLeftId, effectiveRightId, timelapseFrames, timelapseIndex, timelapseMode]);
 
+  // -- Self-Healing 401/403 Tile Recovery (Enterprise Defense-in-Depth) -----
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const handleMapError = async (ev: any) => {
+      const status = ev?.error?.status ?? ev?.status;
+      const sourceId = String(ev?.sourceId || "");
+      if ((status !== 401 && status !== 403) || !sourceId.startsWith("oxe-src-")) return;
+
+      const now = Date.now();
+      // Debounce to at most 1 refresh every 20 seconds across all simultaneous tile errors
+      if (now - lastTileHealAtRef.current < 20_000) return;
+      const state = useStore.getState();
+      if (!state.activeGeoJSON) return;
+
+      lastTileHealAtRef.current = now;
+      setHealingTiles(true);
+
+      const activeCommodity = state.ddsHistory[0]?.plot?.commodity || "coffee";
+      const candidates = [
+        process.env.NEXT_PUBLIC_API_URL,
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+      ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
+
+      try {
+        for (const base of candidates) {
+          try {
+            const res = await fetch(`${base}/eudr/refresh-tiles`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                geometry: state.activeGeoJSON,
+                commodity: activeCommodity,
+              }),
+            });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (Array.isArray(data?.map_layers) && data.map_layers.length > 0) {
+              data.map_layers.forEach((fresh: { id: string; tile_url: string; layer_type?: string }) => {
+                if (!fresh.tile_url) return;
+                const match = state.layers.find(
+                  (l) => l.id === fresh.id || (fresh.layer_type && l.layer_type === fresh.layer_type)
+                );
+                if (match) {
+                  updateLayer(match.id, { tileUrl: fresh.tile_url });
+                }
+              });
+              break;
+            }
+          } catch {
+            // Try next API candidate
+          }
+        }
+      } finally {
+        setHealingTiles(false);
+      }
+    };
+
+    map.on("error", handleMapError);
+    return () => {
+      map.off("error", handleMapError);
+    };
+  }, [updateLayer]);
+
   // -- flyToBbox -------------------------------------------------------------
   const flyToBbox = useCallback((bbox: [number, number, number, number]) => {
     const leftPad = leftPanel ? (eudrPanelExpanded ? 640 : 460) + 40 : 60;
@@ -1135,6 +1203,16 @@ function MapCanvasComponent() {
 
       {/* Before / After Statutory Baseline vs Disturbance Swipe Slider */}
       <MapSwipeSlider />
+
+      {/* Self-healing expired satellite tile recovery indicator */}
+      {healingTiles && (
+        <div className="pointer-events-none absolute top-16 left-1/2 z-30 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full border border-[#315F50]/30 bg-white/95 px-3.5 py-1.5 text-[11px] font-semibold text-[#12302A] shadow-md backdrop-blur">
+            <span className="h-2 w-2 animate-ping rounded-full bg-[#315F50]" />
+            <span>Refreshing satellite raster tiles…</span>
+          </div>
+        </div>
+      )}
 
 
       {/* Drawing mode instructions */}

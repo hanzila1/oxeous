@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
-import { ShieldCheck, X, AlertCircle, ChevronRight, ChevronDown, Loader2, Coffee, Trees, Palmtree, CircleDot, FileText, Leaf, Layers } from "lucide-react";
+import { ShieldCheck, X, AlertCircle, ChevronRight, ChevronDown, Loader2, Coffee, Trees, Palmtree, CircleDot, FileText, Leaf, Layers, Check } from "lucide-react";
+import OxeousOrbitIcon from "@/components/ui/OxeousOrbitIcon";
 import {
   EULogoSeal,
   JRC2020Emblem,
@@ -18,6 +19,7 @@ import BatchPlotQueue from "./BatchPlotQueue";
 import ComplianceResultCard from "./ComplianceResultCard";
 import { BENCHMARK_CASES, type BenchmarkCase } from "@/components/ui/TopFloatingBar";
 import { extractBboxFromGeometry } from "@/lib/maplibre";
+import { recordSupplierAuditResult } from "@/lib/suppliers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -31,15 +33,22 @@ const COMMODITY_ICON: Record<string, typeof Coffee> = {
 
 export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<EUDRAnalysisResponse | null>(null);
+  const [activeAuditLabel, setActiveAuditLabel] = useState<string>("");
+  const [liveStages, setLiveStages] = useState<AgentLogEntry[]>([]);
+  const activeSupplierTokenRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [benchmarksOpen, setBenchmarksOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"upload" | "batch">("upload");
   const scrollRef = useRef<HTMLDivElement>(null);
   const {
     addLayer,
+    addAuditLayers,
     setActiveGeoJSON,
+    activeEudrResult: result,
+    setActiveEudrResult: setResult,
+    ddsHistory,
     addDDSHistory,
+    reopenAudit,
     addMessage,
     updateMessage,
     setRightPanel,
@@ -50,6 +59,8 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
     pendingPinCoords,
     drawingAOI,
     batchPlots,
+    pendingSupplierAudit,
+    setPendingSupplierAudit,
   } = useStore();
 
   // Auto switch to batch view when multi-plot file is loaded
@@ -141,6 +152,8 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
       isLoading: true,
       agentLogs: currentLogs,
     });
+    setActiveAuditLabel(`${commodity.replace(/_/g, " ").toUpperCase()} · ${locationName}`);
+    setLiveStages([...currentLogs]);
 
     // EUDR Art. 9(1)(d): Points MUST follow our exact solution of FTW Field Boundary Delineation!
     // If the input plot is a Point, auto-trace the true 10m physical farm polygon before auditing!
@@ -281,6 +294,7 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
                 });
               }
               updateMessage(botMsgId, { agentLogs: [...currentLogs] });
+              setLiveStages([...currentLogs]);
             }
 
             if (event.step === "done" && event.data) {
@@ -300,31 +314,74 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
                 });
               }, 450);
 
-              // Add GEE layers to map - EXCLUSIVELY SHOW PWRI BY DEFAULT
-              if (data.map_layers && data.map_layers.length > 0) {
-                const hasPwri = data.map_layers.some(
+              // Add grouped GEE layers to map under this analysis location
+              addAuditLayers(data);
+
+              // If this audit came from a Supplier Magic Link, publish the farm-scoped verdict back to their link
+              if (activeSupplierTokenRef.current) {
+                const tok = activeSupplierTokenRef.current;
+                activeSupplierTokenRef.current = null;
+                const ra = data.risk_assessment;
+                const def = ra.deforestation as any;
+                const isNonCompliant = ra.overall_risk === "non_compliant" || ra.overall_risk === "at_risk";
+                const totalHa = Number(def.total_parcel_ha || data.plot?.area_ha || 0);
+                const rawStatDefor = Number(def.statutory_deforestation_ha || 0);
+                const violHa = isNonCompliant && !def.is_plantation_replanting_exemption
+                  ? (rawStatDefor > 0 ? rawStatDefor : Number(def.forest_loss_ha || 0))
+                  : rawStatDefor;
+                const replantHa = Math.max(
+                  0,
+                  Number(
+                    def.plantation_replanting_ha ??
+                    def.pwri_3d?.statutory_ontology?.art_2_5_replanting_ha ??
+                    (def.is_plantation_replanting_exemption ? def.forest_loss_ha : 0) ??
+                    0
+                  )
+                );
+                const silvHa = Math.max(
+                  0,
+                  Number(def.silviculture_replanting_ha ?? def.pwri_3d?.statutory_ontology?.art_2_3_silviculture_ha ?? 0)
+                );
+                const nonAgHa = Math.max(
+                  0,
+                  Number(def.non_agronomic_ha ?? def.pwri_3d?.tensor_dimensions?.statutory_ontology?.non_agronomic_urban_water_ha ?? 0)
+                );
+                const cleanHa = Math.max(0, totalHa - violHa - replantHa - silvHa - nonAgHa);
+                const pwriLayer = (data.map_layers || []).find(
                   (l) => l.id.includes("pwri") || l.id.includes("intersection") || (l as any).layer_type === "intersection"
                 );
-                data.map_layers.forEach((lyr) => {
-                  const gj = (lyr as { geojson_data?: object | null }).geojson_data ?? undefined;
-                  const isPwri = lyr.id.includes("pwri") || lyr.id.includes("intersection") || (lyr as any).layer_type === "intersection";
-                  // ONLY PWRI is visible on the satellite canvas. Hansen loss, baseline, radar, etc. are loaded into the layer manager with toggles OFF
-                  const isVisible = hasPwri ? isPwri : Boolean(lyr.visible);
-                  addLayer({
-                    id: lyr.id,
-                    label: lyr.label,
-                    type: gj ? "geojson" : "raster",
-                    tileUrl: lyr.tile_url || undefined,
-                    geojsonData: gj,
-                    visible: isVisible,
-                    opacity: lyr.opacity,
-                    legend: lyr.legend as ActiveLayer["legend"] | undefined,
-                    analysisType: (lyr as { layer_type?: string }).layer_type || "land_disturbance",
-                    layer_type: (lyr as { layer_type?: string }).layer_type,
-                  });
-                });
-              } else if (data.tile_url) {
-                addLayer({ id: data.request_id, label: `PWRI 3D Map Algebra (${commodity})`, type: "raster", tileUrl: data.tile_url, visible: true, opacity: 1.0, legend: { title: "PWRI 3D Algebra", colormap: "RdYlGn", min: 0, max: 1, units: "" }, analysisType: "land_disturbance" });
+                const pwriTileUrl = pwriLayer?.tile_url || data.tile_url || "";
+                const overlap = Boolean(ra.legality?.overlaps_protected_area);
+                const overall = ra.overall_risk;
+                const auditStatus: "compliant" | "carve_out" | "non_compliant" =
+                  overall === "compliant" || overall === "low_risk"
+                    ? "compliant"
+                    : cleanHa > 0.5 && !overlap
+                    ? "carve_out"
+                    : "non_compliant";
+                const summary =
+                  auditStatus === "compliant"
+                    ? `Verified deforestation-free (${cleanHa.toFixed(1)} ha clean export area out of ${totalHa.toFixed(1)} ha). Approved for EU customs filing.`
+                    : auditStatus === "carve_out"
+                    ? `${cleanHa.toFixed(1)} ha verified clean; ${violHa.toFixed(1)} ha showed post-2020 clearing and was excluded via carve-out.`
+                    : overlap
+                    ? `Parcel intersects a protected reserve (${ra.legality?.protected_area_names?.[0] || "WDPA"}) or post-2020 clearing (${violHa.toFixed(1)} ha). Shipment on hold.`
+                    : `Post-2020 deforestation detected (${violHa.toFixed(1)} ha). Shipment on hold pending corrective action.`;
+
+                recordSupplierAuditResult(tok, {
+                  audit_status: auditStatus,
+                  audit_risk_score: Number(ra.risk_score ?? 0),
+                  audit_clean_ha: cleanHa,
+                  audit_replanting_ha: replantHa,
+                  audit_silviculture_ha: silvHa,
+                  audit_non_agronomic_ha: nonAgHa,
+                  audit_violation_ha: violHa,
+                  audit_total_ha: totalHa,
+                  audit_pwri_tile_url: pwriTileUrl,
+                  audit_summary: summary,
+                  audit_protected_overlap: overlap,
+                  audit_traces_ref: data.dds?.dds_id || "",
+                }).catch(() => {});
               }
             }
 
@@ -349,7 +406,16 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
       setLoading(false);
       setIsScanning(false);
     }
-  }, [addLayer, setActiveGeoJSON, addDDSHistory, addMessage, updateMessage, setRightPanel, setIsScanning]);
+  }, [addLayer, addAuditLayers, setActiveGeoJSON, setResult, addDDSHistory, addMessage, updateMessage, setRightPanel, setIsScanning]);
+
+  // Trigger a live audit automatically when "Audit Plot" is clicked in the Suppliers sidebar
+  useEffect(() => {
+    if (!pendingSupplierAudit || loading) return;
+    const req = pendingSupplierAudit;
+    activeSupplierTokenRef.current = req.supplierToken ?? null;
+    setPendingSupplierAudit(null);
+    run(req.geometry, req.commodity, req.countryCode, req.countryName, req.areaHa);
+  }, [pendingSupplierAudit, loading, setPendingSupplierAudit, run]);
 
   return (
     <div className="flex flex-col h-full bg-[#F4F5F6] text-[#1D2227] font-sans overflow-hidden">
@@ -403,24 +469,115 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
       {/* Scrollable body */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 bg-slate-50/50">
 
-        {/* Agent active state */}
+        {/* Live Compliance Report Skeleton (distinct from Agent pipeline — zero duplication) */}
         {loading && (
-          <div className="p-4 space-y-3">
-            <div className="rounded-xl border border-emerald-700/30 bg-white p-4 space-y-2.5 shadow-sm">
-              <div className="flex items-center gap-2 text-emerald-800 text-[12px] font-semibold">
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
-                Oxeous Autonomous EO Pipeline Active
-              </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Querying multi-sensor constellations (Sentinel-2, Hansen v1.13, FDP 10m). Live tool execution logs are streaming in the <strong>Agent Panel</strong>.
-              </p>
-              <button
-                onClick={() => setRightPanel("chat")}
-                className="text-[11px] text-emerald-700 font-semibold hover:underline flex items-center gap-1 mt-1"
-              >
-                View Agent Execution Stream ➔
-              </button>
-            </div>
+          <div className="p-4">
+            {(() => {
+              const doneCount = liveStages.filter((s) => s.status === "done").length;
+              const activeIdx = liveStages.findIndex((s) => s.status === "active");
+              const pct = liveStages.length
+                ? Math.min(100, Math.round(((doneCount + (activeIdx >= 0 ? 0.5 : 0)) / liveStages.length) * 100))
+                : 15;
+              const currentStepLabel =
+                liveStages[activeIdx]?.label || "Compiling statutory compliance dossier";
+
+              return (
+                <div className="rounded-2xl border border-[#C8CFD5] bg-white overflow-hidden shadow-xs">
+                  {/* Top Dossier Header */}
+                  <div className="p-3.5 border-b border-[#E3E7EA] bg-[#F8FAF9] space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-white border border-[#C8CFD5] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                          <OxeousOrbitIcon size={18} isSpinning={true} className="text-[#315F50]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-bold text-[#1D2227] truncate">
+                            Preparing Statutory Dossier
+                          </p>
+                          <p className="text-[10px] font-mono text-[#5B6773] truncate">
+                            {activeAuditLabel || "EU 2023/1115 Assessment"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-mono text-[10px] font-bold text-[#315F50] bg-white border border-[#C8CFD5] px-2 py-0.5 rounded-full flex-shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+
+                    <div className="h-1 w-full rounded-full bg-[#E3E7EA] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#315F50] transition-[width] duration-300 ease-out"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Report Skeleton Matching ComplianceResultCard Anatomy */}
+                  <div className="p-3.5 space-y-3.5">
+                    {/* Risk Score Bar Placeholder */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-[#747F88]">
+                          Deforestation Risk Score
+                        </span>
+                        <span className="h-3 w-12 rounded bg-[#E8ECEF] animate-pulse" />
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-[#E8ECEF] animate-pulse" />
+                    </div>
+
+                    {/* 3 Live Readiness Slots */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: "Clean Area", ready: doneCount >= 3 },
+                        { label: "Canopy Loss", ready: doneCount >= 2 },
+                        { label: "Reserves", ready: doneCount >= 5 },
+                      ].map((slot) => (
+                        <div
+                          key={slot.label}
+                          className="rounded-xl border border-[#E3E7EA] bg-[#F8FAF9] p-2.5 space-y-1.5"
+                        >
+                          <span className="block text-[9px] font-mono uppercase text-[#747F88] truncate">
+                            {slot.label}
+                          </span>
+                          {slot.ready ? (
+                            <div className="flex items-center gap-1 text-[10px] font-semibold text-[#315F50]">
+                              <Check className="w-3 h-3 stroke-[2.5]" />
+                              <span>Computed</span>
+                            </div>
+                          ) : (
+                            <div className="h-3.5 w-14 rounded bg-[#E3E7EA] animate-pulse" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Land Partition & Chart Skeleton */}
+                    <div className="rounded-xl border border-[#E3E7EA] bg-[#F8FAF9] p-3 flex items-center gap-3.5">
+                      <div className="w-16 h-16 rounded-full border-[6px] border-[#E3E7EA] border-t-[#315F50]/45 animate-spin flex-shrink-0" style={{ animationDuration: "2.4s" }} />
+                      <div className="flex-1 space-y-2 min-w-0">
+                        <div className="h-3 w-3/4 rounded bg-[#E3E7EA] animate-pulse" />
+                        <div className="h-2.5 w-full rounded bg-[#E8ECEF] animate-pulse" />
+                        <div className="h-2.5 w-2/3 rounded bg-[#E8ECEF] animate-pulse" />
+                      </div>
+                    </div>
+
+                    {/* Footer Status */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#E3E7EA] text-[10px]">
+                      <span className="font-mono text-[#747F88] truncate pr-2">
+                        {currentStepLabel}…
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setRightPanel("chat")}
+                        className="text-[#315F50] font-semibold hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
+                      >
+                        Agent log →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -511,6 +668,51 @@ export default function EUDRDashboard({ onClose }: { onClose?: () => void }) {
             ) : (
               <>
                 <PlotUploader onPlotReady={run} disabled={loading} />
+
+                {/* Persisted Audit History (survives browser refresh) */}
+                {ddsHistory.length > 0 && (
+                  <div className="rounded-xl border border-[#C8CFD5] bg-white shadow-2xs overflow-hidden">
+                    <div className="flex items-center justify-between px-3.5 py-2 border-b border-slate-100 bg-[#F8FAF9]">
+                      <span className="text-[11px] font-bold text-[#1D2227]">
+                        Saved Audits
+                      </span>
+                      <span className="text-[9.5px] font-mono font-bold text-[#315F50] bg-[rgba(49,95,80,0.08)] border border-[rgba(49,95,80,0.2)] px-1.5 py-0.5 rounded">
+                        {ddsHistory.length} persisted
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                      {ddsHistory.map((item) => {
+                        const isOk = item.risk_assessment?.overall_risk === "compliant" || item.risk_assessment?.overall_risk === "low_risk";
+                        return (
+                          <button
+                            key={item.dds?.dds_id || item.request_id}
+                            type="button"
+                            onClick={() => {
+                              reopenAudit(item);
+                              const bbox = item.plot?.geometry ? extractBboxFromGeometry(item.plot.geometry) : null;
+                              if (bbox) {
+                                (window as Window & { oxeousFlyTo?: (b: typeof bbox) => void }).oxeousFlyTo?.(bbox);
+                              }
+                            }}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-[#F4F5F6]/80 transition-colors cursor-pointer"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold text-slate-900 truncate">
+                                {item.plot?.name || `${item.plot?.commodity?.toUpperCase()} · ${item.plot?.country_name || item.plot?.country_code}`}
+                              </p>
+                              <p className="text-[9.5px] font-mono text-slate-500 truncate">
+                                {item.plot?.commodity?.toUpperCase()} · {Number(item.plot?.area_ha ?? 0).toFixed(1)} ha · {isOk ? "COMPLIANT" : "FLAGGED"} ({Math.round(item.risk_assessment?.risk_score ?? 0)}/100)
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-semibold text-[#315F50] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex-shrink-0">
+                              Reopen →
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-xl border border-[#C8CFD5] bg-white shadow-2xs overflow-hidden">
               <button

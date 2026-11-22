@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     # Tile cache
     tile_cache_dir: str = _DEFAULT_TILE_CACHE_DIR
 
+    # Authentication (PBKDF2-SHA256 + HMAC-SHA256 signed bearer tokens)
+    auth_secret_key: str = "oxeous-dev-secret-change-in-prod-9f2c8b4e1a7d"
+    auth_db_path: str = ""
+    # Comma-separated paid B2B pilot / enterprise invite codes required to create a new account
+    access_invite_codes: str = "OXEOUS-2026,EUDR-PILOT,OXEOUS-B2B"
+
     # Internal
     version: str = "0.1.0"
     debug: bool = False

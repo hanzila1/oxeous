@@ -487,3 +487,19 @@ export function ViolationIcon(props: IconProps) {
     </Svg>
   );
 }
+
+/** Supplier Magic-Link intake (farm pin + outgoing share link). */
+export function SupplierLinkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M11 20.2s-5.8-4.5-5.8-9.2a5.8 5.8 0 0 1 11.6 0c0 1.1-.3 2.2-.8 3.2"
+        fill="currentColor"
+        fillOpacity={TINT}
+      />
+      <circle cx="11" cy="10.8" r="2" />
+      <path d="M14.8 18.2l2.1-2.1a2.1 2.1 0 0 1 3 3l-1.3 1.3a2.1 2.1 0 0 1-3-3" />
+      <path d="M16.5 16.5l1.8 1.8" />
+    </Svg>
+  );
+}

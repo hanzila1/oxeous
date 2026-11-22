@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .utils.logging import configure_logging
 from .core.granite_client import GraniteClient
-from .api.routes import chat, health, tiles, jobs, export, eudr
+from .api.routes import auth, chat, health, tiles, jobs, export, eudr, suppliers
 
 # -- Configure logging ---------------------------------------------------------
 settings = get_settings()
@@ -70,6 +70,8 @@ def create_app() -> FastAPI:
 
     # -- Routes ----------------------------------------------------------------
     app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(suppliers.router)
     app.include_router(chat.router)
     app.include_router(tiles.router)
     app.include_router(jobs.router)

@@ -670,7 +670,10 @@ async def query_protected_areas(
 
 
 # -- In-Memory Dynamic Cache for Live GEE Evaluations -------------------------
-_DYNAMIC_GEE_CACHE: dict[str, dict[str, Any]] = {}
+# Google Earth Engine getMapId() tile URLs expire after ~1-2 hours (401 Unauthorized).
+# Enforce a 45-minute TTL so cached tile URLs never go stale on long-running servers.
+_GEE_TILE_CACHE_TTL_SECONDS = 45 * 60
+_DYNAMIC_GEE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 # -- Combined: run all GEE checks for a plot ----------------------------------
@@ -696,6 +699,7 @@ async def run_full_gee_assessment(
     import asyncio
     import hashlib
     import json
+    import time
 
     async def _notify(step_id: str, label: str, detail: str, status: str = "active"):
         if progress_callback:
@@ -717,30 +721,35 @@ async def run_full_gee_assessment(
     cache_hash = hashlib.sha256(geom_str.encode()).hexdigest()[:12]
     cache_key = f"v10m_5:{commodity.lower()}:{country_code.upper()}:{cache_hash}"
 
-    if cache_key in _DYNAMIC_GEE_CACHE:
-        cached = _DYNAMIC_GEE_CACHE[cache_key]
-        summary = cached.get("summary", {})
-        loss_ha = summary.get("forest_loss_ha", 0)
-        loss_pct = summary.get("forest_loss_pct", 0)
-        pa_overlap = summary.get("protected_area_overlap_pct", 0.0)
+    cached_entry = _DYNAMIC_GEE_CACHE.get(cache_key)
+    if cached_entry is not None:
+        cached_at, cached = cached_entry
+        if (time.monotonic() - cached_at) < _GEE_TILE_CACHE_TTL_SECONDS:
+            summary = cached.get("summary", {})
+            loss_ha = summary.get("forest_loss_ha", 0)
+            loss_pct = summary.get("forest_loss_pct", 0)
+            pa_overlap = summary.get("protected_area_overlap_pct", 0.0)
 
-        await _notify("hansen", "Hansen GFC 2025 Multi-Temporal", "Tracking post-cutoff canopy loss time-series...", "active")
-        await asyncio.sleep(0.4)
-        await _notify("hansen", "Hansen GFC 2025 Multi-Temporal", f"Post-cutoff loss: {loss_ha:.1f} ha ({loss_pct:.2f}%)", "done")
+            await _notify("hansen", "Hansen GFC 2025 Multi-Temporal", "Tracking post-cutoff canopy loss time-series...", "active")
+            await asyncio.sleep(0.4)
+            await _notify("hansen", "Hansen GFC 2025 Multi-Temporal", f"Post-cutoff loss: {loss_ha:.1f} ha ({loss_pct:.2f}%)", "done")
 
-        await _notify("jrc", "EC JRC GFC2020 Statutory Baseline", "Querying European Commission official 10m EUDR baseline...", "active")
-        await asyncio.sleep(0.4)
-        await _notify("jrc", "EC JRC GFC2020 Statutory Baseline", f"Official EU forest baseline: {summary.get('jrc_forest_cover_2020_pct', 0):.1f}%", "done")
+            await _notify("jrc", "EC JRC GFC2020 Statutory Baseline", "Querying European Commission official 10m EUDR baseline...", "active")
+            await asyncio.sleep(0.4)
+            await _notify("jrc", "EC JRC GFC2020 Statutory Baseline", f"Official EU forest baseline: {summary.get('jrc_forest_cover_2020_pct', 0):.1f}%", "done")
 
-        await _notify("radd", "Sentinel-1 SAR Radar Stream", "Scanning all-weather cloud-piercing radar alerts...", "active")
-        await asyncio.sleep(0.4)
-        await _notify("radd", "Sentinel-1 SAR Radar Stream", f"Radar alerts: {'Detected' if summary.get('has_radar_alerts') else 'Clear (0 disturbance)'}", "done")
+            await _notify("radd", "Sentinel-1 SAR Radar Stream", "Scanning all-weather cloud-piercing radar alerts...", "active")
+            await asyncio.sleep(0.4)
+            await _notify("radd", "Sentinel-1 SAR Radar Stream", f"Radar alerts: {'Detected' if summary.get('has_radar_alerts') else 'Clear (0 disturbance)'}", "done")
 
-        await _notify("protected", "WDPA Protected Areas Cadastre", "Auditing intersection with IUCN reserves & national parks...", "active")
-        await asyncio.sleep(0.4)
-        await _notify("protected", "WDPA Protected Areas Cadastre", f"Protected reserves: {'Overlap detected' if pa_overlap > 0 else 'Clear (0 overlap)'}", "done")
+            await _notify("protected", "WDPA Protected Areas Cadastre", "Auditing intersection with IUCN reserves & national parks...", "active")
+            await asyncio.sleep(0.4)
+            await _notify("protected", "WDPA Protected Areas Cadastre", f"Protected reserves: {'Overlap detected' if pa_overlap > 0 else 'Clear (0 overlap)'}", "done")
 
-        return cached
+            return cached
+        else:
+            # Expired GEE tile map IDs -> evict so fresh XYZ tile tokens are minted
+            _DYNAMIC_GEE_CACHE.pop(cache_key, None)
 
     # 1. Hansen GFC
     await _notify("hansen", "Hansen GFC 2025", "Querying Hansen v1.13 post-cutoff loss & 2000-2020 baseline...", "active")
@@ -1266,7 +1275,7 @@ async def run_full_gee_assessment(
             ],
         },
     }
-    _DYNAMIC_GEE_CACHE[cache_key] = result
+    _DYNAMIC_GEE_CACHE[cache_key] = (time.monotonic(), result)
     return result
 
 

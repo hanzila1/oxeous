@@ -22,6 +22,10 @@ import {
   Scale,
   Eye,
   EyeOff,
+  Send,
+  Check,
+  Copy,
+  Loader2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import type { EUDRAnalysisResponse } from "@oxeous/shared-types";
@@ -29,6 +33,8 @@ import { useStore, type ActiveLayer } from "@/lib/store";
 import RiskBadge from "./RiskBadge";
 import SpatialAnalyticsDeck from "./SpatialAnalyticsDeck";
 import AgentConstellationRing from "./AgentConstellationRing";
+import ClaimContradictionCard from "./ClaimContradictionCard";
+import { submitTracesSandbox, type TracesSandboxReceipt } from "@/lib/suppliers";
 import {
   EULogoSeal,
   JRC2020Emblem,
@@ -196,6 +202,9 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
   const [legalityDetailsOpen, setLegalityDetailsOpen] = useState(false);
   const [art240Open, setArt240Open] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [tracesFiling, setTracesFiling] = useState(false);
+  const [tracesReceipt, setTracesReceipt] = useState<TracesSandboxReceipt | null>(null);
+  const [copiedRef, setCopiedRef] = useState(false);
   const {
     layers,
     updateLayer,
@@ -222,6 +231,27 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
   const [testMassKg, setTestMassKg] = useState<number>(maxNormalMassKg);
   const impliedYieldKgHa = cleanExportHa > 0 ? testMassKg / cleanExportHa : 0;
   const isLaunderingSim = testMassKg > maxCeilingMassKg;
+
+  async function handleFileToTraces() {
+    setTracesFiling(true);
+    try {
+      const receipt = await submitTracesSandbox({
+        dds_id: result.dds?.dds_id ?? plot.plot_id,
+        commodity: plot.commodity,
+        country_code: plot.country_code || "XX",
+        compliant_ha: cleanExportHa,
+      });
+      setTracesReceipt(receipt);
+    } finally {
+      setTracesFiling(false);
+    }
+  }
+
+  function handleCopyBox44(code: string) {
+    navigator.clipboard?.writeText(code);
+    setCopiedRef(true);
+    setTimeout(() => setCopiedRef(false), 1800);
+  }
 
   return (
     <div className="rounded-card border border-[#C8CFD5] overflow-hidden shadow-panel bg-white text-[#1D2227] text-[12px]">
@@ -965,6 +995,9 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
                 </div>
               )}
 
+              {/* 3.5 Supplier Claim vs. Satellite Ground Truth Contradiction Engine */}
+              <ClaimContradictionCard result={result} />
+
               {/* 4. Official TRACES NT Customs Filing Card */}
               <div className="p-3 rounded-xl bg-white border border-[#C8CFD5] space-y-2.5 shadow-2xs">
                 <div className="flex items-center justify-between">
@@ -973,27 +1006,93 @@ export default function ComplianceResultCard({ result }: { result: EUDRAnalysisR
                     <span className="font-semibold text-[#1D2227] text-[11px]">EU Customs TRACES NT Deliverable</span>
                   </div>
                   <span className="text-[9px] font-mono text-[#315F50] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">
-                    Code C716 Verified
+                    {tracesReceipt ? "FILED · C716" : "Code C716 Verified"}
                   </span>
                 </div>
                 <p className="text-[10px] text-[#5B6773] leading-relaxed">
                   Full statutory compliance package including certified GeoJSON plot boundaries, validated yield gate metadata, and official XML schema ready for TRACES NT import filing.
                 </p>
 
-                {result.dds && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
-                    onClick={downloadDDS}
-                    disabled={exporting}
+                    type="button"
+                    onClick={handleFileToTraces}
+                    disabled={tracesFiling}
                     className={cn(
-                      "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold border transition-all cursor-pointer shadow-xs",
-                      exporting
+                      "w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[11.5px] font-semibold border transition-all cursor-pointer shadow-xs",
+                      tracesFiling
                         ? "bg-[#E3E7EA] text-[#AAB3BB] border-[#C8CFD5] cursor-wait"
-                        : "bg-[#315F50] text-white border-[#315F50] hover:bg-[#274d40]",
+                        : "bg-white text-[#1D2227] border-[#C8CFD5] hover:border-[#315F50] hover:text-[#315F50] hover:bg-[#F8FAF9]",
                     )}
                   >
-                    <DownloadDDSIcon className="w-4 h-4" />
-                    <span>{exporting ? "Generating DDS Package..." : "Download Due Diligence Statement (DDS)"}</span>
+                    {tracesFiling ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Filing to TRACES NT...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{tracesReceipt ? "Re-file TRACES NT" : "File to TRACES NT (Sandbox)"}</span>
+                      </>
+                    )}
                   </button>
+
+                  {result.dds && (
+                    <button
+                      onClick={downloadDDS}
+                      disabled={exporting}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[11.5px] font-semibold border transition-all cursor-pointer shadow-xs",
+                        exporting
+                          ? "bg-[#E3E7EA] text-[#AAB3BB] border-[#C8CFD5] cursor-wait"
+                          : "bg-[#315F50] text-white border-[#315F50] hover:bg-[#274d40]",
+                      )}
+                    >
+                      <DownloadDDSIcon className="w-3.5 h-3.5" />
+                      <span>{exporting ? "Generating DDS..." : "Download DDS (.zip)"}</span>
+                    </button>
+                  )}
+                </div>
+
+                {tracesReceipt && (
+                  <div className="rounded-lg border border-emerald-300 bg-emerald-50/70 p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-emerald-900 flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>{tracesReceipt.environment}</span>
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-emerald-800 bg-white border border-emerald-200 px-1.5 py-0.5 rounded">
+                        {tracesReceipt.status}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+                      <div className="rounded bg-white/90 border border-emerald-200/80 px-2 py-1">
+                        <div className="text-[8.5px] uppercase text-[#5B6773]">Reference Number</div>
+                        <div className="font-bold text-[#12302A] truncate">{tracesReceipt.traces_reference_number}</div>
+                      </div>
+                      <div className="rounded bg-white/90 border border-emerald-200/80 px-2 py-1">
+                        <div className="text-[8.5px] uppercase text-[#5B6773]">Verification No.</div>
+                        <div className="font-bold text-[#12302A] truncate">{tracesReceipt.traces_verification_number}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 rounded bg-white border border-emerald-200 px-2 py-1.5">
+                      <div className="min-w-0">
+                        <div className="text-[8.5px] font-mono uppercase text-[#5B6773]">EU Customs Box 44 Code</div>
+                        <div className="text-[10.5px] font-mono font-bold text-[#12302A] truncate">
+                          {tracesReceipt.customs_box44_code}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyBox44(tracesReceipt.customs_box44_code)}
+                        className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-900 transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        {copiedRef ? <Check className="w-3 h-3 text-emerald-700" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedRef ? "Copied" : "Copy"}</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
 
                 <div className="flex items-center justify-between pt-1 border-t border-[#E3E7EA] text-[10px]">

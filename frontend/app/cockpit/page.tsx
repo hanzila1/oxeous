@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import AuthGate from "@/components/auth/AuthGate";
 
 const CockpitApp = dynamic(() => import("@/components/cockpit/CockpitApp"), {
   ssr: false,
@@ -17,6 +18,9 @@ const CockpitApp = dynamic(() => import("@/components/cockpit/CockpitApp"), {
 });
 
 export default function CockpitPage() {
-  return <CockpitApp />;
+  return (
+    <AuthGate>
+      <CockpitApp />
+    </AuthGate>
+  );
 }
-

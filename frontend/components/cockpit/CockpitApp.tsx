@@ -8,13 +8,17 @@ import ConversationPanel from "@/components/chat/ConversationPanel";
 import LayerSidebar from "@/components/layers/LayerSidebar";
 import TimelapseSidebar from "@/components/layers/TimelapseSidebar";
 import EUDRDashboard from "@/components/eudr/EUDRDashboard";
+import SuppliersSidebar from "@/components/eudr/SuppliersSidebar";
 import ProgressOverlay from "@/components/ui/ProgressOverlay";
 import TopFloatingBar from "@/components/ui/TopFloatingBar";
 import BrandLogoBadge from "@/components/ui/BrandLogoBadge";
 import CloudTelemetryBadge from "@/components/ui/CloudTelemetryBadge";
 import DossierModal from "@/components/eudr/DossierModal";
 import AnalyticsDeckModal from "@/components/eudr/AnalyticsDeckModal";
+import OnboardingTour from "@/components/ui/OnboardingTour";
 import { useStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth";
+import { extractBboxFromGeometry } from "@/lib/maplibre";
 import { cn } from "@/lib/utils";
 
 /** Shared panel widths - standardized left panels (EUDR & Timelapse) to 460px to eliminate distracting width jumps */
@@ -42,7 +46,113 @@ function AppShell() {
     timelapsePlaying,
     timelapseFrames,
     setTimelapseIndex,
+    hydrateWorkspace,
+    persistWorkspace,
+    activeGeoJSON,
+    workspaceHydrated,
   } = useStore();
+  const { user } = useAuthStore();
+  const userKey = user?.email || "guest";
+
+  // 1. Lock viewport strictly inside Cockpit so pulling/double-clicking from top NEVER bounces or drags the shell
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = {
+      overflow: html.style.overflow,
+      overscrollBehavior: html.style.overscrollBehavior,
+      height: html.style.height,
+    };
+    const prevBody = {
+      overflow: body.style.overflow,
+      overscrollBehavior: body.style.overscrollBehavior,
+      position: body.style.position,
+      inset: body.style.inset,
+      width: body.style.width,
+      height: body.style.height,
+    };
+
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    html.style.height = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    body.style.position = "fixed";
+    body.style.inset = "0";
+    body.style.width = "100%";
+    body.style.height = "100%";
+
+    return () => {
+      html.style.overflow = prevHtml.overflow;
+      html.style.overscrollBehavior = prevHtml.overscrollBehavior;
+      html.style.height = prevHtml.height;
+      body.style.overflow = prevBody.overflow;
+      body.style.overscrollBehavior = prevBody.overscrollBehavior;
+      body.style.position = prevBody.position;
+      body.style.inset = prevBody.inset;
+      body.style.width = prevBody.width;
+      body.style.height = prevBody.height;
+    };
+  }, []);
+
+  // 2. Hydrate saved audits, active plot, layers & chat on mount / account change
+  //    Unless ?fresh=1 is in the URL (clean-slate testing / screen-recording mode)
+  const [isFreshMode, setIsFreshMode] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fresh = params.get("fresh") === "1" || params.get("fresh") === "true";
+    setIsFreshMode(fresh);
+    if (fresh) {
+      useStore.setState({
+        activeEudrResult: null,
+        ddsHistory: [],
+        activeGeoJSON: null,
+        layers: [],
+        messages: [],
+        conversationHistory: [],
+        leftPanel: null,
+        eudrPanelOpen: false,
+        rightPanel: "chat",
+        viewport: { center: [12, 14], zoom: 1.65, bbox: [-110, -45, 140, 62] },
+        workspaceHydrated: true,
+        tourOpen: params.get("tour") === "1",
+      });
+      return;
+    }
+    hydrateWorkspace(userKey);
+  }, [userKey, hydrateWorkspace]);
+
+  // Fly map to restored plot once hydrated
+  useEffect(() => {
+    if (isFreshMode || !workspaceHydrated || !activeGeoJSON) return;
+    const bbox = extractBboxFromGeometry(activeGeoJSON);
+    if (!bbox) return;
+    const timer = setTimeout(() => {
+      (window as Window & { oxeousFlyTo?: (b: typeof bbox) => void }).oxeousFlyTo?.(bbox);
+    }, 350);
+    return () => clearTimeout(timer);
+    // Only fly automatically right after hydration completes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceHydrated, isFreshMode]);
+
+  // 3. Auto-persist workspace changes (debounced) so browser refresh never wipes an audit
+  //    Disabled in ?fresh=1 clean-slate mode so test runs never overwrite your saved workspace
+  useEffect(() => {
+    if (isFreshMode || !workspaceHydrated) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useStore.subscribe(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => persistWorkspace(userKey), 250);
+    });
+    const onBeforeUnload = () => persistWorkspace(userKey);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      unsub();
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [isFreshMode, workspaceHydrated, userKey, persistWorkspace]);
 
   const [isResizingRight, setIsResizingRight] = useState(false);
 
@@ -104,7 +214,7 @@ function AppShell() {
     : RIGHT_PANEL_WIDTH_DEFAULT;
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#F4F5F6] select-none">
+    <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden overscroll-none bg-[#F4F5F6] select-none">
 
       {/* -- 1. Navigation Rail - fixed left ------------------------ */}
       <div className="absolute top-0 bottom-0 left-0 w-[68px] z-40 bg-[#F4F5F6]">
@@ -113,6 +223,7 @@ function AppShell() {
 
       {/* -- 2. Left Panel (EUDR Suite OR Standalone Plot Timelapse) - slides in from behind rail */}
       <div
+        data-tour-panel="left"
         className={cn(
           "absolute top-0 bottom-0 left-[68px] z-20 flex overflow-hidden",
           "border-r border-[#C8CFD5] bg-[#F4F5F6] shadow-[8px_0_32px_rgba(29,34,39,0.08)]",
@@ -173,6 +284,7 @@ function AppShell() {
 
       {/* -- 4 & 5. Right panel (Agent Chat or Raster Layers) - slides in from right as hardware-accelerated overlay */}
       <div
+        data-tour-panel="right"
         className={cn(
           "absolute top-0 bottom-0 right-0 z-20 overflow-hidden",
           "border-l border-[#C8CFD5] bg-[#F4F5F6] shadow-[-8px_0_32px_rgba(29,34,39,0.08)] will-change-transform"
@@ -224,6 +336,15 @@ function AppShell() {
           >
             <LayerSidebar onClose={() => setRightPanel(null)} />
           </div>
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200 ease-panel",
+              shownRightPanel === "suppliers" ? "opacity-100 z-10" : "opacity-0 pointer-events-none"
+            )}
+            aria-hidden={shownRightPanel !== "suppliers"}
+          >
+            <SuppliersSidebar onClose={() => setRightPanel(null)} />
+          </div>
         </div>
       </div>
 
@@ -242,6 +363,9 @@ function AppShell() {
           onClose={() => setActiveAnalyticsResult(null)}
         />
       )}
+
+      {/* -- 8. Interactive First-Time Walkthrough Tour -------------- */}
+      <OnboardingTour />
 
     </div>
   );

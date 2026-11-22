@@ -34,7 +34,7 @@ interface Props {
   result?: EUDRAnalysisResponse | null;
 }
 
-const DEFAULT_YEARS = [2020, 2021, 2022, 2023, 2024, 2025];
+const DEFAULT_YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
 const TIMELAPSE_LAYER_ID = "sentinel-timelapse";
 
 let cachedGeomSignature = "";
@@ -62,7 +62,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   const effectiveResult = result ?? ddsHistory[0] ?? null;
 
   const plotGeom = effectiveResult?.plot?.geometry ?? activeGeoJSON ?? null;
-  const geomSig = plotGeom ? `v3:${JSON.stringify(plotGeom).slice(0, 180)}` : "";
+  const geomSig = plotGeom ? `v4:${JSON.stringify(plotGeom).slice(0, 180)}` : "";
 
   const areaHa = effectiveResult?.plot?.area_ha ?? 100.0;
   const def = effectiveResult?.risk_assessment?.deforestation;
@@ -79,18 +79,30 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
   const registerDraggableTimelapseLayer = useCallback(() => {
     const currentLayers = useStore.getState().layers;
     const existing = currentLayers.find((l) => l.id === TIMELAPSE_LAYER_ID);
+    const activeAudit = useStore.getState().activeEudrResult ?? useStore.getState().ddsHistory[0] ?? null;
+    const grpId = activeAudit ? (activeAudit.dds?.dds_id || activeAudit.request_id || activeAudit.plot?.plot_id) : undefined;
+    const grpComm = activeAudit?.plot?.commodity ? activeAudit.plot.commodity.replace(/_/g, " ") : "";
+    const grpLoc = activeAudit?.plot?.country_name || activeAudit?.plot?.country_code || "";
+    const grpLabel = activeAudit?.plot?.name || (grpLoc ? `${grpComm.charAt(0).toUpperCase() + grpComm.slice(1)} · ${grpLoc}` : undefined);
+    const grpGeom = activeAudit?.plot?.geometry ?? plotGeom ?? undefined;
+    const grpBbox = grpGeom ? extractBboxFromGeometry(grpGeom) ?? undefined : undefined;
+
     if (existing) {
-      updateLayer(TIMELAPSE_LAYER_ID, { visible: true });
+      updateLayer(TIMELAPSE_LAYER_ID, {
+        visible: true,
+        ...(grpId ? { groupId: grpId, groupLabel: grpLabel, groupCountry: grpLoc, groupCommodity: activeAudit?.plot?.commodity, groupBbox: grpBbox, groupGeometry: grpGeom } : {}),
+      });
       return;
     }
     const newLayer: ActiveLayer = {
       id: TIMELAPSE_LAYER_ID,
-      label: "Sentinel-2 Plot Timelapse (2020–2025)",
+      label: "Sentinel-2 Plot Timelapse (2020–2026)",
       type: "raster",
       visible: true,
       opacity: 1.0,
       analysisType: "timelapse",
       layer_type: "timelapse",
+      ...(grpId ? { groupId: grpId, groupLabel: grpLabel, groupCountry: grpLoc, groupCommodity: activeAudit?.plot?.commodity, groupBbox: grpBbox, groupGeometry: grpGeom } : {}),
     };
     // Insert right below FTW vector borders (if present at index 0) so sharp field vectors stay visible above video by default; user can freely drag-and-drop in Layers
     const ftwIdx = currentLayers.findIndex((l) => l.id === "ftw-field-boundaries");
@@ -116,8 +128,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
     const progInterval = setInterval(() => {
       setLoadProgress((prev) => {
         const next = Math.min(94, prev + 8);
-        const yrIdx = Math.min(5, Math.floor((next / 95) * 6));
-        setLoadStepYear(DEFAULT_YEARS[yrIdx] ?? 2025);
+        const yrIdx = Math.min(DEFAULT_YEARS.length - 1, Math.floor((next / 95) * DEFAULT_YEARS.length));
+        setLoadStepYear(DEFAULT_YEARS[yrIdx] ?? 2026);
         return next;
       });
     }, 650);
@@ -309,7 +321,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
         <div className="rounded-xl bg-[#F8FAF9] border border-[#C8CFD5] p-3.5 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[11.5px] font-semibold text-[#1D2227]">
-              2020 Cutoff → 2025 Annual S2 Series
+              2020 Cutoff → 2026 Annual S2 Series
             </div>
             <button
               type="button"
@@ -339,7 +351,7 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
                   style={{ width: `${loadProgress}%` }}
                 />
               </div>
-              <div className="grid grid-cols-6 gap-1">
+              <div className="grid grid-cols-7 gap-1">
                 {DEFAULT_YEARS.map((yr) => {
                   const done = yr < loadStepYear;
                   const active = yr === loadStepYear;
@@ -490,8 +502,8 @@ export default function SentinelTimelapsePlayer({ result }: Props) {
               </span>
             </div>
 
-            {/* Row 2: 6 Equal-Width Year Pills (2020–2025) */}
-            <div className="grid grid-cols-6 gap-1.5 w-full">
+            {/* Row 2: 7 Equal-Width Year Pills (2020–2026) */}
+            <div className="grid grid-cols-7 gap-1 w-full">
               {frames.map((f, idx) => {
                 const active = idx === activeIndex;
                 const yrLoss = lossYears.includes(f.year);

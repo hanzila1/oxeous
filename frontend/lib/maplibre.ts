@@ -108,8 +108,8 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
 };
 
 export const DEFAULT_MAP_OPTIONS: Partial<MapOptions> = {
-  center: [-55.5, -12.5],   // Amazon basin / Brazil sourcing region
-  zoom: 5.5,                 // Wide enough to see the full basin
+  center: [12, 14],          // Global world view (Americas, EU, Africa, SE Asia)
+  zoom: 1.65,                // Full-world EUDR corridor overview
   minZoom: 1,
   maxZoom: 19,
   pitchWithRotate: false,
